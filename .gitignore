@@ -1,0 +1,66 @@
+# ========================
+# Dipendenze
+# ========================
+node_modules/
+.pnp.*
+.yarn/
+
+# ========================
+# Credenziali e ambiente
+# ========================
+.env
+.env.local
+.env.production
+.env.*.local
+
+# ========================
+# Build output
+# ========================
+dist/
+build/
+.next/
+out/
+
+# ========================
+# TypeScript
+# ========================
+*.tsbuildinfo
+
+# ========================
+# Log e debug
+# ========================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ========================
+# OS
+# ========================
+.DS_Store
+Thumbs.db
+
+# ========================
+# IDE
+# ========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ========================
+# Test e coverage
+# ========================
+coverage/
+.nyc_output/
+
+# ========================
+# Vercel
+# ========================
+.vercel/
+
+# ========================
+# Supabase locale (se usi CLI)
+# ========================
+supabase/.temp/

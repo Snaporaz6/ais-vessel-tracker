@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(file \"/Users/jacopo/Desktop/TRACKING NAVI\"/*)"
+    ]
+  }
+}
