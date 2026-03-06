@@ -26,9 +26,12 @@ export default function VesselDrawer({ mmsi, onClose, onShowTrack }: VesselDrawe
     setLoading(true);
 
     fetch(`/api/vessel/${mmsi}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) return null;
+        return res.json();
+      })
       .then((data) => {
-        if (!cancelled) setVessel(data as VesselDetail);
+        if (!cancelled) setVessel(data as VesselDetail | null);
       })
       .catch(() => {})
       .finally(() => {
@@ -80,10 +83,10 @@ export default function VesselDrawer({ mmsi, onClose, onShowTrack }: VesselDrawe
 
       {/* Badges */}
       <div style={{ marginBottom: 12 }}>
-        {vessel.sanctions.map((s, i) => (
+        {(vessel.sanctions ?? []).map((s, i) => (
           <SanctionBadge key={i} source={s.source} />
         ))}
-        {vessel.anomalies.slice(0, 5).map((a, i) => (
+        {(vessel.anomalies ?? []).slice(0, 5).map((a, i) => (
           <AnomalyBadge key={i} type={a.type} />
         ))}
       </div>
@@ -120,10 +123,10 @@ export default function VesselDrawer({ mmsi, onClose, onShowTrack }: VesselDrawe
       </div>
 
       {/* Anomalies list */}
-      {vessel.anomalies.length > 0 && (
+      {(vessel.anomalies ?? []).length > 0 && (
         <div style={{ marginTop: 20 }}>
           <h3 style={{ fontSize: 14, marginBottom: 8 }}>Recent Anomalies</h3>
-          {vessel.anomalies.slice(0, 10).map((a, i) => (
+          {(vessel.anomalies ?? []).slice(0, 10).map((a, i) => (
             <div key={i} style={{ fontSize: 12, padding: '4px 0', borderBottom: '1px solid var(--border)' }}>
               <AnomalyBadge type={a.type} />
               <span style={{ color: 'var(--text-secondary)', marginLeft: 4 }}>
