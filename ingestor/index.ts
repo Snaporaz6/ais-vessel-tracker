@@ -1,4 +1,5 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
 import { connectAISStream } from './ws-client.js';
 import { parseAISMessage } from './parser.js';
 import { shouldAcceptPosition } from './filter.js';

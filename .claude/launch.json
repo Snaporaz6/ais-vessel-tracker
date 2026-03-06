@@ -1,0 +1,24 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["tsx", "watch", "api/index.ts"],
+      "port": 3001
+    },
+    {
+      "name": "frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "frontend",
+      "port": 3000
+    },
+    {
+      "name": "ingestor",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["tsx", "watch", "ingestor/index.ts"],
+      "port": 0
+    }
+  ]
+}
