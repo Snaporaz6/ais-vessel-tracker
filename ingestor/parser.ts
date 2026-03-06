@@ -67,6 +67,40 @@ function mapShipType(aisType: number): ShipType {
   return 'other';
 }
 
+/**
+ * Normalizza il timestamp di aisstream.io per PostgreSQL.
+ * Input:  "2026-03-06 14:10:48.636890157 +0000 UTC"
+ * Output: "2026-03-06T14:10:48.636+00:00"
+ * PostgreSQL non accetta il suffisso "UTC" e i nanosecondi oltre 6 cifre.
+ */
+function normalizeTimestamp(raw: string): string {
+  if (!raw) return new Date().toISOString();
+
+  // Rimuovi il suffisso " UTC"
+  let ts = raw.replace(/\s*UTC\s*$/, '').trim();
+
+  // Tronca nanosecondi a millisecondi (max 3 cifre decimali)
+  // "14:10:48.636890157" -> "14:10:48.636"
+  ts = ts.replace(/(\.\d{3})\d+/, '$1');
+
+  // Rimuovi lo spazio prima del timezone offset: ".636 +0000" -> ".636+0000"
+  ts = ts.replace(/\s+\+/, '+');
+
+  // Converti "+0000" -> "+00:00" per ISO 8601
+  ts = ts.replace(/\+(\d{2})(\d{2})$/, '+$1:$2');
+
+  // Sostituisci spazio tra data e ora con "T"
+  ts = ts.replace(/^(\d{4}-\d{2}-\d{2})\s+/, '$1T');
+
+  // Verifica che il risultato sia una data valida
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) {
+    return new Date().toISOString();
+  }
+
+  return ts;
+}
+
 /** Risultato del parsing — posizione o dati statici nave */
 export type ParseResult =
   | { type: 'position'; position: VesselPosition }
@@ -85,6 +119,11 @@ export function parseAISMessage(raw: string): ParseResult | null {
   const mmsi = String(msg.MetaData?.MMSI_String ?? msg.MetaData?.MMSI ?? '');
   if (!mmsi || mmsi === 'undefined') return null;
 
+  // aisstream.io timestamp: "2026-03-06 14:10:48.636890157 +0000 UTC"
+  // PostgreSQL non accetta il suffisso "UTC" — lo rimuoviamo
+  const rawTs = msg.MetaData?.time_utc ?? '';
+  const timestamp = normalizeTimestamp(rawTs);
+
   // PositionReport (tipo 1,2,3) e StandardClassBPositionReport (tipo 18)
   const pr = msg.Message?.PositionReport ?? msg.Message?.StandardClassBPositionReport;
   if (
@@ -99,7 +138,7 @@ export function parseAISMessage(raw: string): ParseResult | null {
       course: pr.Cog,
       heading: pr.TrueHeading === 511 ? pr.Cog : pr.TrueHeading,
       nav_status: NAV_STATUS_MAP[pr.NavigationalStatus ?? 15] ?? 'unknown',
-      timestamp: msg.MetaData.time_utc,
+      timestamp,
     };
     return { type: 'position', position };
   }
