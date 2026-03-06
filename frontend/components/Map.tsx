@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import type { LiveMapVessel } from '../../shared/types';
+import TrackPolyline from './TrackPolyline';
 
 /** Icona nave colorata per tipo */
 function vesselIcon(type: string, isSanctioned: boolean): L.DivIcon {
@@ -56,9 +57,10 @@ function MapEvents({ onBoundsChange }: MapEventsProps) {
 
 interface MapComponentProps {
   onVesselClick: (mmsi: string) => void;
+  trackMmsi?: string | null;
 }
 
-export default function MapComponent({ onVesselClick }: MapComponentProps) {
+export default function MapComponent({ onVesselClick, trackMmsi }: MapComponentProps) {
   const [vessels, setVessels] = useState<LiveMapVessel[]>([]);
   const [bbox, setBbox] = useState('30,-6,46,36.5'); // Mediterraneo di default
 
@@ -112,6 +114,7 @@ export default function MapComponent({ onVesselClick }: MapComponentProps) {
           </Popup>
         </Marker>
       ))}
+      {trackMmsi && <TrackPolyline mmsi={trackMmsi} />}
     </MapContainer>
   );
 }

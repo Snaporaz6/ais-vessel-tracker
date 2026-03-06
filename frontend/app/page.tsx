@@ -8,7 +8,6 @@ import type { Vessel } from '../../shared/types';
 
 // Leaflet non supporta SSR — dynamic import
 const Map = dynamic(() => import('../components/Map'), { ssr: false });
-const TrackPolyline = dynamic(() => import('../components/TrackPolyline'), { ssr: false });
 
 export default function HomePage() {
   const [selectedMmsi, setSelectedMmsi] = useState<string | null>(null);
@@ -22,6 +21,7 @@ export default function HomePage() {
     <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
       <Map
         onVesselClick={(mmsi) => setSelectedMmsi(mmsi)}
+        trackMmsi={trackMmsi}
       />
 
       <SearchBar onSelect={handleVesselSelect} />
