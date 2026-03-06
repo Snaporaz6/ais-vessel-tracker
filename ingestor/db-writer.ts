@@ -60,17 +60,41 @@ async function flushPositions(): Promise<void> {
   }
 }
 
+// Flag per evitare di inviare colonne non ancora migrate
+let hasDestinationColumn = true;
+
 /** Upsert metadati statici di una nave */
 export async function upsertVessel(vessel: Partial<Vessel> & { mmsi: string }): Promise<void> {
   try {
+    // Se le colonne destination/eta non esistono ancora, le rimuoviamo dal payload
+    const payload: Record<string, unknown> = { ...vessel, updated_at: new Date().toISOString() };
+    if (!hasDestinationColumn) {
+      delete payload['destination'];
+      delete payload['eta'];
+    }
+
     const { error } = await supabase
       .from('vessels')
-      .upsert(
-        { ...vessel, updated_at: new Date().toISOString() },
-        { onConflict: 'mmsi' }
-      );
+      .upsert(payload, { onConflict: 'mmsi' });
 
     if (error) {
+      // Se l'errore è "column does not exist", disabilita le colonne e riprova
+      if (error.message.includes('destination') || error.message.includes('column') && error.message.includes('does not exist')) {
+        if (hasDestinationColumn) {
+          hasDestinationColumn = false;
+          console.log(JSON.stringify({ event: 'destination_column_missing', hint: 'Run: ALTER TABLE vessels ADD COLUMN IF NOT EXISTS destination TEXT; ALTER TABLE vessels ADD COLUMN IF NOT EXISTS eta TEXT;' }));
+          // Riprova senza le colonne
+          delete payload['destination'];
+          delete payload['eta'];
+          const { error: retryError } = await supabase
+            .from('vessels')
+            .upsert(payload, { onConflict: 'mmsi' });
+          if (retryError) {
+            console.log(JSON.stringify({ event: 'vessel_upsert_error', mmsi: vessel.mmsi, error: retryError.message }));
+          }
+          return;
+        }
+      }
       console.log(JSON.stringify({ event: 'vessel_upsert_error', mmsi: vessel.mmsi, error: error.message }));
     }
   } catch (err) {

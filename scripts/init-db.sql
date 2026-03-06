@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS vessels (
     length      SMALLINT,
     width       SMALLINT,
     max_speed   REAL,
+    destination TEXT,
+    eta         TEXT,
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

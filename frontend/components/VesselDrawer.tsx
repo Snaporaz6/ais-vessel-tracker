@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { Vessel, VesselPosition, AnomalyEvent, SanctionRecord } from '../../shared/types';
+import type { Vessel, VesselPosition, AnomalyEvent, SanctionRecord, PortCall } from '../../shared/types';
 import AnomalyBadge from './AnomalyBadge';
 import SanctionBadge from './SanctionBadge';
 
@@ -26,8 +26,31 @@ function getVesselPhotoUrl(mmsi: string, imo: string | null): string {
   return `https://photos.marinetraffic.com/ais/showphoto.aspx?mmsi=${mmsi}&size=thumb300`;
 }
 
+/** Formatta ETA ISO in stringa leggibile */
+function formatEta(eta: string | null): string {
+  if (!eta) return 'N/A';
+  const d = new Date(eta);
+  if (isNaN(d.getTime())) return 'N/A';
+  return d.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/** Formatta durata in ore in stringa leggibile */
+function formatDuration(hours: number): string {
+  if (hours < 1) return `${Math.round(hours * 60)}min`;
+  if (hours < 24) return `${hours.toFixed(1)}h`;
+  const days = Math.floor(hours / 24);
+  const h = Math.round(hours % 24);
+  return `${days}d ${h}h`;
+}
+
 export default function VesselDrawer({ mmsi, onClose, onShowTrack }: VesselDrawerProps) {
   const [vessel, setVessel] = useState<VesselDetail | null>(null);
+  const [portCalls, setPortCalls] = useState<PortCall[]>([]);
   const [loading, setLoading] = useState(true);
   const [photoError, setPhotoError] = useState(false);
 
@@ -35,7 +58,9 @@ export default function VesselDrawer({ mmsi, onClose, onShowTrack }: VesselDrawe
     let cancelled = false;
     setLoading(true);
     setPhotoError(false);
+    setPortCalls([]);
 
+    // Fetch vessel details
     fetch(`/api/vessel/${mmsi}`)
       .then((res) => {
         if (!res.ok) return null;
@@ -48,6 +73,17 @@ export default function VesselDrawer({ mmsi, onClose, onShowTrack }: VesselDrawe
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+
+    // Fetch port calls in parallel
+    fetch(`/api/vessel/${mmsi}/portcalls`)
+      .then((res) => {
+        if (!res.ok) return [];
+        return res.json();
+      })
+      .then((data) => {
+        if (!cancelled) setPortCalls(Array.isArray(data) ? data as PortCall[] : []);
+      })
+      .catch(() => {});
 
     return () => { cancelled = true; };
   }, [mmsi]);
@@ -129,6 +165,30 @@ export default function VesselDrawer({ mmsi, onClose, onShowTrack }: VesselDrawe
         ))}
       </div>
 
+      {/* Voyage info */}
+      <div style={{
+        marginBottom: 12,
+        padding: '10px 12px',
+        background: 'var(--bg-card)',
+        borderRadius: 8,
+        border: '1px solid var(--border)',
+      }}>
+        <div style={{ fontSize: 13, lineHeight: 1.8 }}>
+          <div>
+            <strong>Destination:</strong>{' '}
+            <span style={{ color: vessel.destination ? '#3b82f6' : 'var(--text-secondary)' }}>
+              {vessel.destination ?? 'N/A'}
+            </span>
+          </div>
+          <div>
+            <strong>ETA:</strong>{' '}
+            <span style={{ color: vessel.eta ? '#22c55e' : 'var(--text-secondary)' }}>
+              {formatEta(vessel.eta)}
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Details */}
       <div style={{ fontSize: 13, lineHeight: 1.8 }}>
         <div><strong>Type:</strong> {vessel.ship_type}</div>
@@ -159,6 +219,40 @@ export default function VesselDrawer({ mmsi, onClose, onShowTrack }: VesselDrawe
           Full Details
         </a>
       </div>
+
+      {/* Port Call History */}
+      {portCalls.length > 0 && (
+        <div style={{ marginTop: 20 }}>
+          <h3 style={{ fontSize: 14, marginBottom: 8 }}>Port Call History (last 90 days)</h3>
+          {portCalls.slice(0, 15).map((pc, i) => (
+            <div key={i} style={{
+              fontSize: 12,
+              padding: '8px 0',
+              borderBottom: '1px solid var(--border)',
+              lineHeight: 1.6,
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontWeight: 600 }}>{pc.port_name}</span>
+                <span style={{
+                  background: pc.departed_at ? 'var(--bg-card)' : '#22c55e22',
+                  color: pc.departed_at ? 'var(--text-secondary)' : '#22c55e',
+                  padding: '1px 6px',
+                  borderRadius: 4,
+                  fontSize: 10,
+                }}>
+                  {pc.departed_at ? formatDuration(pc.duration_hours) : 'In port'}
+                </span>
+              </div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: 11 }}>
+                {new Date(pc.arrived_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                {pc.departed_at && (
+                  <> — {new Date(pc.departed_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Anomalies list */}
       {(vessel.anomalies ?? []).length > 0 && (

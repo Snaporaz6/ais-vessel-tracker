@@ -8,6 +8,8 @@ export interface Vessel {
   length: number | null;
   width: number | null;
   max_speed: number | null;
+  destination: string | null;
+  eta: string | null;
   updated_at: string;
 }
 

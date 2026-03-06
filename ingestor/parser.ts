@@ -40,6 +40,13 @@ interface AISStaticData {
   };
   MaximumStaticDraught: number;
   CallSign: string;
+  Destination: string;
+  Eta: {
+    Month: number;
+    Day: number;
+    Hour: number;
+    Minute: number;
+  };
 }
 
 /** Mappa codice navigational status AIS -> nostro enum */
@@ -147,6 +154,28 @@ export function parseAISMessage(raw: string): ParseResult | null {
   if (msg.MessageType === 'ShipStaticData' && msg.Message?.ShipStaticData) {
     const sd = msg.Message.ShipStaticData;
     const dim = sd.Dimension;
+
+    // Destination: stringa libera, spesso in maiuscolo con spazi
+    const rawDest = sd.Destination?.trim() || null;
+    const destination = rawDest && rawDest !== '' && rawDest !== '@@@@@@@@@@@@@@@@@@@@' ? rawDest : null;
+
+    // ETA: Month=0, Hour=24, Minute=60 indicano "non disponibile"
+    let eta: string | null = null;
+    if (sd.Eta && sd.Eta.Month > 0 && sd.Eta.Month <= 12 && sd.Eta.Day > 0 && sd.Eta.Day <= 31) {
+      const hour = sd.Eta.Hour < 24 ? sd.Eta.Hour : 0;
+      const minute = sd.Eta.Minute < 60 ? sd.Eta.Minute : 0;
+      // Usa anno corrente; se il mese è già passato, assume anno prossimo
+      const now = new Date();
+      let year = now.getFullYear();
+      if (sd.Eta.Month < now.getMonth() + 1) {
+        year += 1;
+      }
+      const etaDate = new Date(Date.UTC(year, sd.Eta.Month - 1, sd.Eta.Day, hour, minute));
+      if (!isNaN(etaDate.getTime())) {
+        eta = etaDate.toISOString();
+      }
+    }
+
     const vessel: Partial<Vessel> & { mmsi: string } = {
       mmsi,
       name: sd.Name?.trim() || msg.MetaData.ShipName?.trim() || 'UNKNOWN',
@@ -154,6 +183,8 @@ export function parseAISMessage(raw: string): ParseResult | null {
       imo: sd.ImoNumber > 0 ? String(sd.ImoNumber) : null,
       length: dim ? dim.A + dim.B : null,
       width: dim ? dim.C + dim.D : null,
+      destination,
+      eta,
     };
     return { type: 'static', vessel };
   }
