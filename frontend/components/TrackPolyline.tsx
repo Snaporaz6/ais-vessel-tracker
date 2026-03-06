@@ -9,7 +9,7 @@ interface TrackPolylineProps {
   days?: number;
 }
 
-export default function TrackPolyline({ mmsi, days = 7 }: TrackPolylineProps) {
+export default function TrackPolyline({ mmsi, days = 30 }: TrackPolylineProps) {
   const [positions, setPositions] = useState<VesselPosition[]>([]);
   const map = useMap();
 

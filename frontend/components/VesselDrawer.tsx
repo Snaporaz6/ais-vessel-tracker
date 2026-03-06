@@ -17,13 +17,24 @@ interface VesselDrawerProps {
   onShowTrack: (mmsi: string) => void;
 }
 
+/** Costruisce URL foto nave da più fonti, con fallback */
+function getVesselPhotoUrl(mmsi: string, imo: string | null): string {
+  // Usa IMO se disponibile (più affidabile per le foto)
+  if (imo) {
+    return `https://photos.marinetraffic.com/ais/showphoto.aspx?imo=${imo}&size=thumb300`;
+  }
+  return `https://photos.marinetraffic.com/ais/showphoto.aspx?mmsi=${mmsi}&size=thumb300`;
+}
+
 export default function VesselDrawer({ mmsi, onClose, onShowTrack }: VesselDrawerProps) {
   const [vessel, setVessel] = useState<VesselDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [photoError, setPhotoError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setPhotoError(false);
 
     fetch(`/api/vessel/${mmsi}`)
       .then((res) => {
@@ -80,6 +91,33 @@ export default function VesselDrawer({ mmsi, onClose, onShowTrack }: VesselDrawe
       <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 12 }}>
         MMSI: {vessel.mmsi} | IMO: {vessel.imo ?? 'N/A'} | Flag: {vessel.flag ?? 'N/A'}
       </p>
+
+      {/* Foto nave */}
+      {!photoError ? (
+        <div style={{ marginBottom: 12, borderRadius: 8, overflow: 'hidden', background: '#1a1a2e' }}>
+          <img
+            src={getVesselPhotoUrl(vessel.mmsi, vessel.imo)}
+            alt={vessel.name}
+            style={{ width: '100%', height: 160, objectFit: 'cover', display: 'block' }}
+            onError={() => setPhotoError(true)}
+            referrerPolicy="no-referrer"
+          />
+        </div>
+      ) : (
+        <div style={{
+          marginBottom: 12,
+          borderRadius: 8,
+          background: '#1a1a2e',
+          height: 80,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--text-secondary)',
+          fontSize: 12,
+        }}>
+          No photo available
+        </div>
+      )}
 
       {/* Badges */}
       <div style={{ marginBottom: 12 }}>
