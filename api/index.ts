@@ -1,5 +1,11 @@
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
+
+// Previene crash su promise rejection non gestite (Express 4 non cattura i throw async)
+process.on('unhandledRejection', (reason) => {
+  console.log(JSON.stringify({ event: 'unhandled_rejection', error: String(reason) }));
+});
+
 import express, { type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';

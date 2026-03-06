@@ -1,4 +1,4 @@
-import { Router, type Request, type Response } from 'express';
+import { Router, type Request, type Response, type NextFunction } from 'express';
 import { z } from 'zod';
 import { getSupabase } from '../services/supabase.js';
 import { ValidationError } from '../../shared/errors.js';
@@ -88,28 +88,32 @@ function reconstructPortCalls(positions: VesselPosition[], mmsi: string): PortCa
 }
 
 /** GET /api/vessel/:mmsi/portcalls */
-router.get('/:mmsi/portcalls', async (req: Request, res: Response) => {
-  const parsed = paramsSchema.safeParse(req.params);
-  if (!parsed.success) {
-    throw new ValidationError('Invalid MMSI');
+router.get('/:mmsi/portcalls', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const parsed = paramsSchema.safeParse(req.params);
+    if (!parsed.success) {
+      throw new ValidationError('Invalid MMSI');
+    }
+
+    const { mmsi } = parsed.data;
+    const supabase = getSupabase();
+
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+
+    const { data } = await supabase
+      .from('vessel_positions')
+      .select('*')
+      .eq('mmsi', mmsi)
+      .gte('timestamp', ninetyDaysAgo)
+      .order('timestamp', { ascending: true });
+
+    const positions = (data ?? []) as VesselPosition[];
+    const portCalls = reconstructPortCalls(positions, mmsi);
+
+    res.json(portCalls);
+  } catch (err) {
+    next(err);
   }
-
-  const { mmsi } = parsed.data;
-  const supabase = getSupabase();
-
-  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-
-  const { data } = await supabase
-    .from('vessel_positions')
-    .select('*')
-    .eq('mmsi', mmsi)
-    .gte('timestamp', ninetyDaysAgo)
-    .order('timestamp', { ascending: true });
-
-  const positions = (data ?? []) as VesselPosition[];
-  const portCalls = reconstructPortCalls(positions, mmsi);
-
-  res.json(portCalls);
 });
 
 export default router;
