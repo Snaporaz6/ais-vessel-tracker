@@ -31,12 +31,13 @@ export function connectAISStream(onMessage: MessageHandler): void {
       reconnectDelay = RECONNECT_DELAY_MS;
 
       // Subscribe con filtro bbox Mediterraneo
+      // N.B. aisstream.io usa "Apikey" (non "APIKey") e formato [lon, lat] (non [lat, lon])
       const subscribeMsg = {
-        APIKey: apiKey,
+        Apikey: apiKey,
         BoundingBoxes: [
           [
-            [MEDITERRANEAN_BBOX.latMin, MEDITERRANEAN_BBOX.lonMin],
-            [MEDITERRANEAN_BBOX.latMax, MEDITERRANEAN_BBOX.lonMax],
+            [MEDITERRANEAN_BBOX.lonMin, MEDITERRANEAN_BBOX.latMin],
+            [MEDITERRANEAN_BBOX.lonMax, MEDITERRANEAN_BBOX.latMax],
           ],
         ],
       };

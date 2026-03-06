@@ -5,34 +5,41 @@ interface AISStreamMessage {
   MessageType: string;
   MetaData: {
     MMSI: number;
-    MMSI_String: string;
+    MMSI_String: number | string; // aisstream restituisce un numero, non stringa
     ShipName: string;
     latitude: number;
     longitude: number;
     time_utc: string;
   };
   Message: {
-    PositionReport?: {
-      Sog: number;
-      Cog: number;
-      TrueHeading: number;
-      NavigationalStatus: number;
-      UserID: number;
-    };
-    ShipStaticData?: {
-      ImoNumber: number;
-      Name: string;
-      Type: number;
-      Dimension: {
-        A: number;
-        B: number;
-        C: number;
-        D: number;
-      };
-      MaximumStaticDraught: number;
-      CallSign: string;
-    };
+    PositionReport?: AISPositionData;
+    StandardClassBPositionReport?: AISPositionData;
+    ShipStaticData?: AISStaticData;
   };
+}
+
+interface AISPositionData {
+  Sog: number;
+  Cog: number;
+  TrueHeading: number;
+  NavigationalStatus?: number;
+  UserID: number;
+  Latitude?: number;
+  Longitude?: number;
+}
+
+interface AISStaticData {
+  ImoNumber: number;
+  Name: string;
+  Type: number;
+  Dimension: {
+    A: number;
+    B: number;
+    C: number;
+    D: number;
+  };
+  MaximumStaticDraught: number;
+  CallSign: string;
 }
 
 /** Mappa codice navigational status AIS -> nostro enum */
@@ -74,11 +81,16 @@ export function parseAISMessage(raw: string): ParseResult | null {
     return null;
   }
 
-  const mmsi = msg.MetaData?.MMSI_String;
-  if (!mmsi) return null;
+  // MMSI_String puo arrivare come numero — convertiamo sempre a stringa
+  const mmsi = String(msg.MetaData?.MMSI_String ?? msg.MetaData?.MMSI ?? '');
+  if (!mmsi || mmsi === 'undefined') return null;
 
-  if (msg.MessageType === 'PositionReport' && msg.Message.PositionReport) {
-    const pr = msg.Message.PositionReport;
+  // PositionReport (tipo 1,2,3) e StandardClassBPositionReport (tipo 18)
+  const pr = msg.Message?.PositionReport ?? msg.Message?.StandardClassBPositionReport;
+  if (
+    (msg.MessageType === 'PositionReport' || msg.MessageType === 'StandardClassBPositionReport') &&
+    pr
+  ) {
     const position: VesselPosition = {
       mmsi,
       lat: msg.MetaData.latitude,
@@ -86,13 +98,14 @@ export function parseAISMessage(raw: string): ParseResult | null {
       speed: pr.Sog,
       course: pr.Cog,
       heading: pr.TrueHeading === 511 ? pr.Cog : pr.TrueHeading,
-      nav_status: NAV_STATUS_MAP[pr.NavigationalStatus] ?? 'unknown',
+      nav_status: NAV_STATUS_MAP[pr.NavigationalStatus ?? 15] ?? 'unknown',
       timestamp: msg.MetaData.time_utc,
     };
     return { type: 'position', position };
   }
 
-  if (msg.MessageType === 'ShipStaticData' && msg.Message.ShipStaticData) {
+  // ShipStaticData (tipo 5)
+  if (msg.MessageType === 'ShipStaticData' && msg.Message?.ShipStaticData) {
     const sd = msg.Message.ShipStaticData;
     const dim = sd.Dimension;
     const vessel: Partial<Vessel> & { mmsi: string } = {
