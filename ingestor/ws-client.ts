@@ -5,7 +5,7 @@ import { AISConnectionError } from '../shared/errors.js';
 const AISSTREAM_URL = 'wss://stream.aisstream.io/v0/stream';
 const RECONNECT_DELAY_MS = 5000;
 const MAX_RECONNECT_DELAY_MS = 60_000;
-const HANDSHAKE_TIMEOUT_MS = 15_000;
+const HANDSHAKE_TIMEOUT_MS = 60_000;
 
 /** Callback per messaggi ricevuti */
 type MessageHandler = (raw: string) => void;
