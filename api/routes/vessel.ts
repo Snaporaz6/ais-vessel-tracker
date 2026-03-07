@@ -26,10 +26,6 @@ router.get('/:mmsi', async (req: Request, res: Response, next: NextFunction) => 
       .eq('mmsi', mmsi)
       .single();
 
-    if (!vessel) {
-      throw new NotFoundError('Vessel', mmsi);
-    }
-
     // Fetch last position
     const { data: positions } = await supabase
       .from('vessel_positions')
@@ -38,8 +34,28 @@ router.get('/:mmsi', async (req: Request, res: Response, next: NextFunction) => 
       .order('timestamp', { ascending: false })
       .limit(1);
 
+    // Se non c'è ne il vessel ne le posizioni, 404
+    if (!vessel && (!positions || positions.length === 0)) {
+      throw new NotFoundError('Vessel', mmsi);
+    }
+
+    // Se manca il record statico ma ci sono posizioni, crea un vessel minimo
+    const vesselData = vessel ?? {
+      mmsi,
+      imo: null,
+      name: 'UNKNOWN',
+      ship_type: 'other',
+      flag: null,
+      length: null,
+      width: null,
+      max_speed: null,
+      destination: null,
+      eta: null,
+      updated_at: positions?.[0]?.timestamp ?? new Date().toISOString(),
+    };
+
     // Fetch sanctions
-    const sanctions = await findSanctions(mmsi, vessel.imo);
+    const sanctions = await findSanctions(mmsi, vesselData.imo);
 
     // Fetch anomalies (last 30 days)
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -51,7 +67,7 @@ router.get('/:mmsi', async (req: Request, res: Response, next: NextFunction) => 
       .order('detected_at', { ascending: false });
 
     res.json({
-      ...vessel,
+      ...vesselData,
       last_position: positions?.[0] ?? null,
       sanctions,
       anomalies: anomalies ?? [],
