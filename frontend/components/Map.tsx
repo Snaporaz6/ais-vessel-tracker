@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { LiveMapVessel } from '../../shared/types';
 import TrackPolyline from './TrackPolyline';
@@ -36,6 +36,22 @@ function vesselIcon(type: string, isSanctioned: boolean): L.DivIcon {
 
 interface MapEventsProps {
   onBoundsChange: (bbox: string) => void;
+}
+
+/** Forza invalidateSize dopo il mount e su resize per fix tile rendering */
+function MapResizeHandler() {
+  const map = useMap();
+  useEffect(() => {
+    // Leaflet potrebbe calcolare le tile prima che il container abbia la dimensione finale
+    const timer = setTimeout(() => map.invalidateSize(), 200);
+    const handleResize = () => map.invalidateSize();
+    window.addEventListener('resize', handleResize);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [map]);
+  return null;
 }
 
 function MapEvents({ onBoundsChange }: MapEventsProps) {
@@ -95,6 +111,7 @@ export default function MapComponent({ onVesselClick, trackMmsi }: MapComponentP
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
       />
+      <MapResizeHandler />
       <MapEvents onBoundsChange={handleBoundsChange} />
       {vessels.map((v) => (
         <Marker
