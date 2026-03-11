@@ -3,7 +3,62 @@
 > Documento unico aggiornato ad ogni sessione. Le nuove sessioni vengono aggiunte in cima.
 
 **Repository:** [github.com/Snaporaz6/ais-vessel-tracker](https://github.com/Snaporaz6/ais-vessel-tracker)
-**Ultimo aggiornamento:** 7 Marzo 2026
+**Ultimo aggiornamento:** 11 Marzo 2026
+
+---
+
+## Sessione 3-4 | 10-11 Marzo 2026
+
+**Obiettivo:** Migrazione mappa Leaflet→MapLibre GL con globo 3D, filtro tipo nave, SSR pagine, miglioramenti UI
+**Durata:** 2 sessioni (continuazione per esaurimento contesto)
+
+### Implementazioni completate
+
+#### Filtro tipo nave (`VesselFilter.tsx`)
+- Pannello collassabile con checkboxes per ogni ShipType (cargo, tanker, passenger, etc.)
+- Colori coordinati con i marker sulla mappa
+- Pulsanti rapidi "Tutti" / "Nessuno"
+- Conteggio navi per tipo in tempo reale
+- Integrato in `page.tsx` con state `visibleTypes: Set<ShipType>` e `typeCounts`
+
+#### Esplorazione repo World Monitor
+- Analizzato `github.com/B353N/worldmonitor.git` — Vite + Preact + deck.gl + MapLibre GL
+- Ispirazione per la proiezione globo 3D sferica
+- Architettura confrontata: World Monitor usa deck.gl overlay, noi MapLibre nativo
+
+#### Migrazione Leaflet → MapLibre GL JS v5
+- **Rimossi:** leaflet, react-leaflet, leaflet.markercluster, @types/leaflet, @types/leaflet.markercluster
+- **Aggiunto:** maplibre-gl ^5.20.0
+- **Cancellato:** `TrackPolyline.tsx` (logica assorbita in Map.tsx come GeoJSON source + line layer)
+- **Map.tsx riscritto completamente** con API imperativa MapLibre GL:
+  - Mappa creata con `new maplibregl.Map()` in useEffect mount
+  - Basemap: CARTO dark-matter vector tiles
+  - GeoJSON source con clustering nativo (`cluster: true`)
+  - Data-driven styling per colore marker per tipo nave (con override rosso per navi sanzionate)
+  - Track come GeoJSON LineString source + layer
+  - Popup nativo MapLibre al click
+  - `useRef` per callback references (evita stale closures negli event handler MapLibre)
+- **Globe toggle:** `map.setProjection({ type: 'globe' | 'mercator' })` con bottone UI
+- **Primo tentativo con react-map-gl v8 fallito:** runtime error `getRayDirectionFromPixel not implemented` — incompatibilita con MapLibre v5 globe projection
+
+#### SSR Pagina vessel (`/vessel/[mmsi]/page.tsx`)
+- `generateMetadata()` con titolo/descrizione SEO
+- Fetch SSR con revalidate 300s
+- Layout con foto nave, info voyage (destination/ETA), dettagli nave, port calls, anomalie, sanzioni
+
+### Problemi riscontrati
+
+#### react-map-gl v8 incompatibile con MapLibre v5 globe
+**Problema:** `react-map-gl` v8 chiamava `getRayDirectionFromPixel` (non implementato in MapLibre v5) e causava errori "Attempting to run(), but is already running".
+**Soluzione:** Rimosso react-map-gl, riscritto Map.tsx con API imperativa MapLibre GL (stesso approccio di World Monitor).
+
+#### attributionControl type error in MapLibre v5
+**Problema:** `attributionControl: true` non accettato dai tipi MapLibre v5.
+**Soluzione:** Usare `attributionControl: { compact: true }`.
+
+#### Cache .next con moduli rimossi
+**Problema:** Dopo rimozione Leaflet, il dev server Next.js crashava cercando chunk Leaflet nella cache `.next/`.
+**Soluzione:** `rm -rf frontend/.next` prima di riavviare.
 
 ---
 
@@ -54,8 +109,11 @@ Sviluppo completo dell'MVP di un'alternativa gratuita a MarineTraffic/VesselFind
 - `GET /api/map/live?bbox=` — Navi live nella bounding box (max 500)
 
 ### 2.6 Frontend Mappa (Step 6)
-- Next.js App Router con mappa Leaflet full-screen dark theme (CartoDB tiles)
-- Marker colorati per tipo nave (cargo=verde, tanker=giallo, passenger=blu, etc.)
+- Next.js App Router con MapLibre GL JS v5 imperativo, dark theme (CARTO vector tiles)
+- Proiezione globo 3D sferica con toggle mercator/globe
+- Clustering GeoJSON nativo (rimpiazza leaflet.markercluster)
+- Marker colorati per tipo nave con data-driven styling (cargo=verde, tanker=giallo, passenger=blu, etc.)
+- Filtro tipo nave (`VesselFilter.tsx`) con checkboxes e conteggi live
 - SearchBar con ricerca live e dropdown risultati
 - VesselDrawer con pannello laterale contenente:
   - Foto nave (da MarineTraffic, con fallback)
@@ -64,7 +122,7 @@ Sviluppo completo dell'MVP di un'alternativa gratuita a MarineTraffic/VesselFind
   - Port Call History (ultimi 90 giorni con durata soste)
   - Badge sanzioni e anomalie
   - Pulsanti "Show Track" e "Full Details"
-- TrackPolyline per visualizzare la traccia storica sulla mappa
+- Track storica come GeoJSON LineString layer (logica in Map.tsx)
 
 ### 2.7 Cron Sanzioni (Step 8)
 - `scripts/sync-sanctions.ts` — Download e parsing completo:
@@ -157,7 +215,7 @@ aisstream.io (WebSocket)
     +-- anomalies --> [Next.js Frontend :3000]
                             |
                             v
-                    [Leaflet Map + VesselDrawer]
+                    [MapLibre GL Map + VesselDrawer]
 ```
 
 ---
@@ -186,13 +244,16 @@ aisstream.io (WebSocket)
 ### Completato (MVP funzionante)
 - Ingestor live connesso a aisstream.io (Mediterraneo)
 - API REST con 6 endpoint
-- Frontend con mappa, search, drawer con foto/destination/ETA/port calls
+- Frontend con mappa MapLibre GL (globo 3D + mercator), search, drawer con foto/destination/ETA/port calls
+- Filtro tipo nave con conteggi in tempo reale
+- Clustering GeoJSON nativo con data-driven styling
 - 1478 sanzioni caricate (OFAC + EU)
 - Anomaly detection attivo
+- SSR pagina vessel (`/vessel/[mmsi]`) con metadata SEO
 - Tutti i dati verificati end-to-end
 
 ### Da completare
-- **SSR pagine nave/porto** — Le pagine `/vessel/[mmsi]` e `/port/[name]` sono scheletri senza metadati SEO completi
+- **SSR pagina porto** — `/port/[name]` e' ancora uno scheletro (endpoint API + pagina SSR da implementare)
 - **Deploy** — Backend su Railway, frontend su Vercel (come da stack tecnico)
 - **Ingestor come servizio** — Attualmente va lanciato manualmente, serve processo persistente
 - **Cron sanzioni in produzione** — Schedulare `sync-sanctions.ts --cron` come servizio separato
