@@ -15,7 +15,7 @@ Obiettivo: tracking navi in tempo reale, schede nave con storico traccia, rileva
 | Database | Supabase (PostgreSQL + TimescaleDB) | Hypertable per posizioni |
 | Cache | Supabase Realtime o Redis | Posizioni live |
 | Frontend | Next.js (App Router) | Deploy su Vercel |
-| Mappa tiles | Leaflet + OpenStreetMap | Gratuito |
+| Mappa tiles | MapLibre GL JS (v5+) | WebGL, proiezione globo 3D nativa |
 | Sanzioni | OFAC XML + EU CSV | Cron giornaliero |
 
 ---
@@ -42,17 +42,17 @@ geolib                  # Calcolo distanze geodetiche (port call, anomalie)
 ```
 next                    # Framework React SSR
 react / react-dom       # UI
-leaflet                 # Mappa
-react-leaflet           # Binding React per Leaflet
+maplibre-gl             # Mappa WebGL con proiezione globo 3D nativa (usato imperativamente)
 @supabase/supabase-js   # Client Supabase (query dirette dove serve)
 swr                     # Data fetching + cache client-side
-leaflet.markercluster   # Clustering navi a zoom basso
 ```
+
+> **Nota:** Leaflet + react-leaflet + leaflet.markercluster sono stati rimossi in favore di MapLibre GL, che offre rendering GPU-accelerato, proiezione globo nativa, e clustering GeoJSON integrato.
 
 ### Dev
 ```
 typescript              # Compilatore TS
-@types/express @types/ws @types/leaflet  # Type definitions
+@types/express @types/ws  # Type definitions
 tsx                     # Esecuzione diretta .ts in dev
 eslint                  # Linting
 ```
@@ -94,9 +94,9 @@ ais-tracker/
 │   │   ├── vessel/[mmsi]/page.tsx  # Scheda nave (SSR)
 │   │   └── port/[name]/page.tsx    # Pagina porto (SSR)
 │   └── components/
-│       ├── Map.tsx
+│       ├── Map.tsx              # Mappa MapLibre GL imperativa (globo + mercator)
 │       ├── VesselDrawer.tsx
-│       ├── TrackPolyline.tsx
+│       ├── VesselFilter.tsx     # Filtro tipo nave con checkboxes
 │       ├── AnomalyBadge.tsx
 │       ├── SanctionBadge.tsx
 │       └── SearchBar.tsx
@@ -407,7 +407,7 @@ Ogni step è una sessione Claude Code autonoma. Completare uno step prima di pas
 3. **Ingestor WebSocket** — `ws-client.ts` + `parser.ts` + `filter.ts` + `db-writer.ts`. Testare con log prima di scrivere su DB.
 4. **Anomaly detector** — `anomaly-detector.ts`. Testare con dati finti prima di collegare al flusso live.
 5. **REST API** — Tutti e 6 gli endpoints. Testare con curl/httpie.
-6. **Frontend mappa** — Leaflet full-screen + marker cluster + VesselDrawer al click.
+6. **Frontend mappa** — MapLibre GL full-screen + clustering GeoJSON + VesselDrawer al click + filtro tipo nave + toggle globo 3D.
 7. **SSR schede nave/porto** — Pagine `/vessel/[mmsi]` e `/port/[name]` con metadati SEO.
 8. **Cron sanzioni** — `sync-sanctions.ts` con parsing OFAC XML e EU CSV.
 9. **Badge anomalie e sanzioni** — Componenti `AnomalyBadge` e `SanctionBadge` nel frontend.
@@ -430,6 +430,10 @@ Ogni step è una sessione Claude Code autonoma. Completare uno step prima di pas
 - Il **dark activity** viene flaggato quando gap AIS > `DARK_ACTIVITY_GAP_HOURS` in zona non polare (lat tra `DARK_ACTIVITY_MIN_LAT` e `DARK_ACTIVITY_MAX_LAT`).
 - La **speed anomaly** viene flaggata quando la velocità implicita tra due punti supera `SPEED_ANOMALY_MULTIPLIER` × la velocità massima del tipo di nave.
 - La **deduplicazione** nell'ingestor è il primo meccanismo di controllo costi su Supabase.
+- **MapLibre GL usato imperativamente** — NON usare `react-map-gl`: la v8 è incompatibile con MapLibre v5 globe projection (`getRayDirectionFromPixel` not implemented). Creare la mappa con `new maplibregl.Map()` in useEffect, aggiornare dati via `source.setData()`.
+- **Globe toggle** — `map.setProjection({ type: 'globe' | 'mercator' })`. Basemap: CARTO dark-matter vector tiles (`https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json`).
+- **Clustering** — GeoJSON source con `cluster: true` (nativo MapLibre), rimpiazza leaflet.markercluster.
+- **Dopo swap dipendenze** — eliminare `.next/` cache (`rm -rf frontend/.next`) prima di riavviare il dev server per evitare errori su moduli rimossi.
 
 ---
 
