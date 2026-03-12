@@ -129,6 +129,7 @@ export default function MapComponent({
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const [vessels, setVessels] = useState<LiveMapVessel[]>([]);
   const [trackPositions, setTrackPositions] = useState<VesselPosition[]>([]);
+  const [styleLoaded, setStyleLoaded] = useState(false);
   const bboxRef = useRef('30,-6,46,36.5');
   const moveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -211,6 +212,14 @@ export default function MapComponent({
 
     // Aggiungi controlli di navigazione
     map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }), 'top-right');
+
+    // Forza resize dopo il mount (il dynamic import può causare canvas 400x300)
+    map.once('load', () => {
+      map.resize();
+    });
+    // Resize anche al cambio dimensione finestra
+    const handleResize = () => map.resize();
+    window.addEventListener('resize', handleResize);
 
     map.on('load', () => {
       // ── Source: vessels (clustered) ──
@@ -301,6 +310,9 @@ export default function MapComponent({
           'circle-stroke-color': '#ffffff',
         },
       });
+
+      // Segnala che lo stile è caricato e le source sono pronte
+      setStyleLoaded(true);
     });
 
     // ── Events ──
@@ -368,6 +380,7 @@ export default function MapComponent({
     mapRef.current = map;
 
     return () => {
+      window.removeEventListener('resize', handleResize);
       if (popupRef.current) popupRef.current.remove();
       map.remove();
       mapRef.current = null;
@@ -385,12 +398,12 @@ export default function MapComponent({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
+    if (!map || !styleLoaded) return;
     const source = map.getSource('vessels') as maplibregl.GeoJSONSource | undefined;
     if (source) {
       source.setData(vesselsGeoJson);
     }
-  }, [vesselsGeoJson]);
+  }, [vesselsGeoJson, styleLoaded]);
 
   // ── Aggiorna dati track sulla source ───────────────────────────────────────
 
@@ -398,12 +411,12 @@ export default function MapComponent({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
+    if (!map || !styleLoaded) return;
     const source = map.getSource('track') as maplibregl.GeoJSONSource | undefined;
     if (source) {
       source.setData(trackGeoJson);
     }
-  }, [trackGeoJson]);
+  }, [trackGeoJson, styleLoaded]);
 
   // ── Toggle globo / mercator ────────────────────────────────────────────────
 

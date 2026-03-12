@@ -3,7 +3,70 @@
 > Documento unico aggiornato ad ogni sessione. Le nuove sessioni vengono aggiunte in cima.
 
 **Repository:** [github.com/Snaporaz6/ais-vessel-tracker](https://github.com/Snaporaz6/ais-vessel-tracker)
-**Ultimo aggiornamento:** 11 Marzo 2026
+**Ultimo aggiornamento:** 12 Marzo 2026
+
+---
+
+## Sessione 5 | 12 Marzo 2026
+
+**Obiettivo:** SSR pagine porto e nave, VesselPhoto component, cleanup Leaflet, fix MapLibre bugs
+**Durata:** 1 sessione (continuazione da sessione 3-4)
+
+### Implementazioni completate
+
+#### Port API endpoint (`api/routes/port.ts`) — NUOVO
+- `parsePortCoords(name)` — parsa formato "41.12N, 16.88E" in `{lat, lon}`
+- `reconstructVisits(rows, vesselMap)` — raggruppa posizioni per MMSI, identifica arrivi/partenze/durata
+- `GET /api/port/:name` — query posizioni entro `PORT_PROXIMITY_DELTA`, arricchimento con dati nave, statistiche aggregate
+- Registrato in `api/index.ts`
+
+#### SSR pagina porto (`/port/[name]/page.tsx`) — RISCRITTURA COMPLETA
+- `generateMetadata()` con conteggio navi e statistiche nella description SEO
+- `fetchPort()` SSR con `revalidate: 300`
+- Cards statistiche: navi tracciate, attualmente in porto, permanenza media, visite totali
+- Sezione Vessel Mix con barre colorate per tipo nave
+- Sezione Currently In Port con cards bordate verdi
+- Tabella Recent Visits con link cliccabili alle navi, dots tipo nave, badge durata
+- Empty state con emoji costruzione
+
+#### SSR pagina nave (`/vessel/[mmsi]/page.tsx`) — RISCRITTURA COMPLETA
+- Layout due colonne: VesselPhoto + Current Voyage | Vessel Details
+- Badge tipo nave con sfondo colorato
+- Tabella port calls con link cliccabili a `/port/[name]`
+- Sezione sanzioni con cards rosse
+- Sezione anomalie con dettagli JSON
+- Sub-componente `DetailRow` per display key-value pulito
+
+#### VesselPhoto component (`VesselPhoto.tsx`) — NUOVO
+- Client component riusabile con foto da MarineTraffic
+- Fallback elegante su errore (emoji nave + "No photo available")
+- Estratto da VesselDrawer per riuso
+
+#### Tipi e config condivisi
+- `shared/types.ts` — aggiunte interfacce `PortInfo` e `PortVisit`
+- `shared/config.ts` — aggiunta costante `PORT_PROXIMITY_DELTA = 0.05`
+- `frontend/lib/api.ts` — aggiunta funzione `getPort()`
+
+#### VesselDrawer — Port calls cliccabili
+- Nomi porto in VesselDrawer ora sono link a `/port/[name]`
+
+#### Cleanup Leaflet
+- `frontend/app/layout.tsx` — rimosse 3 CDN `<link>` Leaflet CSS
+- `frontend/app/globals.css` — sostituite classi Leaflet (`.leaflet-container`, `.leaflet-popup-*`) con MapLibre (`.maplibregl-popup-*`)
+
+### Problemi riscontrati
+
+#### MapLibre canvas bloccato a 400×300
+**Problema:** Con `dynamic(() => import(...), { ssr: false })` il canvas MapLibre non si ridimensiona al container.
+**Soluzione:** `map.once('load', () => map.resize())` + `window.addEventListener('resize', handleResize)` con cleanup.
+
+#### Race condition dati GeoJSON vs stile mappa
+**Problema:** I dati vessel arrivano dal fetch prima che lo stile della mappa sia caricato. `isStyleLoaded()` in useEffect blocca `setData()` — le navi non appaiono mai.
+**Soluzione:** State `styleLoaded` settato a `true` alla fine di `map.on('load')`, aggiunto come dipendenza all'useEffect che chiama `source.setData()`.
+
+#### Cache `.next` corrotta (webpack `Cannot find module './819.js'`)
+**Problema:** Dopo molti cicli HMR durante lo sviluppo, la cache `.next/server/webpack-runtime.js` si corrompe.
+**Soluzione:** Stop server, `rm -rf frontend/.next`, restart. Build `next build` e `tsc --noEmit` passano entrambi con zero errori.
 
 ---
 
@@ -236,6 +299,7 @@ aisstream.io (WebSocket)
 | 10 | 3188550 | Implement sanctions sync with OFAC SDN and EU consolidated list |
 | 11 | 7647531 | Fix Leaflet map tile rendering with invalidateSize on mount |
 | 12 | a95478c | Fix vessel API to return data for vessels with positions but no static record |
+| 13 | a1fd1f4 | Replace Leaflet with MapLibre GL JS for 3D globe projection and add vessel type filter |
 
 ---
 
@@ -243,17 +307,22 @@ aisstream.io (WebSocket)
 
 ### Completato (MVP funzionante)
 - Ingestor live connesso a aisstream.io (Mediterraneo)
-- API REST con 6 endpoint
+- API REST con 7 endpoint (incluso `/api/port/:name`)
 - Frontend con mappa MapLibre GL (globo 3D + mercator), search, drawer con foto/destination/ETA/port calls
 - Filtro tipo nave con conteggi in tempo reale
 - Clustering GeoJSON nativo con data-driven styling
 - 1478 sanzioni caricate (OFAC + EU)
 - Anomaly detection attivo
-- SSR pagina vessel (`/vessel/[mmsi]`) con metadata SEO
+- SSR pagina vessel (`/vessel/[mmsi]`) con layout due colonne, foto, voyage info, port calls, sanzioni, anomalie
+- SSR pagina porto (`/port/[name]`) con statistiche, vessel mix, navi in porto, visite recenti
+- VesselPhoto component riusabile con fallback
+- Port calls cliccabili → link a pagina porto
+- Cleanup completo residui Leaflet (CSS CDN + stili)
+- Fix MapLibre: canvas resize + styleLoaded race condition
+- Build `tsc --noEmit` e `next build` zero errori
 - Tutti i dati verificati end-to-end
 
 ### Da completare
-- **SSR pagina porto** — `/port/[name]` e' ancora uno scheletro (endpoint API + pagina SSR da implementare)
 - **Deploy** — Backend su Railway, frontend su Vercel (come da stack tecnico)
 - **Ingestor come servizio** — Attualmente va lanciato manualmente, serve processo persistente
 - **Cron sanzioni in produzione** — Schedulare `sync-sanctions.ts --cron` come servizio separato

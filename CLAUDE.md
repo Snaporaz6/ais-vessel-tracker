@@ -84,7 +84,8 @@ ais-tracker/
 │   │   ├── track.ts           # GET /vessel/:mmsi/track
 │   │   ├── search.ts          # GET /search?q=
 │   │   ├── live.ts            # GET /map/live?bbox=
-│   │   └── portcalls.ts       # GET /vessel/:mmsi/portcalls
+│   │   ├── portcalls.ts       # GET /vessel/:mmsi/portcalls
+│   │   └── port.ts            # GET /port/:name (statistiche porto)
 │   └── services/
 │       ├── supabase.ts        # Client Supabase condiviso
 │       └── sanctions.ts       # Query sanzioni OFAC/EU
@@ -97,6 +98,7 @@ ais-tracker/
 │       ├── Map.tsx              # Mappa MapLibre GL imperativa (globo + mercator)
 │       ├── VesselDrawer.tsx
 │       ├── VesselFilter.tsx     # Filtro tipo nave con checkboxes
+│       ├── VesselPhoto.tsx      # Foto nave con fallback (client component)
 │       ├── AnomalyBadge.tsx
 │       ├── SanctionBadge.tsx
 │       └── SearchBar.tsx
@@ -204,6 +206,28 @@ export type AnomalyType =
   | 'speed_anomaly'         // velocità implicita > 1.5x max tipo nave
   | 'impossible_movement'   // teletrasporto geografico impossibile
   | 'ais_spoofing';         // posizioni incoerenti (V2)
+
+/** Informazioni aggregate su un porto */
+export interface PortInfo {
+  port_name: string;
+  lat: number;
+  lon: number;
+  total_vessels_seen: number;
+  currently_in_port: number;
+  avg_stay_hours: number;
+  recent_visits: PortVisit[];
+}
+
+/** Singola visita di una nave a un porto */
+export interface PortVisit {
+  mmsi: string;
+  vessel_name: string;
+  ship_type: ShipType;
+  flag: string;
+  arrived_at: string;       // ISO 8601
+  departed_at: string | null;
+  duration_hours: number;
+}
 ```
 
 ---
@@ -306,6 +330,7 @@ Valori soglia per anomaly detection e port call. Definirli come costanti in un f
 | `PORT_CALL_SPEED_THRESHOLD` | 1.0 | Knots: sotto questa velocità la nave è "ferma" |
 | `PORT_CALL_MIN_DURATION_MIN` | 30 | Minuti minimi ferma per contare come port call |
 | `PORT_CALL_MAX_COAST_DIST_KM` | 5.0 | Distanza max dalla costa per considerare un porto |
+| `PORT_PROXIMITY_DELTA` | 0.05 | Delta lat/lon per raggruppare posizioni nello stesso porto (~5km) |
 | `LIVE_MAP_MAX_VESSELS` | 500 | Max navi restituite per richiesta /map/live |
 | `RATE_LIMIT_RPM` | 60 | Richieste max per minuto per IP |
 | `RETENTION_DAYS` | 90 | Giorni di retention dati posizioni |
@@ -355,6 +380,11 @@ GET /api/vessel/:mmsi/anomalies
 GET /api/map/live?bbox=lat1,lon1,lat2,lon2
     → Risposta: LiveMapVessel[]
     → Max 500 risultati, solo ultima posizione per nave
+
+GET /api/port/:name
+    → Risposta: PortInfo
+    → :name in formato coordinate "41.12N, 16.88E"
+    → Ricostruisce visite da vessel_positions entro PORT_PROXIMITY_DELTA
 ```
 
 ---
@@ -408,7 +438,7 @@ Ogni step è una sessione Claude Code autonoma. Completare uno step prima di pas
 4. **Anomaly detector** — `anomaly-detector.ts`. Testare con dati finti prima di collegare al flusso live.
 5. **REST API** — Tutti e 6 gli endpoints. Testare con curl/httpie.
 6. **Frontend mappa** — MapLibre GL full-screen + clustering GeoJSON + VesselDrawer al click + filtro tipo nave + toggle globo 3D.
-7. **SSR schede nave/porto** — Pagine `/vessel/[mmsi]` e `/port/[name]` con metadati SEO.
+7. **SSR schede nave/porto** ✅ — Pagine `/vessel/[mmsi]` e `/port/[name]` con `generateMetadata()` SEO, ISR (revalidate 300s), layout due colonne, foto nave, statistiche porto.
 8. **Cron sanzioni** — `sync-sanctions.ts` con parsing OFAC XML e EU CSV.
 9. **Badge anomalie e sanzioni** — Componenti `AnomalyBadge` e `SanctionBadge` nel frontend.
 
@@ -434,6 +464,10 @@ Ogni step è una sessione Claude Code autonoma. Completare uno step prima di pas
 - **Globe toggle** — `map.setProjection({ type: 'globe' | 'mercator' })`. Basemap: CARTO dark-matter vector tiles (`https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json`).
 - **Clustering** — GeoJSON source con `cluster: true` (nativo MapLibre), rimpiazza leaflet.markercluster.
 - **Dopo swap dipendenze** — eliminare `.next/` cache (`rm -rf frontend/.next`) prima di riavviare il dev server per evitare errori su moduli rimossi.
+- **MapLibre styleLoaded race condition** — I dati GeoJSON possono arrivare prima che lo stile della mappa sia caricato. Usare uno state `styleLoaded` settato a `true` alla fine di `map.on('load')` e aggiungerlo come dipendenza all'useEffect che chiama `source.setData()`.
+- **MapLibre canvas resize** — Con `dynamic(() => import(...), { ssr: false })` il canvas parte a 400×300. Fix: `map.once('load', () => map.resize())` + `window.addEventListener('resize', handleResize)`.
+- **Port page SSR** — Il nome del porto è in formato coordinate "41.12N, 16.88E". L'API `/port/:name` parsa le coordinate, query `vessel_positions` entro `PORT_PROXIMITY_DELTA`, ricostruisce visite raggruppando per MMSI.
+- **VesselPhoto** — Client component riusabile (`frontend/components/VesselPhoto.tsx`). Carica foto da MarineTraffic via MMSI, con fallback elegante (emoji nave + "No photo available") su errore.
 
 ---
 

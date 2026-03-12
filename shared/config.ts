@@ -50,5 +50,8 @@ export const MEDITERRANEAN_BBOX = {
 /** Max punti track prima di downsampling */
 export const TRACK_MAX_POINTS = 5000;
 
+/** Delta lat/lon per considerare posizioni nello stesso porto (~5km a latitudini mediterranee) */
+export const PORT_PROXIMITY_DELTA = 0.05;
+
 /** Porta API di default */
 export const API_PORT = 3001;
