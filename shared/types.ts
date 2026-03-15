@@ -92,3 +92,25 @@ export type AnomalyType =
   | 'speed_anomaly'
   | 'impossible_movement'
   | 'ais_spoofing';
+
+/** Informazioni aggregate di un porto */
+export interface PortInfo {
+  port_name: string;
+  lat: number;
+  lon: number;
+  total_vessels_seen: number;
+  currently_in_port: number;
+  avg_stay_hours: number;
+  recent_visits: PortVisit[];
+}
+
+/** Singola visita di una nave in un porto */
+export interface PortVisit {
+  mmsi: string;
+  vessel_name: string;
+  ship_type: ShipType;
+  flag: string;
+  arrived_at: string;
+  departed_at: string | null;
+  duration_hours: number;
+}

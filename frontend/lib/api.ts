@@ -33,3 +33,7 @@ export function getLiveVessels(bbox: string) {
 export function getAnomalies(mmsi: string) {
   return fetchAPI(`/api/vessel/${mmsi}/anomalies`);
 }
+
+export function getPort(name: string) {
+  return fetchAPI(`/api/port/${encodeURIComponent(name)}`);
+}

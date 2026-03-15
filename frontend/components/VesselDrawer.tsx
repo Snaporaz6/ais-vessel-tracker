@@ -232,7 +232,10 @@ export default function VesselDrawer({ mmsi, onClose, onShowTrack }: VesselDrawe
               lineHeight: 1.6,
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: 600 }}>{pc.port_name}</span>
+                <a
+                  href={`/port/${encodeURIComponent(pc.port_name)}`}
+                  style={{ fontWeight: 600, color: 'var(--accent)' }}
+                >{pc.port_name}</a>
                 <span style={{
                   background: pc.departed_at ? 'var(--bg-card)' : '#22c55e22',
                   color: pc.departed_at ? 'var(--text-secondary)' : '#22c55e',

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import AnomalyBadge from '../../../components/AnomalyBadge';
 import SanctionBadge from '../../../components/SanctionBadge';
+import VesselPhoto from '../../../components/VesselPhoto';
 import type { Vessel, VesselPosition, AnomalyEvent, SanctionRecord, PortCall } from '../../../../shared/types';
 
 interface VesselDetail extends Vessel {
@@ -80,6 +81,23 @@ export default async function VesselPage({ params }: PageProps) {
         ))}
       </div>
 
+      {/* Foto nave */}
+      <VesselPhoto mmsi={vessel.mmsi} imo={vessel.imo} name={vessel.name} />
+
+      {/* Voyage info */}
+      {(vessel.destination || vessel.eta) && (
+        <section style={{ ...sectionStyle, marginTop: 0, marginBottom: 16 }}>
+          <h2 style={sectionTitleStyle}>Voyage</h2>
+          <div style={gridStyle}>
+            <InfoCard label="Destination" value={vessel.destination ?? 'N/A'} />
+            <InfoCard
+              label="ETA"
+              value={vessel.eta ? new Date(vessel.eta).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+            />
+          </div>
+        </section>
+      )}
+
       {/* Info grid */}
       <div style={gridStyle}>
         <InfoCard label="MMSI" value={vessel.mmsi} />
@@ -120,7 +138,9 @@ export default async function VesselPage({ params }: PageProps) {
             <tbody>
               {portCalls.map((pc, i) => (
                 <tr key={i}>
-                  <td style={tdStyle}>{pc.port_name}</td>
+                  <td style={tdStyle}>
+                    <a href={`/port/${encodeURIComponent(pc.port_name)}`}>{pc.port_name}</a>
+                  </td>
                   <td style={tdStyle}>{new Date(pc.arrived_at).toLocaleDateString()}</td>
                   <td style={tdStyle}>{pc.departed_at ? new Date(pc.departed_at).toLocaleDateString() : 'Still in port'}</td>
                   <td style={tdStyle}>{pc.duration_hours}h</td>

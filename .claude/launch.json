@@ -5,7 +5,8 @@
       "name": "api",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["tsx", "watch", "api/index.ts"],
-      "port": 3001
+      "port": 3001,
+      "autoPort": false
     },
     {
       "name": "frontend",
@@ -18,6 +19,12 @@
       "name": "ingestor",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["tsx", "watch", "ingestor/index.ts"],
+      "port": 0
+    },
+    {
+      "name": "sanctions-cron",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["tsx", "scripts/sync-sanctions.ts", "--cron"],
       "port": 0
     }
   ]

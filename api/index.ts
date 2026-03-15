@@ -19,6 +19,7 @@ import trackRouter from './routes/track.js';
 import liveRouter from './routes/live.js';
 import portcallsRouter from './routes/portcalls.js';
 import anomaliesRouter from './routes/anomalies.js';
+import portRouter from './routes/port.js';
 
 const app = express();
 
@@ -44,6 +45,7 @@ app.use('/api/vessel', trackRouter);
 app.use('/api/map/live', liveRouter);
 app.use('/api/vessel', portcallsRouter);
 app.use('/api/vessel', anomaliesRouter);
+app.use('/api/port', portRouter);
 
 // Health check
 app.get('/api/health', (_req: Request, res: Response) => {
