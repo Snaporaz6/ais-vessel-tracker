@@ -5,9 +5,65 @@ import type { SanctionRecord } from "../shared/types.js";
 const OFAC_URL =
   "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.XML";
 const EU_URL =
-  "https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:02014R0833";
+  "https://eur-lex.europa.eu/legal-content/EN/ALL/?uri=CELEX:32014R0833";
 const IMO = /\bIMO[:\s#]*(\d{7})\b/i,
   MMSI = /\bMMSI[:\s#]*(\d{9})\b/i;
+export function resolveEUConsolidatedURL(html: string, at: string): string {
+  const $ = load(html),
+    dates: string[] = [];
+  $("a[href]").each((_, anchor) => {
+    let url: URL;
+    try {
+      url = new URL($(anchor).attr("href")!, EU_URL);
+    } catch {
+      return;
+    }
+    if (url.protocol !== "https:" || url.hostname !== "eur-lex.europa.eu")
+      return;
+    const match = url.searchParams
+      .get("uri")
+      ?.match(/^CELEX:02014R0833-(\d{8})$/i);
+    if (!match) return;
+    const date = match[1],
+      iso = `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`;
+    const parsed = new Date(`${iso}T00:00:00Z`);
+    if (
+      Number.isFinite(parsed.getTime()) &&
+      parsed.toISOString().slice(0, 10) === iso &&
+      iso <= at.slice(0, 10)
+    )
+      dates.push(date);
+  });
+  const latest = dates.sort().at(-1);
+  if (!latest) throw new Error("EU_CONSOLIDATION_NOT_FOUND");
+  return `https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:02014R0833-${latest}`;
+}
+async function downloadSanctions(
+  url: string,
+  source: Source,
+  fetcher: typeof fetch,
+): Promise<string> {
+  if (
+    new URL(url).protocol !== "https:" ||
+    !["eur-lex.europa.eu", "sanctionslistservice.ofac.treas.gov"].includes(
+      new URL(url).hostname,
+    )
+  )
+    throw new Error("INVALID_SANCTIONS_SOURCE");
+  const res = await fetcher(url, {
+    signal: AbortSignal.timeout(60_000),
+    headers: {
+      "User-Agent": "AIS-Vessel-Tracker/0.2 (personal research)",
+      Accept: source === "OFAC" ? "application/xml" : "text/html",
+    },
+  });
+  if (!res.ok || res.status === 202)
+    throw new Error("SANCTIONS_DOWNLOAD_FAILED");
+  const text = await res.text();
+  if (!text.length || text.length > 64 * 1024 * 1024)
+    throw new Error("SANCTIONS_DOWNLOAD_INVALID");
+  return text;
+}
 export function parseOFAC(xml: string, at: string): SanctionRecord[] {
   if (XMLValidator.validate(xml) !== true) throw new Error("INVALID_OFAC_XML");
   const data = new XMLParser({
@@ -120,28 +176,13 @@ export async function syncSanctions(
       )
         return;
       try {
-        const url =
+        let url =
           source === "OFAC" ? OFAC_URL : process.env.EU_SANCTIONS_URL || EU_URL;
-        if (
-          new URL(url).protocol !== "https:" ||
-          ![
-            "eur-lex.europa.eu",
-            "sanctionslistservice.ofac.treas.gov",
-          ].includes(new URL(url).hostname)
-        )
-          throw new Error("INVALID_SANCTIONS_SOURCE");
-        const res = await fetcher(url, {
-          signal: AbortSignal.timeout(60_000),
-          headers: {
-            "User-Agent": "AIS-Vessel-Tracker/0.2 (personal research)",
-            Accept: source === "OFAC" ? "application/xml" : "text/html",
-          },
-        });
-        if (!res.ok || res.status === 202)
-          throw new Error("SANCTIONS_DOWNLOAD_FAILED");
-        const text = await res.text();
-        if (!text.length || text.length > 64 * 1024 * 1024)
-          throw new Error("SANCTIONS_DOWNLOAD_INVALID");
+        if (source === "EU" && !process.env.EU_SANCTIONS_URL) {
+          const index = await downloadSanctions(EU_URL, source, fetcher);
+          url = resolveEUConsolidatedURL(index, at);
+        }
+        const text = await downloadSanctions(url, source, fetcher);
         const rows =
           source === "OFAC" ? parseOFAC(text, at) : parseEU(text, at);
         for (const row of rows)
