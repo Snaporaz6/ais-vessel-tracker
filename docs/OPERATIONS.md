@@ -35,6 +35,7 @@ Collegare il ramo verificato al progetto Railway. Il Dockerfile compila API, acq
 Nel contenitore le dipendenze di sviluppo sono rimosse. Usare gli script compilati: `npm run backup:prod`, `npm run restore:prod -- --confirm-empty-target`, `npm run migrate:legacy:prod -- --apply`, `npm run sync:sanctions:prod` e `npm run preflight:prod`, con le stesse variabili e verifiche richieste nei passaggi sotto. `npm run monitor:beta:prod` è disponibile per un contenitore di monitoraggio **indipendente** dal backend. I comandi senza suffisso `:prod` sono per il checkout locale con dipendenze di sviluppo installate.
 
 - Volume persistente montato su `/data`; `STORAGE_DIR=/data`. Impostare `STORAGE_MAX_BYTES` sotto la capacità effettiva del volume, lasciando almeno il 20% libero per checkpoint e sostituzioni atomiche. Il massimo applicativo è 4 GiB; sui volumi più piccoli occorre ridurlo.
+  Il volume Trial configurato il 6 ottobre 2026 offre 500 MB: usare `STORAGE_MAX_BYTES=400000000`. Gli avvisi di occupazione del volume nella console richiedono Pro; usare le metriche applicative senza acquistare quel piano.
 - Bucket S3 **privato**, credenziali con accesso al solo bucket necessario; configurare S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_REGION. Usare S3_FORCE_PATH_STYLE solo se richiesto dal provider.
 - NODE_ENV=production, DEMO_MODE=false, credenziali Supabase/AIS, ADMIN_TOKEN di almeno 24 caratteri.
 - PORT è assegnato dalla piattaforma e prevale su API_PORT.

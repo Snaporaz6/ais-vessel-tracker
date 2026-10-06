@@ -14,7 +14,9 @@ La versione consolidata è implementata sul ramo `codex/mediterranean-beta`. Non
 - Importazione reale OFAC: 1.539 navi; UE: 672 navi dalla versione consolidata EUR-Lex del 24 luglio 2026. Totale database: 2.211 record. Il download UE resta intermittente: l'ultimo fallimento è dichiarato e la lista valida resta conservata. Questa limitazione deve essere risolta/verificata prima dell'apertura.
 - 43 test automatici completi superati. Sei prove nel browser passate su desktop/telefono, comprese indisponibilità API, nomi contenenti HTML e tracce con troppe interruzioni. Verificato anche lo schema completo per nuove installazioni e il limite configurabile per volumi piccoli.
 - Carico locale: 5.000 navi, 20 client simultanei, 300 richieste valide, zero errori, p95 494,56 ms. Il test remoto rispetta la quota di una singola origine e richiede 300 successi; non è ancora stato eseguito sul servizio online.
-- Archivio privato Railway creato nello spazio Trial. Account Vercel Hobby accessibile; condizioni confermate con consenso dell'utente e condivisione di codice/chat per addestramento disattivata. Autorizzazione Railway CLI con spazio e progetto selezionati in attesa del consenso specifico.
+- Controlli delle dipendenze di produzione senza vulnerabilità note dopo l'aggiornamento di `proxy-addr` a 2.0.8; i 43 test restano superati. Il controllo GitHub completo viene ripetuto sul nuovo commit.
+- Archivio privato Railway e volume persistente creati nello spazio Trial. Volume da 500 MB collegato a `ais-backend` su `/data`; limite applicativo da impostare a 400.000.000 byte. Backend ancora privo di distribuzione.
+- Account Vercel Hobby accessibile; condizioni confermate con consenso dell'utente e condivisione di codice/chat per addestramento disattivata. Installazione dell'app Vercel autorizzata soltanto sul repository AIS, in attesa della verifica dell'identità GitHub. Autorizzazione Railway CLI con spazio e progetto selezionati in attesa del consenso specifico.
 
 ## Criteri ancora aperti
 
