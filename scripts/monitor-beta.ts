@@ -170,6 +170,20 @@ async function main() {
       rawCost = process.env.VERIFIED_MONTHLY_TOTAL_EUR,
       summary = summarize(all, rawCost ? Number(rawCost) : null);
     writeFileSync(report, JSON.stringify(summary, null, 2), { flush: true });
+    console.info(
+      JSON.stringify({
+        event: "beta_sample_saved",
+        at,
+        ready: sample.ready,
+        samples: summary.samples,
+        missing_samples: summary.missing_samples,
+        unavailable_samples: summary.unavailable_samples,
+        restarts_observed: summary.restarts_observed,
+        database_bytes: sample.database_bytes,
+        archive_bytes: sample.archive_bytes,
+        rss_bytes: sample.rss_bytes,
+      }),
+    );
     if (!sample.ready)
       console.warn(JSON.stringify({ event: "beta_unavailable", at }));
     if (summary.passed)

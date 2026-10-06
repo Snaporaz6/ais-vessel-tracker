@@ -63,6 +63,8 @@ export default function VesselMap({
   }, [onVesselClick, isGlobe]);
   useEffect(() => {
     if (!container.current) return;
+    // Next.js bundles do not keep MapLibre's worker and shared module together.
+    maplibregl.setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
     const m = new maplibregl.Map({
       container: container.current,
       style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",

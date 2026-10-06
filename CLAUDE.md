@@ -26,6 +26,7 @@ Node ≥22, preferito 24 LTS. `npm ci` e `npm --prefix frontend ci`.
 - Un solo StopDetector alimenta schede e località. Chiamare le soste “soste rilevate”; nessun catalogo porti disponibile.
 - Sanzioni sostituite atomicamente con staging validato; mantenere liste valide sui guasti. Esplicitare disponibilità, data, fonte e ambito, anche nelle corrispondenze.
 - MapLibre imperativo in useEffect, cleanup remove, GeoJSON clustering. Popup DOM con textContent; mai HTML interpolato da AIS. Interrompere tracce sui vuoti, preservare primo/ultimo punto.
+- Next.js richiede worker e modulo condiviso MapLibre insieme in `frontend/public/maplibre/`. I ganci predev/prebuild li copiano dalla versione installata; non committare file generati. Verificare che una nave disegnata sia selezionabile: la presenza del canvas non prova il caricamento del worker.
 - Import frontend dei moduli condivisi senza suffisso .js (Turbopack); backend NodeNext con .js.
 - Log strutturati sanitizzati. Segreti soltanto backend; mai stampare chiavi/risposte credenziali o committare env. RLS e revoca accesso anonimo anche alle vecchie RPC.
 - Non cancellare tabella legacy o applicare migrazioni remote senza backup verificato. Nuovo schema additive in `scripts/migrations/`.

@@ -43,11 +43,15 @@ Nel contenitore le dipendenze di sviluppo sono rimosse. Usare gli script compila
 - Limite CPU/RAM iniziale da verificare: 0,5 vCPU / 512 MiB. Disabilitare scalabilità automatica, repliche aggiuntive e aumento automatico del piano.
 - Configurare avvisi di consumo a 20/25 €, tetto coerente con 30 € inclusi tasse/traffico e controllo della spesa anche durante staging.
 
+Il 6 ottobre lo spazio Railway è ancora Trial: il servizio rifiuta i limiti di consumo personalizzati finché manca un abbonamento attivo. Il credito Trial non costituisce una previsione mensile; non attivare automaticamente un piano pagato. Avvisi e tetto personalizzato restano da configurare prima dell'apertura qualificata.
+
 La cartografia è richiesta direttamente al provider dal browser. Il backend tiene otto risposte live compresse per due secondi e una cache decodificata archivio di massimo 64 MB. Il volume usa il limite configurato in `STORAGE_MAX_BYTES`, con metriche e degrado esplicito.
 
 ## Vercel Hobby: frontend personale non commerciale
 
 Collegare la cartella `frontend`; Next.js 16, installazione `npm ci`, build `npm run build`. Il progetto importa anche `../shared`: mantenere disponibili i file esterni alla root frontend nelle impostazioni del progetto.
+
+Il gancio `prebuild` copia worker e modulo condiviso MapLibre nella cartella pubblica usando la stessa versione installata. `predev` fa altrettanto in sviluppo. Lasciare attivi entrambi: Next.js non conserva automaticamente i moduli del worker nella stessa directory. Verificare cartografia e selezione dei punti dopo ogni aggiornamento ([istruzioni MapLibre per Next.js](https://maplibre.org/maplibre-gl-js/docs/)).
 
 Configurare soltanto:
 
@@ -97,6 +101,8 @@ npm run backup
 
 Il risultato contiene chiave oggetto e SHA-256. Scaricare e verificare una copia in uno spazio di conservazione separato. Il backup contiene metadati, anomalie, soste, catalogo, liste e stato importazioni; gli oggetti traccia restano nel bucket. Per un recupero completo servono **backup + oggetti citati + volume/spool non ancora archiviato**.
 
+Durante l'acquisizione, le scansioni delle tabelle usano chiavi primarie immutabili e un limite superiore acquisito all'inizio. Evitare pagine con offset: nuove navi inserite prima del cursore possono duplicare od omettere righe. Questa scansione non sostituisce una transazione unica su tutte le tabelle; fermare ordinatamente l'acquisizione se serve una fotografia simultanea esatta. I confronti dei timestamp nel ripristino usano UTC; anche una destinazione PostgreSQL locale deve avere la sessione configurata in UTC.
+
 Su database di destinazione isolato, vuoto e con lo stesso schema, bucket contenente gli oggetti citati e volume nuovo:
 
 ```sh
@@ -118,6 +124,8 @@ BETA_URL=https://backend-esempio.up.railway.app npm run monitor:beta
 ```
 
 Una lettura al minuto viene registrata con fsync. I fallimenti non vengono omessi. Il rapporto non supera il gate finché mancano sette giorni reali, ci sono guasti/riavvii, manutenzioni fallite, fonti sanzioni non aggiornate, troppe misure assenti, database proiettato oltre 450 MiB o costo totale verificato mancante/superiore a 25 €. Non sostituire dati di esempio al monitoraggio reale.
+
+Il servizio indipendente `ais-beta-monitor` è configurato su Railway EU West con una replica, senza dominio pubblico, e volume separato su `/data`. Riceve solo BETA_URL, ADMIN_TOKEN e variabili della prova, senza credenziali AIS/database/bucket. `BETA_LOG_FILE=/data/beta-monitor.jsonl`; il riepilogo è `/data/beta-monitor.summary.json`. L'evento sanitizzato `beta_sample_saved` conferma una lettura già salvata. La prova di carico può essere eseguita una volta all'avvio in parallelo al monitor con `node dist/scripts/load-test.js & exec node dist/scripts/monitor-beta.js`: un esito negativo del carico non deve impedire il monitoraggio. Il risultato di carico è salvato sullo stesso volume e nei log. Il volume mantiene le letture anche dopo la sostituzione del contenitore.
 
 Misurare sullo stesso periodo RAM media, CPU, volume, egress effettivamente fatturato, archivio e backup (inclusi oggetti vecchi protetti per sette giorni), crescita database e proiezione a 90 giorni. L'archivio catalogato non include da solo tutto lo spazio fatturato del bucket: confrontare le metriche con la console Railway.
 

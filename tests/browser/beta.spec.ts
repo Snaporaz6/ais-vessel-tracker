@@ -1,4 +1,88 @@
 import { test, expect } from "@playwright/test";
+import type { LiveMapResponse } from "../../shared/types";
+
+test("i punti AIS sono disegnati e selezionabili attraverso il worker cartografico", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  // A local style removes CDN variability; the real MapLibre worker still renders GeoJSON.
+  await page.route(
+    "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+    (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          version: 8,
+          sources: {},
+          layers: [
+            {
+              id: "sea",
+              type: "background",
+              paint: { "background-color": "#101a29" },
+            },
+          ],
+        }),
+      }),
+  );
+  const at = new Date().toISOString();
+  const data: LiveMapResponse = {
+    vessels: [
+      {
+        mmsi: "900000001",
+        name: "Aurora cartografica",
+        ship_type: "cargo",
+        lat: 38,
+        lon: 15,
+        speed: 9,
+        course: 90,
+        is_sanctioned: false,
+        anomaly_flags: [],
+        timestamp: at,
+        sanction_status: "unavailable",
+      },
+    ],
+    total_live: 1,
+    total_in_bbox: 1,
+    truncated: false,
+    generated_at: at,
+    history_started_at: at,
+    source: {
+      connected: false,
+      subscribed: false,
+      last_message_at: at,
+      last_disconnect_at: null,
+      status: "demo",
+      outages: [],
+    },
+  };
+  await page.route("**/api/map/live?*", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(data),
+    }),
+  );
+  await page.goto("/");
+  await expect(page.locator(".map-status")).toContainText("1 navi nell’area");
+  const canvas = page.locator("canvas.maplibregl-canvas");
+  const bounds = await canvas.boundingBox();
+  expect(bounds).not.toBeNull();
+  await expect(async () => {
+    await canvas.click({
+      position: { x: bounds!.width / 2, y: bounds!.height / 2 },
+    });
+    await expect(page.locator(".maplibregl-popup-content")).toContainText(
+      "Aurora cartografica",
+      { timeout: 1000 },
+    );
+  }).toPass({ timeout: 15_000 });
+  await expect(page.locator(".vessel-drawer h1")).toContainText("Aurora");
+  expect(errors).toEqual([]);
+});
+
 test("una traccia al limite con molte interruzioni mantiene la mappa utilizzabile e segnala il limite", async ({
   page,
 }) => {
