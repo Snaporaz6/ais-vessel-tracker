@@ -6,38 +6,17 @@ import { backup } from "../storage/backup.js";
 import { syncSanctions } from "../scripts/sync-sanctions.js";
 import { timingSafeEqual } from "node:crypto";
 import { DailyMaintenance } from "./maintenance.js";
+import { BackgroundJobs } from "./jobs.js";
 export async function startServer() {
   const c = await createContext(),
     app = createApp(c),
     started = Date.now();
-  let busy = false,
-    shuttingDown = false;
+  let shuttingDown = false;
   const intervals: NodeJS.Timeout[] = [],
     schedules: ScheduledTask[] = [];
-  const queued = new Map<string, () => Promise<unknown>>();
+  const jobs = new BackgroundJobs();
   let daily: DailyMaintenance | undefined;
-  const job = async (name: string, action: () => Promise<unknown>) => {
-    if (shuttingDown) return;
-    if (busy) {
-      if (name !== "outbox") queued.set(name, action);
-      return;
-    }
-    busy = true;
-    try {
-      await action();
-      if (name !== "outbox")
-        console.info(JSON.stringify({ event: "maintenance_ok", job: name }));
-    } catch {
-      console.warn(JSON.stringify({ event: "maintenance_failed", job: name }));
-    } finally {
-      busy = false;
-      const next = queued.entries().next().value;
-      if (next) {
-        queued.delete(next[0]);
-        void job(next[0], next[1]);
-      }
-    }
-  };
+  const job = jobs.run.bind(jobs);
   app.get("/admin/metrics", async (req, res) => {
     const actual = Buffer.from(req.headers.authorization ?? ""),
       expected = Buffer.from(`Bearer ${c.config.ADMIN_TOKEN ?? ""}`);
@@ -145,6 +124,7 @@ export async function startServer() {
         action: async () => {
           await c.outbox.flush();
           await c.tracks.flush();
+          await c.refreshHistoryStart();
           await backup(c.repo, c.objects);
           await c.tracks.flush(Date.now(), true);
           await c.refreshHistoryStart();
@@ -167,12 +147,13 @@ export async function startServer() {
   async function stop() {
     if (shuttingDown) return;
     shuttingDown = true;
+    jobs.close();
     client?.stop();
     for (const i of intervals) clearInterval(i);
     for (const s of schedules) s.stop();
     server.close();
     const deadline = Date.now() + 25_000;
-    while (busy && Date.now() < deadline)
+    while (jobs.busy && Date.now() < deadline)
       await new Promise((r) => setTimeout(r, 50));
     c.checkpoint();
     await c.outbox.flush().catch(() => undefined); // Spool stays on volume; next process archives it safely.

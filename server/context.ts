@@ -82,7 +82,11 @@ export async function createContext() {
     ingestor,
     sanctions,
     get historyStartedAt() {
-      return historyStartedAt;
+      return (
+        [historyStartedAt, tracks.pendingSummary().first_at]
+          .filter((s): s is string => !!s)
+          .sort()[0] ?? null
+      );
     },
     refreshHistoryStart,
     checkpoint() {

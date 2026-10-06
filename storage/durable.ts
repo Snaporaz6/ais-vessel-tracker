@@ -71,7 +71,7 @@ export class DiskBudget {
 export class DurableOutbox {
   readonly dir: string;
   lastError: string | null = null;
-  private flushing = false;
+  private flushing: Promise<void> | null = null;
   private sequence = 0;
   constructor(
     root: string,
@@ -111,9 +111,14 @@ export class DurableOutbox {
         row: unknown;
       };
   }
-  async flush() {
-    if (this.flushing) return;
-    this.flushing = true;
+  flush(): Promise<void> {
+    if (this.flushing) return this.flushing;
+    this.flushing = this.deliver().finally(() => {
+      this.flushing = null;
+    });
+    return this.flushing;
+  }
+  private async deliver() {
     try {
       // Ordered delivery prevents delayed static updates from overwriting newer metadata.
       const files = readdirSync(this.dir)
@@ -156,8 +161,6 @@ export class DurableOutbox {
     } catch (error) {
       this.lastError = "DATABASE_DELIVERY_FAILED";
       throw error;
-    } finally {
-      this.flushing = false;
     }
   }
 }
