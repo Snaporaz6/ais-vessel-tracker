@@ -88,23 +88,41 @@ export class PostgresRepository implements Repository {
     });
   }
   async all<T>(table: Table): Promise<T[]> {
+    if (table === "track_archives") {
+      const rows: T[] = [];
+      for await (const row of this.iterateArchives()) rows.push(row as T);
+      return rows;
+    }
     const rows: T[] = [];
-    for (let start = 0; ; start += 500) {
-      const order =
-        table === "track_archives"
-          ? ["mmsi", "day"]
-          : [
-              table === "vessels"
-                ? "mmsi"
-                : table === "import_states"
-                  ? "source"
-                  : "id",
-            ];
-      let query = this.client.from(table).select("*");
-      for (const col of order) query = query.order(col);
-      const page = checked(await query.range(start, start + 499)) as T[];
+    const key =
+      table === "vessels"
+        ? "mmsi"
+        : table === "import_states"
+          ? "source"
+          : "id";
+    // Bound the scan and advance by immutable primary key. Offsets repeat/skip
+    // existing records when the live ingestor inserts a key in an earlier page.
+    const upper = checked(
+      await this.client
+        .from(table)
+        .select(key)
+        .order(key, { ascending: false })
+        .limit(1),
+    ) as Record<string, string | number>[];
+    if (!upper.length) return rows;
+    let cursor: string | number | undefined;
+    for (;;) {
+      let query = this.client
+        .from(table)
+        .select("*")
+        .order(key)
+        .lte(key, upper[0][key])
+        .limit(500);
+      if (cursor !== undefined) query = query.gt(key, cursor);
+      const page = checked(await query) as T[];
       rows.push(...page);
       if (page.length < 500) return rows;
+      cursor = (page.at(-1) as Record<string, string | number>)[key];
     }
   }
   async upsert(table: Table, rows: unknown[]): Promise<void> {
