@@ -64,3 +64,9 @@ coverage/
 # Supabase locale (se usi CLI)
 # ========================
 supabase/.temp/
+data/
+test-results/
+playwright-report/
+.test-data/
+.env.staging
+.env.production

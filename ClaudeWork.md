@@ -1,3 +1,13 @@
+# Sessione beta Mediterraneo — 4 ottobre 2026
+
+Implementazione consolidata su main con recupero selettivo da busy-raman; copie Desktop preservate e backup sorgenti creato. Backend unico, acquisizione ufficiale classe A/B, archivio compresso persistente a 90 giorni, API/UI italiane, migrazione additive, controlli sanzioni atomici, CI e procedure operative. Next.js 16/React 19/MapLibre 6.
+
+Verificati localmente parser/riconnessione, guasti archivio, tracce sintetiche 90 giorni, migrazione PostgreSQL e RLS, backup/ripristino, carico sintetico 20 utenti e percorso browser desktop/telefono. Verificato separatamente AIS reale con recupero dopo disconnessione. Le prove locali non certificano deployment, sette giorni o budget: stato operativo e misure effettive in docs/STATUS.md.
+
+Le annotazioni precedenti qui sotto sono **storiche**: i formati AIS, TimescaleDB/Leaflet, tre processi, cron separato e conteggi sanzioni di marzo non descrivono la beta corrente. README, CLAUDE.md e docs/OPERATIONS.md prevalgono per l'architettura attuale.
+
+---
+
 # ClaudeWork — Report di sviluppo AIS Vessel Tracker
 
 > Documento unico aggiornato ad ogni sessione. Le nuove sessioni vengono aggiunte in cima.

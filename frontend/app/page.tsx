@@ -1,88 +1,98 @@
-'use client';
-
-import dynamic from 'next/dynamic';
-import { useState } from 'react';
-import SearchBar from '../components/SearchBar';
-import VesselDrawer from '../components/VesselDrawer';
-import VesselFilter from '../components/VesselFilter';
-import type { Vessel, ShipType } from '../../shared/types';
-
-// MapLibre GL non supporta SSR — dynamic import
-const Map = dynamic(() => import('../components/Map'), { ssr: false });
-
-const ALL_SHIP_TYPES = new Set<ShipType>([
-  'cargo', 'tanker', 'passenger', 'fishing', 'tug', 'pleasure', 'military', 'other',
-]);
-
-export default function HomePage() {
-  const [selectedMmsi, setSelectedMmsi] = useState<string | null>(null);
-  const [trackMmsi, setTrackMmsi] = useState<string | null>(null);
-  const [visibleTypes, setVisibleTypes] = useState<Set<ShipType>>(new Set(ALL_SHIP_TYPES));
-  const [typeCounts, setTypeCounts] = useState<Record<string, number>>({});
-  const [isGlobe, setIsGlobe] = useState(false);
-
-  const handleVesselSelect = (vessel: Vessel) => {
-    setSelectedMmsi(vessel.mmsi);
-  };
-
+"use client";
+import dynamic from "next/dynamic";
+import { useEffect, useState, useCallback } from "react";
+import type { ShipType, VesselPosition } from "../../shared/types";
+import SearchBar from "../components/SearchBar";
+import VesselFilter from "../components/VesselFilter";
+import VesselDrawer from "../components/VesselDrawer";
+const Map = dynamic(() => import("../components/Map"), {
+  ssr: false,
+  loading: () => <p className="map-loading">Caricamento mappa…</p>,
+});
+const ALL: ShipType[] = [
+  "cargo",
+  "tanker",
+  "passenger",
+  "fishing",
+  "tug",
+  "pleasure",
+  "military",
+  "other",
+];
+export default function Home() {
+  const [selected, setSelected] = useState<string | null>(null),
+    [track, setTrack] = useState<string | null>(null),
+    [days, setDays] = useState(7),
+    [types, setTypes] = useState(new Set(ALL)),
+    [counts, setCounts] = useState<Record<string, number>>({}),
+    [globe, setGlobe] = useState(false),
+    [center, setCenter] = useState<VesselPosition | null>(null);
+  const onPosition = useCallback(
+    (p: VesselPosition | null) => setCenter(p),
+    [],
+  );
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search),
+      v = q.get("vessel"),
+      t = q.get("track");
+    if (v && /^[1-9]\d{8}$/.test(v)) setSelected(v);
+    if (t && /^[1-9]\d{8}$/.test(t)) setTrack(t);
+  }, []);
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
+    <main className="map-screen">
       <Map
-        onVesselClick={(mmsi) => setSelectedMmsi(mmsi)}
-        trackMmsi={trackMmsi}
-        visibleTypes={visibleTypes}
-        onTypeCounts={setTypeCounts}
-        isGlobe={isGlobe}
+        onVesselClick={setSelected}
+        trackMmsi={track}
+        trackDays={days}
+        visibleTypes={types}
+        onTypeCounts={setCounts}
+        isGlobe={globe}
+        center={center}
       />
-
-      <SearchBar onSelect={handleVesselSelect} />
-
+      <div className="brand">
+        <strong>AIS Vessel Tracker</strong>
+        <span>Mediterraneo · beta</span>
+      </div>
+      <SearchBar onSelect={(v) => setSelected(v.mmsi)} />
       <VesselFilter
-        visibleTypes={visibleTypes}
-        onFilterChange={setVisibleTypes}
-        typeCounts={typeCounts}
+        visibleTypes={types}
+        onFilterChange={setTypes}
+        typeCounts={counts}
       />
-
-      {/* Toggle Globo / Mappa piatta */}
       <button
-        onClick={() => setIsGlobe((prev) => !prev)}
-        style={globeToggleStyle}
-        title={isGlobe ? 'Passa a mappa piatta' : 'Passa a globo 3D'}
-        aria-label={isGlobe ? 'Passa a mappa piatta' : 'Passa a globo 3D'}
+        className="globe-toggle"
+        onClick={() => setGlobe((s) => !s)}
+        aria-label="Cambia proiezione mappa"
       >
-        <span style={{ fontSize: 18 }}>{isGlobe ? '🗺️' : '🌍'}</span>
-        <span style={{ fontSize: 10, color: '#9ca3af' }}>{isGlobe ? '2D' : '3D'}</span>
+        {globe ? "2D" : "3D"}
       </button>
-
-      {selectedMmsi && (
+      {track && (
+        <div className="track-controls">
+          <label htmlFor="track-days">Storico</label>
+          <select
+            id="track-days"
+            value={days}
+            onChange={(e) => setDays(Number(e.target.value))}
+          >
+            {[1, 7, 30, 90].map((d) => (
+              <option key={d} value={d}>
+                {d} {d === 1 ? "giorno" : "giorni"}
+              </option>
+            ))}
+          </select>
+          <button onClick={() => setTrack(null)} aria-label="Nascondi traccia">
+            ×
+          </button>
+        </div>
+      )}
+      {selected && (
         <VesselDrawer
-          mmsi={selectedMmsi}
-          onClose={() => setSelectedMmsi(null)}
-          onShowTrack={(mmsi) => {
-            setTrackMmsi(mmsi);
-          }}
+          mmsi={selected}
+          onClose={() => setSelected(null)}
+          onShowTrack={setTrack}
+          onPosition={onPosition}
         />
       )}
-    </div>
+    </main>
   );
 }
-
-const globeToggleStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: 130,
-  left: 16,
-  zIndex: 1000,
-  width: 38,
-  height: 50,
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: 1,
-  background: 'rgba(17, 24, 39, 0.92)',
-  backdropFilter: 'blur(4px)',
-  border: '1px solid #374151',
-  borderRadius: 8,
-  cursor: 'pointer',
-  padding: 0,
-};

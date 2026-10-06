@@ -1,197 +1,112 @@
-# AIS Vessel Tracker
+# AIS Vessel Tracker — beta Mediterraneo
 
-Real-time vessel tracking application powered by AIS data. A free, open-source alternative to MarineTraffic and VesselFinder with 90-day position history, anomaly detection, and sanctions screening.
+Mappa pubblica senza account, ricerca MMSI/IMO/nome, schede nave, tracce fino a 90 giorni, soste rilevate e controlli OFAC/UE. Lo storico esiste soltanto per le osservazioni effettivamente ricevute; copertura, aggiornamento e interruzioni sono visibili.
 
-![Stack](https://img.shields.io/badge/Node.js-Express-green) ![Stack](https://img.shields.io/badge/Next.js-React-blue) ![Stack](https://img.shields.io/badge/Supabase-TimescaleDB-purple) ![Stack](https://img.shields.io/badge/Leaflet-OpenStreetMap-orange)
+**Stato:** implementazione e verifiche locali disponibili; apertura pubblica subordinata al collegamento dei servizi, al ripristino provato e alla prova continuativa di sette giorni. I dati dimostrativi sono fittizi e non possono essere utilizzati in produzione.
 
----
+## Avvio riproducibile
 
-## Features
+Richiesto Node.js 22 o successivo (consigliato 24 LTS). Installare entrambi i lockfile:
 
-- **Live Map** — Real-time vessel positions on a dark-themed Leaflet map (Mediterranean focus for MVP)
-- **Vessel Search** — Fuzzy search by name, exact lookup by MMSI or IMO number
-- **Position History** — Up to 90 days of track data with polyline visualization
-- **Anomaly Detection** — Automatic flagging of:
-  - Dark activity (AIS gaps > 6 hours in non-polar zones)
-  - Speed anomalies (implied speed > 1.5x vessel type max)
-  - Impossible movements (teleportation > 1000 nm in < 1 hour)
-- **Sanctions Screening** — Cross-reference against OFAC SDN and EU consolidated sanctions lists
-- **Port Call Reconstruction** — Automatic detection of port stops from position data
-- **SSR Vessel Pages** — SEO-optimized vessel detail pages with full history
-
----
-
-## Architecture
-
-```
-aisstream.io (WebSocket)
-       |
-   [Ingestor]  ── parse ── filter ── batch write ── anomaly detect
-       |
-   [Supabase]  (PostgreSQL + TimescaleDB hypertable)
-       |
-   [Express API]  ── 6 REST endpoints + rate limiting
-       |
-   [Next.js Frontend]  ── Leaflet map + SSR pages
+```sh
+npm ci
+npm --prefix frontend ci
+npm run build
+npm run build:frontend
 ```
 
-| Layer | Technology | Purpose |
-|---|---|---|
-| AIS Source | aisstream.io WebSocket | Global AIS streaming (free) |
-| Backend | Node.js + Express | REST API + ingestor |
-| Database | Supabase (PostgreSQL + TimescaleDB) | Hypertable for positions, 90-day retention |
-| Frontend | Next.js (App Router) | SSR pages + interactive map |
-| Map | Leaflet + CartoDB Dark tiles | Vessel visualization |
-| Sanctions | OFAC XML + EU CSV | Daily sync via cron |
+Per provare l'interfaccia senza credenziali, in due terminali:
 
----
-
-## Project Structure
-
-```
-├── shared/                  # Shared TypeScript types, config, errors
-│   ├── types.ts             # All interfaces (Vessel, Position, Anomaly, etc.)
-│   ├── config.ts            # Centralized constants and thresholds
-│   └── errors.ts            # Custom error classes
-├── ingestor/                # AIS data ingestion pipeline
-│   ├── index.ts             # Entry point
-│   ├── ws-client.ts         # WebSocket client for aisstream.io
-│   ├── parser.ts            # AIS message parser (type 1,2,3,5)
-│   ├── filter.ts            # Geographic filter + validation + dedup
-│   ├── db-writer.ts         # Batch upsert to Supabase
-│   └── anomaly-detector.ts  # Real-time anomaly detection
-├── api/                     # Express REST API
-│   ├── index.ts             # Entry point with middleware
-│   ├── routes/              # Route handlers
-│   │   ├── search.ts        # GET /api/search?q=
-│   │   ├── vessel.ts        # GET /api/vessel/:mmsi
-│   │   ├── track.ts         # GET /api/vessel/:mmsi/track
-│   │   ├── live.ts          # GET /api/map/live?bbox=
-│   │   ├── portcalls.ts     # GET /api/vessel/:mmsi/portcalls
-│   │   └── anomalies.ts     # GET /api/vessel/:mmsi/anomalies
-│   └── services/            # Business logic
-│       ├── supabase.ts      # Supabase client singleton
-│       └── sanctions.ts     # Sanctions query service
-├── frontend/                # Next.js application
-│   ├── app/                 # App Router pages
-│   │   ├── page.tsx         # Homepage (full-screen map)
-│   │   ├── vessel/[mmsi]/   # Vessel detail page (SSR)
-│   │   └── port/[name]/     # Port page (SSR)
-│   └── components/          # React components
-│       ├── Map.tsx           # Leaflet map with live markers
-│       ├── SearchBar.tsx     # Fuzzy search with dropdown
-│       ├── VesselDrawer.tsx  # Side panel with vessel details
-│       ├── TrackPolyline.tsx # Track visualization
-│       ├── AnomalyBadge.tsx  # Anomaly type badge
-│       └── SanctionBadge.tsx # Sanction source badge
-└── scripts/
-    ├── init-db.sql          # Database schema (TimescaleDB)
-    └── sync-sanctions.ts    # OFAC + EU sanctions sync
+```sh
+DEMO_MODE=true NODE_ENV=development ENV_FILE=/nonexistent STORAGE_DIR=./data/demo npm run dev:server
+npm run dev:frontend
 ```
 
----
+Aprire http://localhost:3000 e cercare MMSI `900000001`. La demo dichiara esplicitamente i dati fittizi; `/ready` risponde 503.
 
-## API Endpoints
+Per acquisire dati reali: copiare `.env.example` in `.env.local`, compilare i segreti backend e configurare il database seguendo [la procedura operativa](docs/OPERATIONS.md). Il frontend usa soltanto i due URL in `frontend/.env.example`. Avviare **un backend** con `npm run dev:server` e **un frontend** con `npm run dev:frontend`. In produzione usare `npm start` dopo `npm run build`.
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/search?q={query}` | Search vessels by name (fuzzy), MMSI, or IMO |
-| `GET` | `/api/vessel/:mmsi` | Vessel details + last position + sanctions + anomalies |
-| `GET` | `/api/vessel/:mmsi/track?days=30` | Position history (default 30 days, max 90) |
-| `GET` | `/api/vessel/:mmsi/portcalls` | Reconstructed port calls from track data |
-| `GET` | `/api/vessel/:mmsi/anomalies` | Anomaly events for a vessel |
-| `GET` | `/api/map/live?bbox=lat1,lon1,lat2,lon2` | Live vessel positions within bounding box (max 500) |
-| `GET` | `/api/health` | Health check |
+## Architettura
 
----
-
-## Quick Start
-
-### Prerequisites
-
-- Node.js 18+
-- A [Supabase](https://supabase.com) project (free tier works)
-- An [aisstream.io](https://aisstream.io) API key (free)
-
-### 1. Clone and install
-
-```bash
-git clone https://github.com/Snaporaz6/ais-vessel-tracker.git
-cd ais-vessel-tracker
-npm install
-cd frontend && npm install && cd ..
+```mermaid
+flowchart LR
+  AIS[aisstream.io — Mediterraneo] --> B[Backend unico: acquisizione + API]
+  B --> L[Ultime posizioni in memoria]
+  B --> V[Volume persistente: spool + outbox + checkpoint]
+  V --> S[Bucket privato: tracce gzip per nave / giorno UTC]
+  B --> D[Supabase PostgreSQL: metadati, anomalie, soste, catalogo]
+  F[Next.js 16 / React 19 / MapLibre 6] --> B
 ```
 
-### 2. Set up the database
+- `server/`: processo unico, cache live, avvio, manutenzione e arresto.
+- `ingestor/`: parser AIS classe A/B, riconnessione, anomalie sulle osservazioni live, algoritmo unico delle soste.
+- `storage/`: coda persistente, archivio verificato e idempotente, backup/ripristino, accesso Supabase.
+- `api/`: API, CORS esplicito, errori e controlli sanzioni.
+- `shared/`: contratti, configurazione, campionamento e interruzioni.
+- `frontend/`: mappa, ricerca cancellabile, schede SSR con cache di 60 secondi.
+- `scripts/`: migrazioni additive e strumenti operativi.
+- `tests/`: casi di guasto, PostgreSQL locale e browser desktop/telefono.
 
-Open your Supabase SQL Editor and run the contents of `scripts/init-db.sql`. This creates:
-- `vessels` table (static metadata)
-- `vessel_positions` hypertable (time-series positions with 90-day retention)
-- `sanctions` table (OFAC + EU entries)
-- `anomaly_events` table (detected anomalies)
-- `get_live_vessels` RPC function (optimized map query)
+Nessun Redis, TimescaleDB o collegamento pubblico al database. Supabase conserva gli indici; le posizioni vengono archiviate nel bucket privato. Railway deve avere **una sola replica** e il volume montato su `/data`.
 
-### 3. Configure environment
+## Storico e attendibilità
 
-```bash
-cp .env.example .env.local
+| Età | Campionamento ordinario |
+|---|---:|
+| Ultime 48 ore | 1 minuto |
+| 3–7 giorni | 5 minuti |
+| 8–30 giorni | 30 minuti |
+| 31–90 giorni | 2 ore |
+
+Svolte, cambi di movimento/sosta, anomalie ed estremi dei vuoti mantengono punti aggiuntivi. La cache live accetta osservazioni ogni due secondi per nave; il campionamento dello storico non limita l'analisi delle anomalie.
+
+Ogni ora: unione archivio/spool, compressione, caricamento e rilettura con checksum, aggiornamento catalogo, rimozione della sola parte archiviata. Ogni giorno alle 03:30 UTC: backup verificato, semplificazione e scadenza dei dati oltre 90 giorni. Gli oggetti citati dai backup degli ultimi sette giorni restano recuperabili. Se bucket o database falliscono, i dati già registrati restano sul volume. Il limite `STORAGE_MAX_BYTES`, massimo 4 GiB e da ridurre per volumi più piccoli, produce un errore esplicito e degrada il controllo operativo.
+
+La mappa mostra le navi osservate negli ultimi dieci minuti. Una fonte senza nuove osservazioni per due minuti è segnalata come non aggiornata. Le linee si interrompono sui vuoti di osservazione; per i dati meno recenti si tiene conto dell'intervallo di campionamento. Le soglie sono in `shared/config.ts`.
+
+Una sosta è rilevata dopo almeno 30 minuti entro 500 metri con velocità ≤1 nodo; termina in caso di spostamento, velocità maggiore o vuoto lungo. Le coordinate **non attestano l'esistenza di un porto**. Le anomalie sono indizi statistici, non prove di comportamenti illeciti. Destinazione ed ETA sono informazioni trasmesse dalla nave.
+
+OFAC: navi nella SDN. UE: navi nell'Annex XLII del Regolamento 833/2014, con ambito dichiarato. Il download non valido conserva l'ultima lista valida; aggiornamento, fonte e indisponibilità del controllo sono distinti. Un fallimento del controllo non significa assenza di sanzioni.
+
+## API
+
+| Percorso GET | Risposta |
+|---|---|
+| `/health` | Processo attivo |
+| `/ready` | Database, bucket, volume, connessione AIS e ultima osservazione; 503 se degradato |
+| `/api/map/live?bbox=lonMin,latMin,lonMax,latMax` | `vessels`, conteggi, `truncated`, stato/freschezza fonte, inizio storico; massimo 5.000 |
+| `/api/search?q=...` | MMSI/IMO esatti, similarità nome con pg_trgm |
+| `/api/vessel/:mmsi` | Scheda, ultima posizione live, anomalie, stato/data/fonte controllo sanzioni |
+| `/api/vessel/:mmsi/track?days=1\|7\|30\|90` | Elenco posizioni; massimo 5.000, inizio/fine conservati |
+| `/api/vessel/:mmsi/track/metadata?days=...` | Finestra disponibile, intervalli, interruzioni, conteggi |
+| `/api/vessel/:mmsi/portcalls` | Soste rilevate persistite |
+| `/api/vessel/:mmsi/anomalies` | Tipo reale degli eventi |
+| `/api/port/:lat,lon` | Soste nella località, con lo stesso algoritmo |
+| `/admin/metrics` | Metriche operative; richiede Bearer ADMIN_TOKEN |
+
+La traccia mantiene il contratto elenco; gli header `X-Track-*` aggiungono estremi, conteggio e campionamento. Se le sole interruzioni superano la capacità della risposta, l'API chiede di restringere la finestra (422). Gli errori delle dipendenze diventano 503; i risultati vuoti sono restituiti soltanto dopo una lettura riuscita. API pubbliche limitate a 120 richieste/minuto per IP.
+
+**Coordinate diverse nei due contratti:** sottoscrizione AIS e `INGESTOR_BBOX` usano latitudine, longitudine; parametro mappa HTTP usa longitudine, latitudine. Nessun tentativo automatico di inversione.
+
+## Verifiche
+
+```sh
+npm run verify
+npm run lint
+npm run build
+npx playwright install chromium
+npm run test:e2e
+npm run test:load
 ```
 
-Fill in your credentials:
+I test PostgreSQL usano PGlite con pg_trgm e verificano migrazione ripetibile, dati legacy, similarità, sostituzione atomica e permessi anonimi. I test dell'archivio provocano upload/catalogo falliti, append concorrenti, riavvii, checksum non validi e ripristino su destinazione vuota. Le tracce sintetiche coprono 90 giorni. I test browser usano una demo separata e verificano l'intero percorso su desktop e telefono.
 
-```env
-AISSTREAM_API_KEY=your_key_here
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+`npm run test:load` senza URL usa 5.000 navi sintetiche e 20 visitatori; non sostituisce la misura sul servizio remoto. Per dati AIS reali, con credenziali solo locali:
+
+```sh
+npx tsx scripts/verify-live.ts
 ```
 
-### 4. Start services
+La CI controlla ogni proposta di modifica, installa dai lockfile, compila e verifica UI/API. [OPERATIONS.md](docs/OPERATIONS.md) descrive staging, backup, ripristino, rollback e la soglia per l'apertura pubblica.
 
-```bash
-# Terminal 1: AIS Ingestor
-npx tsx ingestor/index.ts
-
-# Terminal 2: API Server
-npx tsx api/index.ts
-
-# Terminal 3: Frontend
-cd frontend && npm run dev
-```
-
-### 5. Open the app
-
-Navigate to `http://localhost:3000` to see the live map.
-
----
-
-## Configuration
-
-All thresholds are centralized in `shared/config.ts`:
-
-| Parameter | Default | Description |
-|---|---|---|
-| `BATCH_INTERVAL_MS` | 500 | DB write batching interval |
-| `BATCH_MAX_SIZE` | 200 | Max positions per batch |
-| `DARK_ACTIVITY_GAP_HOURS` | 6 | AIS gap threshold for dark activity flag |
-| `SPEED_ANOMALY_MULTIPLIER` | 1.5 | Speed anomaly detection multiplier |
-| `PORT_CALL_SPEED_THRESHOLD` | 1.0 kn | Speed below which a vessel is "stopped" |
-| `PORT_CALL_MIN_DURATION_MIN` | 30 | Minimum stop duration for port call |
-| `LIVE_MAP_MAX_VESSELS` | 500 | Max vessels per map request |
-| `RATE_LIMIT_RPM` | 60 | API rate limit per IP |
-| `RETENTION_DAYS` | 90 | Position data retention |
-
----
-
-## Deployment
-
-- **Backend (Ingestor + API)**: Deploy to [Railway](https://railway.app)
-- **Frontend**: Deploy to [Vercel](https://vercel.com)
-- **Database**: [Supabase](https://supabase.com) (managed PostgreSQL + TimescaleDB)
-
----
-
-## License
-
-MIT
+Licenza MIT.
