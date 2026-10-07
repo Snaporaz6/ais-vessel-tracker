@@ -145,6 +145,7 @@ async function main() {
   };
   process.once("SIGINT", halt);
   process.once("SIGTERM", halt);
+  let gateReported = false;
   while (!stop) {
     const sampledAt = Date.now(),
       at = new Date(sampledAt).toISOString();
@@ -186,11 +187,14 @@ async function main() {
     );
     if (!sample.ready)
       console.warn(JSON.stringify({ event: "beta_unavailable", at }));
-    if (summary.passed)
+    if (summary.passed && !gateReported) {
       console.info(
         JSON.stringify({ event: "beta_release_gate_passed", report }),
       );
-    if (process.argv.includes("--once") || summary.seven_days_observed) {
+      gateReported = true;
+    }
+    // Keep observing after seven days while billing and release checks are reviewed.
+    if (process.argv.includes("--once")) {
       console.log(JSON.stringify(summary));
       if (!summary.passed) process.exitCode = 1;
       break;

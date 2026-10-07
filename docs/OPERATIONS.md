@@ -72,7 +72,7 @@ Vercel Preview deve puntare al backend di staging e non a quello pubblico. Non m
 
 - Ogni 500 ms, se necessario: consegna outbox, idempotente.
 - Ogni minuto: checkpoint live e controllo occupazione volume.
-- Ogni ora: archiviazione gzip con rilettura/checksum e aggiornamento inizio storico.
+- All'avvio e ogni ora: archiviazione gzip con rilettura/checksum e aggiornamento inizio storico.
 - 03:00 UTC: import OFAC e UE, staging + sostituzione atomica.
 - 03:30 UTC: flush, backup verificato, compattazione e retention 90 giorni.
 - Ultimi sette giorni: backup conservati e oggetti citati protetti dalla pulizia.
@@ -84,6 +84,8 @@ Il volume conserva `maintenance-checkpoint.json` con l'ultimo giorno UTC complet
 Il riavvio legge lo spool a blocchi conservando soltanto l'ultima posizione per nave e scorre il catalogo a pagine. Un singolo archivio nave/giorno deve restare entro 64 MiB decodificati e 100.000 punti; una query può elaborare al massimo 100.000 punti prima della riduzione a 5.000 visualizzati. Una finestra eccessiva restituisce 422 e chiede un periodo più breve, senza cancellare dati. Le pagine località interrogano al massimo 51 soste entro 500 metri: mostrano le ultime 50 e dichiarano quando il riepilogo è limitato.
 
 Gli errori del servizio compaiono nei log con eventi sanitizzati. Sul limite volume o guasti persistenti intervenire prima che lo spool si esaurisca; non eliminare manualmente file non ancora archiviati.
+
+I trasferimenti di archivi piccoli procedono in gruppi di massimo otto; spool oltre 1 MiB o archivi con oltre 4.000 punti vengono elaborati da soli. Dopo un errore si attende la conclusione dell'intero gruppo prima di rilasciare il blocco o riprovare: le copie temporanee non verificate restano sul volume. La manutenzione scarica gli oggetti freddi soltanto quando gli estremi attraversano una fascia di campionamento o scatta la retention. Gli eventi di manutenzione includono `duration_ms`; `archive_flushed_at` indica il completamento effettivo, non l'avvio del ciclo.
 
 Per la prima importazione:
 
@@ -125,7 +127,9 @@ BETA_URL=https://backend-esempio.up.railway.app npm run monitor:beta
 
 Una lettura al minuto viene registrata con fsync. I fallimenti non vengono omessi. Il rapporto non supera il gate finché mancano sette giorni reali, ci sono guasti/riavvii, manutenzioni fallite, fonti sanzioni non aggiornate, troppe misure assenti, database proiettato oltre 450 MiB o costo totale verificato mancante/superiore a 25 €. Non sostituire dati di esempio al monitoraggio reale.
 
-Il servizio indipendente `ais-beta-monitor` è configurato su Railway EU West con una replica, senza dominio pubblico, e volume separato su `/data`. Riceve solo BETA_URL, ADMIN_TOKEN e variabili della prova, senza credenziali AIS/database/bucket. `BETA_LOG_FILE=/data/beta-monitor.jsonl`; il riepilogo è `/data/beta-monitor.summary.json`. L'evento sanitizzato `beta_sample_saved` conferma una lettura già salvata. La prova di carico può essere eseguita una volta all'avvio in parallelo al monitor con `node dist/scripts/load-test.js & exec node dist/scripts/monitor-beta.js`: un esito negativo del carico non deve impedire il monitoraggio. Il risultato di carico è salvato sullo stesso volume e nei log. Il volume mantiene le letture anche dopo la sostituzione del contenitore.
+Il monitor continua anche dopo sette giorni, mentre si verificano costi e criteri di apertura; `--once` produce un solo riepilogo ed esce. Dopo una modifica del backend avviare una nuova finestra di qualificazione con un nuovo `BETA_LOG_FILE`, conservando il precedente file e il suo riepilogo. Annotare motivo, versione e ora del riavvio previsto: le misure precedenti restano valide come osservazioni, ma non certificano la stabilità della nuova versione.
+
+Il servizio indipendente `ais-beta-monitor` è configurato su Railway EU West con una replica, senza dominio pubblico, e volume separato su `/data`. Riceve solo BETA_URL, ADMIN_TOKEN e variabili della prova, senza credenziali AIS/database/bucket. `BETA_LOG_FILE=/data/beta-monitor.jsonl`; il riepilogo è `/data/beta-monitor.summary.json`. L'evento sanitizzato `beta_sample_saved` conferma una lettura già salvata. La prova di carico può essere eseguita una volta all'avvio in parallelo al monitor con `/bin/sh -c "node dist/scripts/load-test.js & exec node dist/scripts/monitor-beta.js"`: un esito negativo del carico non deve impedire il monitoraggio. La shell esplicita è necessaria perché Railway avvia i contenitori Docker in forma exec. Il risultato di carico è salvato sullo stesso volume e nei log. Il volume mantiene le letture anche dopo la sostituzione del contenitore.
 
 Misurare sullo stesso periodo RAM media, CPU, volume, egress effettivamente fatturato, archivio e backup (inclusi oggetti vecchi protetti per sette giorni), crescita database e proiezione a 90 giorni. L'archivio catalogato non include da solo tutto lo spazio fatturato del bucket: confrontare le metriche con la console Railway.
 

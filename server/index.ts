@@ -89,17 +89,14 @@ export async function startServer() {
       }
     }, 60_000),
   );
-  intervals.push(
-    setInterval(
-      () =>
-        void job("archive", async () => {
-          await c.outbox.flush();
-          await c.tracks.flush();
-          await c.refreshHistoryStart();
-        }),
-      3600_000,
-    ),
-  );
+  const archive = async () => {
+    await c.outbox.flush();
+    await c.tracks.flush();
+    await c.refreshHistoryStart();
+  };
+  // Recover already recorded observations promptly after a restart, then every hour.
+  if (!c.config.demo) void job("archive", archive);
+  intervals.push(setInterval(() => void job("archive", archive), 3600_000));
   intervals.push(
     setInterval(
       () => void c.sanctions.refresh().catch(() => undefined),

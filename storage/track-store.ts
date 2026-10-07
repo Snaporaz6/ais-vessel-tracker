@@ -10,6 +10,7 @@ import {
   fstatSync,
   ftruncateSync,
   fsyncSync,
+  statSync,
 } from "node:fs";
 import { join } from "node:path";
 import { gzipSync, gunzipSync } from "node:zlib";
@@ -18,7 +19,11 @@ import type { Repository } from "./repository.js";
 import type { ObjectStore } from "./object-store.js";
 import { checksum } from "./object-store.js";
 import { atomicWrite, type DiskBudget } from "./durable.js";
-import { compactPositions, mergePositions } from "../shared/history.js";
+import {
+  compactPositions,
+  mergePositions,
+  historyInterval,
+} from "../shared/history.js";
 import {
   ARCHIVE_CACHE_BYTES,
   RETENTION_DAYS,
@@ -29,6 +34,19 @@ import { retainedBackupReferences } from "./backup.js";
 
 const MAX_FILE_BYTES = 64 * 1024 * 1024;
 const MAX_WINDOW_POINTS = 100_000;
+const SMALL_ARCHIVE_POINTS = 4000;
+const SMALL_SPOOL_BYTES = 1024 * 1024;
+const ARCHIVE_BATCH_SIZE = 8;
+
+/** Only revisit cold objects when sampling or retention can change their contents. */
+function needsCompaction(entry: ArchiveEntry, now: number): boolean {
+  if (Date.parse(entry.first_at) < now - RETENTION_DAYS * 86400_000)
+    return true;
+  const previous = Date.parse(entry.updated_at);
+  return [entry.first_at, entry.last_at].some(
+    (at) => historyInterval(at, now) !== historyInterval(at, previous),
+  );
+}
 
 function* spoolLines(path: string): Generator<string> {
   const fd = openSync(path, "r"),
@@ -292,16 +310,66 @@ export class TrackStore {
           this.budget.bytes -= snapshot.length;
         }
       };
-      for (const file of files) {
-        const old = (
-          await this.repo.archives(file.slice(0, 9), file.slice(10, 20))
-        ).find((e) => e.day === file.slice(10, 20));
-        await flushFile(file, old);
+      type Work = { file: string; old?: ArchiveEntry };
+      let batch: Work[] = [];
+      const drain = async () => {
+        const work = batch;
+        batch = [];
+        // Keep the flush lock until every upload/catalog write has settled, even after a failure.
+        const results = await Promise.allSettled(
+          work.map(({ file, old }) => flushFile(file, old)),
+        );
+        const failed = results.find((result) => result.status === "rejected");
+        if (failed?.status === "rejected") throw failed.reason;
+      };
+      const enqueue = async (work: Work) => {
+        let spoolBytes = 0;
+        try {
+          spoolBytes = statSync(join(this.dir, work.file)).size;
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        }
+        // Large objects run alone; ordinary vessel/day objects overlap only network waits.
+        if (
+          spoolBytes > SMALL_SPOOL_BYTES ||
+          (work.old?.point_count ?? 0) > SMALL_ARCHIVE_POINTS
+        ) {
+          await drain();
+          await flushFile(work.file, work.old);
+        } else {
+          batch.push(work);
+          if (batch.length === ARCHIVE_BATCH_SIZE) await drain();
+        }
+      };
+      for (
+        let offset = 0;
+        offset < files.length;
+        offset += ARCHIVE_BATCH_SIZE
+      ) {
+        const group = files.slice(offset, offset + ARCHIVE_BATCH_SIZE);
+        const entries = await Promise.all(
+          group.map(async (file) => ({
+            file,
+            old: (
+              await this.repo.archives(file.slice(0, 9), file.slice(10, 20))
+            ).find((entry) => entry.day === file.slice(10, 20)),
+          })),
+        );
+        for (const entry of entries) await enqueue(entry);
+        await drain();
       }
-      if (maintenance)
-        for await (const old of this.repo.iterateArchives())
-          await flushFile(`${old.mmsi}_${old.day}.jsonl`, old);
-      this.lastFlush = new Date(now).toISOString();
+      if (maintenance) {
+        // Page iteration stays serial and bounded; cold objects need no downloads between tier changes.
+        for await (const old of this.repo.iterateArchives()) {
+          if (!needsCompaction(old, now)) continue;
+          if (Date.parse(old.last_at) < now - RETENTION_DAYS * 86400_000) {
+            await drain();
+            await this.repo.deleteArchive(old);
+          } else await enqueue({ file: `${old.mmsi}_${old.day}.jsonl`, old });
+        }
+        await drain();
+      }
+      this.lastFlush = new Date().toISOString();
       this.lastError = null;
       this.summary = undefined;
       if (maintenance) {

@@ -41,12 +41,25 @@ export class BackgroundJobs {
     }
   }
   private async execute(name: string, action: () => Promise<unknown>) {
+    const started = Date.now();
     try {
       await action();
       if (name !== "outbox")
-        console.info(JSON.stringify({ event: "maintenance_ok", job: name }));
+        console.info(
+          JSON.stringify({
+            event: "maintenance_ok",
+            job: name,
+            duration_ms: Date.now() - started,
+          }),
+        );
     } catch {
-      console.warn(JSON.stringify({ event: "maintenance_failed", job: name }));
+      console.warn(
+        JSON.stringify({
+          event: "maintenance_failed",
+          job: name,
+          duration_ms: Date.now() - started,
+        }),
+      );
     }
   }
 }
