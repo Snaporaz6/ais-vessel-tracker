@@ -1,6 +1,18 @@
+# Sessione operativa — 7 ottobre 2026
+
+Beta reale su Vercel Hobby e Railway, Supabase esistente ripristinato e migrazioni additive verificate. Ramo di lavoro e produzione frontend: `codex/mediterranean-beta`; main resta invariato e la proposta #2 resta in bozza. Storico reale dal 6 ottobre alle 18:39 UTC.
+
+Verificati backup cloud con ripristino su PostgreSQL locale isolato (25.789 navi e 669 checksum traccia), aggiornamenti giornalieri OFAC/UE e carico remoto da un servizio indipendente: 20 client, 300 risposte valide, zero errori, p95 243,34 ms. Corretto il worker MapLibre e verificati punti realmente disegnati/selezionabili su desktop e telefono.
+
+Il primo giorno completo ha mostrato cicli di archiviazione seriale oltre un'ora. Il commit `d9e6257` introduce gruppi di otto trasferimenti piccoli, oggetti grandi elaborati da soli, compattazione soltanto al cambio fascia e recupero dello spool all'avvio. Il primo ciclo reale è terminato in 10 minuti e 18 secondi senza errori. La prova remota ripetuta passa con p95 267,94 ms. Verifiche: 51 test, otto prove browser, compilazioni, lint e CI superati. Il monitor continua oltre sette giorni e conserva in file separati le misure precedenti agli aggiornamenti.
+
+Creato Supabase ais-beta-staging gratuito in Irlanda, con schema e permessi verificati. Rimangono collegamento della chiave backend e ripristino cloud isolato, stack di prova completo, sette giorni della versione finale e costo mensile verificato entro 25 €. Lo spazio Railway Trial non consente ancora tetti di consumo personalizzati: nessun piano pagato è stato attivato. Dati e risultati aggiornati in docs/STATUS.md.
+
+---
+
 # Sessione beta Mediterraneo — 4 ottobre 2026
 
-Implementazione consolidata su main con recupero selettivo da busy-raman; copie Desktop preservate e backup sorgenti creato. Backend unico, acquisizione ufficiale classe A/B, archivio compresso persistente a 90 giorni, API/UI italiane, migrazione additive, controlli sanzioni atomici, CI e procedure operative. Next.js 16/React 19/MapLibre 6.
+Implementazione consolidata a partire da main sul ramo `codex/mediterranean-beta`, con recupero selettivo da busy-raman; copie Desktop preservate e backup sorgenti creato. Backend unico, acquisizione ufficiale classe A/B, archivio compresso persistente a 90 giorni, API/UI italiane, migrazione additive, controlli sanzioni atomici, CI e procedure operative. Next.js 16/React 19/MapLibre 6.
 
 Verificati localmente parser/riconnessione, guasti archivio, tracce sintetiche 90 giorni, migrazione PostgreSQL e RLS, backup/ripristino, carico sintetico 20 utenti e percorso browser desktop/telefono. Verificato separatamente AIS reale con recupero dopo disconnessione. Le prove locali non certificano deployment, sette giorni o budget: stato operativo e misure effettive in docs/STATUS.md.
 

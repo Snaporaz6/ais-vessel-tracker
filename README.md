@@ -2,7 +2,7 @@
 
 Mappa pubblica senza account, ricerca MMSI/IMO/nome, schede nave, tracce fino a 90 giorni, soste rilevate e controlli OFAC/UE. Lo storico esiste soltanto per le osservazioni effettivamente ricevute; copertura, aggiornamento e interruzioni sono visibili.
 
-**Stato:** implementazione e verifiche locali disponibili; apertura pubblica subordinata al collegamento dei servizi, al ripristino provato e alla prova continuativa di sette giorni. I dati dimostrativi sono fittizi e non possono essere utilizzati in produzione.
+**Stato:** [beta online per le verifiche](https://ais-vessel-tracker.vercel.app), con acquisizione AIS reale dal 6 ottobre 2026. La qualificazione della release richiede ancora sette giorni sulla versione finale, previsione di spesa e ripristino in un ambiente cloud isolato. Misure e criteri aperti sono in [STATUS.md](docs/STATUS.md). I dati dimostrativi sono fittizi e non possono essere utilizzati in produzione.
 
 ## Avvio riproducibile
 
