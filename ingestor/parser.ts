@@ -1,193 +1,211 @@
-import type { Vessel, VesselPosition, ShipType, NavStatus } from '../shared/types.js';
-
-/** Messaggio raw da aisstream.io */
-interface AISStreamMessage {
-  MessageType: string;
-  MetaData: {
-    MMSI: number;
-    MMSI_String: number | string; // aisstream restituisce un numero, non stringa
-    ShipName: string;
-    latitude: number;
-    longitude: number;
-    time_utc: string;
-  };
-  Message: {
-    PositionReport?: AISPositionData;
-    StandardClassBPositionReport?: AISPositionData;
-    ShipStaticData?: AISStaticData;
-  };
-}
-
-interface AISPositionData {
-  Sog: number;
-  Cog: number;
-  TrueHeading: number;
-  NavigationalStatus?: number;
-  UserID: number;
-  Latitude?: number;
-  Longitude?: number;
-}
-
-interface AISStaticData {
-  ImoNumber: number;
-  Name: string;
-  Type: number;
-  Dimension: {
-    A: number;
-    B: number;
-    C: number;
-    D: number;
-  };
-  MaximumStaticDraught: number;
-  CallSign: string;
-  Destination: string;
-  Eta: {
-    Month: number;
-    Day: number;
-    Hour: number;
-    Minute: number;
-  };
-}
-
-/** Mappa codice navigational status AIS -> nostro enum */
-const NAV_STATUS_MAP: Record<number, NavStatus> = {
-  0: 'underway_engine',
-  1: 'at_anchor',
-  2: 'not_under_command',
-  3: 'unknown', // restricted manoeuvrability -> unknown per MVP
-  4: 'unknown', // constrained by draught
-  5: 'moored',
-  6: 'aground',
-  7: 'fishing',
-  8: 'underway_sailing',
+import type {
+  Vessel,
+  VesselPosition,
+  ShipType,
+  NavStatus,
+} from "../shared/types.js";
+type Obj = Record<string, unknown>;
+const obj = (v: unknown): Obj =>
+  v && typeof v === "object" && !Array.isArray(v) ? (v as Obj) : {};
+const num = (v: unknown) =>
+  typeof v === "number" && Number.isFinite(v) ? v : null;
+const clean = (v: unknown) =>
+  typeof v === "string"
+    ? v.replace(/@/g, "").trim().slice(0, 200) || null
+    : null;
+const NAV: Record<number, NavStatus> = {
+  0: "underway_engine",
+  1: "at_anchor",
+  2: "not_under_command",
+  5: "moored",
+  6: "aground",
+  7: "fishing",
+  8: "underway_sailing",
 };
-
-/** Mappa AIS ship type code -> nostro ShipType */
-function mapShipType(aisType: number): ShipType {
-  if (aisType >= 70 && aisType <= 79) return 'cargo';
-  if (aisType >= 80 && aisType <= 89) return 'tanker';
-  if (aisType >= 60 && aisType <= 69) return 'passenger';
-  if (aisType === 30) return 'fishing';
-  if (aisType >= 31 && aisType <= 32) return 'tug';
-  if (aisType >= 36 && aisType <= 37) return 'pleasure';
-  if (aisType === 35) return 'military';
-  return 'other';
+export function mapShipType(c: number): ShipType {
+  if (c >= 70 && c <= 79) return "cargo";
+  if (c >= 80 && c <= 89) return "tanker";
+  if (c >= 60 && c <= 69) return "passenger";
+  if (c === 30) return "fishing";
+  if ([31, 32, 52].includes(c)) return "tug";
+  if ([36, 37].includes(c)) return "pleasure";
+  if (c === 35) return "military";
+  return "other";
 }
-
-/**
- * Normalizza il timestamp di aisstream.io per PostgreSQL.
- * Input:  "2026-03-06 14:10:48.636890157 +0000 UTC"
- * Output: "2026-03-06T14:10:48.636+00:00"
- * PostgreSQL non accetta il suffisso "UTC" e i nanosecondi oltre 6 cifre.
- */
-function normalizeTimestamp(raw: string): string {
-  if (!raw) return new Date().toISOString();
-
-  // Rimuovi il suffisso " UTC"
-  let ts = raw.replace(/\s*UTC\s*$/, '').trim();
-
-  // Tronca nanosecondi a millisecondi (max 3 cifre decimali)
-  // "14:10:48.636890157" -> "14:10:48.636"
-  ts = ts.replace(/(\.\d{3})\d+/, '$1');
-
-  // Rimuovi lo spazio prima del timezone offset: ".636 +0000" -> ".636+0000"
-  ts = ts.replace(/\s+\+/, '+');
-
-  // Converti "+0000" -> "+00:00" per ISO 8601
-  ts = ts.replace(/\+(\d{2})(\d{2})$/, '+$1:$2');
-
-  // Sostituisci spazio tra data e ora con "T"
-  ts = ts.replace(/^(\d{4}-\d{2}-\d{2})\s+/, '$1T');
-
-  // Verifica che il risultato sia una data valida
-  const d = new Date(ts);
-  if (isNaN(d.getTime())) {
-    return new Date().toISOString();
-  }
-
-  return ts;
+export function normalizeTimestamp(
+  raw: unknown,
+  now = Date.now(),
+): string | null {
+  if (typeof raw !== "string") return null;
+  const s = raw
+    .trim()
+    .replace(/\s*UTC\s*$/, "")
+    .replace(/(\.\d{3})\d+/, "$1")
+    .replace(/\s+([+-]\d{4})$/, "$1")
+    .replace(/([+-])(\d{2})(\d{2})$/, "$1$2:$3")
+    .replace(/^(\d{4}-\d{2}-\d{2})\s+/, "$1T");
+  const t = Date.parse(s);
+  return Number.isFinite(t) && t >= Date.UTC(2000, 0) && t <= now + 300_000
+    ? new Date(t).toISOString()
+    : null;
 }
-
-/** Risultato del parsing — posizione o dati statici nave */
+function eta(value: unknown, timestamp: string) {
+  const e = obj(value),
+    m = num(e.Month),
+    d = num(e.Day),
+    h = num(e.Hour),
+    n = num(e.Minute);
+  if (
+    m === null ||
+    d === null ||
+    h === null ||
+    n === null ||
+    ![m, d, h, n].every(Number.isInteger) ||
+    m < 1 ||
+    m > 12 ||
+    d < 1 ||
+    d > 31 ||
+    h < 0 ||
+    h > 23 ||
+    n < 0 ||
+    n > 59
+  )
+    return null;
+  const now = new Date(timestamp);
+  let year = now.getUTCFullYear(),
+    date = new Date(Date.UTC(year, m - 1, d, h, n));
+  if (date.getTime() < now.getTime() - 30 * 86400_000)
+    date = new Date(Date.UTC(++year, m - 1, d, h, n));
+  return date.getUTCMonth() === m - 1 && date.getUTCDate() === d
+    ? date.toISOString()
+    : null;
+}
 export type ParseResult =
-  | { type: 'position'; position: VesselPosition }
-  | { type: 'static'; vessel: Partial<Vessel> & { mmsi: string } };
-
-/** Parsa un messaggio raw di aisstream.io */
-export function parseAISMessage(raw: string): ParseResult | null {
-  let msg: AISStreamMessage;
+  | {
+      type: "position";
+      position: VesselPosition;
+      vessel: Partial<Vessel> & { mmsi: string };
+    }
+  | { type: "static"; vessel: Partial<Vessel> & { mmsi: string } };
+export function parseAISMessage(
+  raw: string,
+  now = Date.now(),
+): ParseResult | null {
+  let decoded: unknown;
   try {
-    msg = JSON.parse(raw) as AISStreamMessage;
+    decoded = JSON.parse(raw);
   } catch {
     return null;
   }
-
-  // MMSI_String puo arrivare come numero — convertiamo sempre a stringa
-  const mmsi = String(msg.MetaData?.MMSI_String ?? msg.MetaData?.MMSI ?? '');
-  if (!mmsi || mmsi === 'undefined') return null;
-
-  // aisstream.io timestamp: "2026-03-06 14:10:48.636890157 +0000 UTC"
-  // PostgreSQL non accetta il suffisso "UTC" — lo rimuoviamo
-  const rawTs = msg.MetaData?.time_utc ?? '';
-  const timestamp = normalizeTimestamp(rawTs);
-
-  // PositionReport (tipo 1,2,3) e StandardClassBPositionReport (tipo 18)
-  const pr = msg.Message?.PositionReport ?? msg.Message?.StandardClassBPositionReport;
+  const msg = obj(decoded),
+    meta = obj(msg.MetaData),
+    message = obj(msg.Message),
+    kind = msg.MessageType;
+  const mmsi = String(meta.MMSI_String ?? meta.MMSI ?? "");
+  if (!/^[1-9]\d{8}$/.test(mmsi)) return null;
+  const timestamp = normalizeTimestamp(meta.time_utc, now);
+  if (!timestamp) return null;
+  const body = typeof kind === "string" ? obj(message[kind]) : {};
+  if (!Object.keys(body).length || body.Valid === false) return null;
+  if (body.UserID !== undefined && String(body.UserID) !== mmsi) return null;
+  const vessel: Partial<Vessel> & { mmsi: string } = {
+    mmsi,
+    updated_at: timestamp,
+  };
+  const name = clean(meta.ShipName);
+  if (name) vessel.name = name;
   if (
-    (msg.MessageType === 'PositionReport' || msg.MessageType === 'StandardClassBPositionReport') &&
-    pr
+    [
+      "PositionReport",
+      "StandardClassBPositionReport",
+      "ExtendedClassBPositionReport",
+    ].includes(String(kind))
   ) {
-    const position: VesselPosition = {
-      mmsi,
-      lat: msg.MetaData.latitude,
-      lon: msg.MetaData.longitude,
-      speed: pr.Sog,
-      course: pr.Cog,
-      heading: pr.TrueHeading === 511 ? pr.Cog : pr.TrueHeading,
-      nav_status: NAV_STATUS_MAP[pr.NavigationalStatus ?? 15] ?? 'unknown',
-      timestamp,
+    const lat = num(body.Latitude ?? meta.Latitude ?? meta.latitude),
+      lon = num(body.Longitude ?? meta.Longitude ?? meta.longitude);
+    if (
+      lat === null ||
+      lon === null ||
+      Math.abs(lat) > 90 ||
+      Math.abs(lon) > 180
+    )
+      return null;
+    const sog = num(body.Sog),
+      cog = num(body.Cog),
+      hd = num(body.TrueHeading);
+    if (kind === "ExtendedClassBPositionReport")
+      Object.assign(vessel, staticFields(body, timestamp));
+    return {
+      type: "position",
+      vessel,
+      position: {
+        mmsi,
+        lat,
+        lon,
+        speed: sog !== null && sog >= 0 && sog < 102.3 ? sog : null,
+        course: cog !== null && cog >= 0 && cog < 360 ? cog : null,
+        heading: hd !== null && hd >= 0 && hd < 360 ? hd : null,
+        nav_status: NAV[num(body.NavigationalStatus) ?? 15] ?? "unknown",
+        timestamp,
+      },
     };
-    return { type: 'position', position };
   }
-
-  // ShipStaticData (tipo 5)
-  if (msg.MessageType === 'ShipStaticData' && msg.Message?.ShipStaticData) {
-    const sd = msg.Message.ShipStaticData;
-    const dim = sd.Dimension;
-
-    // Destination: stringa libera, spesso in maiuscolo con spazi
-    const rawDest = sd.Destination?.trim() || null;
-    const destination = rawDest && rawDest !== '' && rawDest !== '@@@@@@@@@@@@@@@@@@@@' ? rawDest : null;
-
-    // ETA: Month=0, Hour=24, Minute=60 indicano "non disponibile"
-    let eta: string | null = null;
-    if (sd.Eta && sd.Eta.Month > 0 && sd.Eta.Month <= 12 && sd.Eta.Day > 0 && sd.Eta.Day <= 31) {
-      const hour = sd.Eta.Hour < 24 ? sd.Eta.Hour : 0;
-      const minute = sd.Eta.Minute < 60 ? sd.Eta.Minute : 0;
-      // Usa anno corrente; se il mese è già passato, assume anno prossimo
-      const now = new Date();
-      let year = now.getFullYear();
-      if (sd.Eta.Month < now.getMonth() + 1) {
-        year += 1;
-      }
-      const etaDate = new Date(Date.UTC(year, sd.Eta.Month - 1, sd.Eta.Day, hour, minute));
-      if (!isNaN(etaDate.getTime())) {
-        eta = etaDate.toISOString();
-      }
-    }
-
-    const vessel: Partial<Vessel> & { mmsi: string } = {
-      mmsi,
-      name: sd.Name?.trim() || msg.MetaData.ShipName?.trim() || 'UNKNOWN',
-      ship_type: mapShipType(sd.Type),
-      imo: sd.ImoNumber > 0 ? String(sd.ImoNumber) : null,
-      length: dim ? dim.A + dim.B : null,
-      width: dim ? dim.C + dim.D : null,
-      destination,
-      eta,
+  if (kind === "ShipStaticData")
+    return {
+      type: "static",
+      vessel: {
+        ...vessel,
+        ...staticFields(body, timestamp),
+        destination: clean(body.Destination),
+        eta: eta(body.Eta, timestamp),
+      },
     };
-    return { type: 'static', vessel };
+  if (kind === "StaticDataReport") {
+    const a = obj(body.ReportA),
+      b = obj(body.ReportB);
+    const fields =
+      body.PartNumber === 0 || body.PartNumber === false
+        ? a.Valid === false
+          ? {}
+          : a
+        : body.PartNumber === 1 || body.PartNumber === true
+          ? b.Valid === false
+            ? {}
+            : b
+          : {
+              ...(a.Valid === false ? {} : a),
+              ...(b.Valid === false ? {} : b),
+            };
+    return {
+      type: "static",
+      vessel: { ...vessel, ...staticFields(fields, timestamp) },
+    };
   }
-
   return null;
+}
+function staticFields(body: Obj, timestamp: string): Partial<Vessel> {
+  const out: Partial<Vessel> = { updated_at: timestamp },
+    name = clean(body.Name);
+  if (name) out.name = name;
+  const code = num(body.Type ?? body.ShipType);
+  if (code !== null && code !== 0) out.ship_type = mapShipType(code);
+  const imo = num(body.ImoNumber);
+  if (imo && /^\d{7}$/.test(String(imo))) out.imo = String(imo);
+  const d = obj(body.Dimension),
+    a = num(d.A),
+    b = num(d.B),
+    c = num(d.C),
+    e = num(d.D);
+  if (
+    a !== null &&
+    b !== null &&
+    a >= 0 &&
+    b >= 0 &&
+    a + b > 0 &&
+    a + b <= 1022
+  )
+    out.length = a + b;
+  if (c !== null && e !== null && c >= 0 && e >= 0 && c + e > 0 && c + e <= 126)
+    out.width = c + e;
+  return out;
 }

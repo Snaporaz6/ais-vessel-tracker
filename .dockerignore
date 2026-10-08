@@ -1,0 +1,11 @@
+node_modules
+frontend
+.git
+.claude
+.env*
+data
+.test-data
+test-results
+playwright-report
+dist
+*.log

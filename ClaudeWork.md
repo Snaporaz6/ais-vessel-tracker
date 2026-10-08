@@ -1,3 +1,35 @@
+# Sessione operativa — 8 ottobre 2026
+
+Completato il ripristino nel Supabase cloud isolato: 25.789 navi, 669 tracce con tutti i checksum verificati e 2.211 sanzioni. Copiati e riletti i 669 oggetti in un bucket Railway EU West separato. Il lettore di snapshot `serve-snapshot` non avvia AIS, importazioni o manutenzione; la Preview protetta del ramo `codex/beta-staging` usa solo le risorse isolate. Ricerca, scheda, pagina server, finestre 1/7/30/90 e formato telefono verificati; CORS della produzione respinto. Contenitore di prova spento dopo le verifiche per contenere i costi; dati e configurazione conservati.
+
+La notte ha confermato cicli ordinari di circa 7–17 minuti, ma la pulizia giornaliera seriale ha impiegato 93 minuti. Il backend `90f917d`, distribuito alle 06:21 UTC, elimina gli oggetti obsoleti in gruppi limitati, conservando quelli attivi, recenti o citati dai backup. Riavvio previsto registrato, AIS recuperato dopo circa 14 secondi. Nuova finestra del monitor dall’8 ottobre alle 06:33:56 UTC con misure precedenti preservate; sette giorni non prima del 15 ottobre alla stessa ora. Il monitor `88bcf56` distingue i ritentativi recuperati dai guasti attivi e rende consultabile il riepilogo nei log senza nuovi accessi SSH.
+
+Verifiche: 54 test automatici, otto prove browser, compilazioni, lint, carico locale e audit superati nella CI. Backup automatico dell’8 ottobre scaricato e verificato; tre tracce controllate a campione. Bucket effettivo 223,3 MB comprendendo copie protette; consumo Railway rilevato 0,39358 USD, non previsione mensile. Restano tempi della nuova pulizia, sette giorni reali, capacità database a 90 giorni e previsione totale entro 25 €. Main invariato, proposta #2 in bozza; risultati in docs/STATUS.md.
+
+---
+
+# Sessione operativa — 7 ottobre 2026
+
+Beta reale su Vercel Hobby e Railway, Supabase esistente ripristinato e migrazioni additive verificate. Ramo di lavoro e produzione frontend: `codex/mediterranean-beta`; main resta invariato e la proposta #2 resta in bozza. Storico reale dal 6 ottobre alle 18:39 UTC.
+
+Verificati backup cloud con ripristino su PostgreSQL locale isolato (25.789 navi e 669 checksum traccia), aggiornamenti giornalieri OFAC/UE e carico remoto da un servizio indipendente: 20 client, 300 risposte valide, zero errori, p95 243,34 ms. Corretto il worker MapLibre e verificati punti realmente disegnati/selezionabili su desktop e telefono.
+
+Il primo giorno completo ha mostrato cicli di archiviazione seriale oltre un'ora. Il commit `d9e6257` introduce gruppi di otto trasferimenti piccoli, oggetti grandi elaborati da soli, compattazione soltanto al cambio fascia e recupero dello spool all'avvio. Il primo ciclo reale è terminato in 10 minuti e 18 secondi senza errori. La prova remota ripetuta passa con p95 267,94 ms. Verifiche: 51 test, otto prove browser, compilazioni, lint e CI superati. Il monitor continua oltre sette giorni e conserva in file separati le misure precedenti agli aggiornamenti.
+
+Creato Supabase ais-beta-staging gratuito in Irlanda, con schema e permessi verificati. Rimangono collegamento della chiave backend e ripristino cloud isolato, stack di prova completo, sette giorni della versione finale e costo mensile verificato entro 25 €. Lo spazio Railway Trial non consente ancora tetti di consumo personalizzati: nessun piano pagato è stato attivato. Dati e risultati aggiornati in docs/STATUS.md.
+
+---
+
+# Sessione beta Mediterraneo — 4 ottobre 2026
+
+Implementazione consolidata a partire da main sul ramo `codex/mediterranean-beta`, con recupero selettivo da busy-raman; copie Desktop preservate e backup sorgenti creato. Backend unico, acquisizione ufficiale classe A/B, archivio compresso persistente a 90 giorni, API/UI italiane, migrazione additive, controlli sanzioni atomici, CI e procedure operative. Next.js 16/React 19/MapLibre 6.
+
+Verificati localmente parser/riconnessione, guasti archivio, tracce sintetiche 90 giorni, migrazione PostgreSQL e RLS, backup/ripristino, carico sintetico 20 utenti e percorso browser desktop/telefono. Verificato separatamente AIS reale con recupero dopo disconnessione. Le prove locali non certificano deployment, sette giorni o budget: stato operativo e misure effettive in docs/STATUS.md.
+
+Le annotazioni precedenti qui sotto sono **storiche**: i formati AIS, TimescaleDB/Leaflet, tre processi, cron separato e conteggi sanzioni di marzo non descrivono la beta corrente. README, CLAUDE.md e docs/OPERATIONS.md prevalgono per l'architettura attuale.
+
+---
+
 # ClaudeWork — Report di sviluppo AIS Vessel Tracker
 
 > Documento unico aggiornato ad ogni sessione. Le nuove sessioni vengono aggiunte in cima.

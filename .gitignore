@@ -19,6 +19,7 @@ node_modules/
 dist/
 build/
 .next/
+frontend/public/maplibre/
 out/
 
 # ========================
@@ -64,3 +65,9 @@ coverage/
 # Supabase locale (se usi CLI)
 # ========================
 supabase/.temp/
+data/
+test-results/
+playwright-report/
+.test-data/
+.env.staging
+.env.production

@@ -1,9 +1,10 @@
-import type { Metadata } from 'next';
-import './globals.css';
+import type { Metadata } from "next";
+import "./globals.css";
 
 export const metadata: Metadata = {
-  title: 'AIS Vessel Tracker',
-  description: 'Real-time vessel tracking with AIS data — free alternative to MarineTraffic',
+  title: "AIS Vessel Tracker",
+  description:
+    "Osservazioni AIS nel Mediterraneo, storico e soste rilevate. Beta pubblica.",
 };
 
 export default function RootLayout({
@@ -12,22 +13,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <head>
-        <link
-          rel="stylesheet"
-          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-          crossOrigin=""
-        />
-        <link
-          rel="stylesheet"
-          href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"
-        />
-        <link
-          rel="stylesheet"
-          href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"
-        />
-      </head>
+    <html lang="it">
       <body>{children}</body>
     </html>
   );
