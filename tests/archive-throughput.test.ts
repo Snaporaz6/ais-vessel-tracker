@@ -140,3 +140,85 @@ test("expired catalog entries need no track download and remain recoverable from
   assert.equal((await f.repo.archives()).length, 0);
   assert((await get(entry.object_key)).length > 0);
 });
+
+test(
+  "cleanup drains bounded deletes after a failure and preserves active, recent and backup objects",
+  { timeout: 5000 },
+  async () => {
+    const f = fixture(),
+      now = Date.now();
+    f.tracks.append(position("900000001", now - 120_000));
+    await f.tracks.flush(now);
+    const protectedKey = (await f.repo.archives())[0].object_key;
+    await backup(f.repo, f.objects);
+    f.tracks.append(position("900000001", now - 60_000));
+    await f.tracks.flush(now);
+    const activeKey = (await f.repo.archives())[0].object_key;
+    assert.notEqual(activeKey, protectedKey);
+    for (let i = 0; i < 10; i++)
+      await f.objects.put(`tracks/orphan-${i}`, Buffer.from("obsolete"));
+    await f.objects.put("tracks/recent", Buffer.from("recent"));
+    const list = f.objects.list.bind(f.objects);
+    f.objects.list = async function* (prefix) {
+      for await (const obj of list(prefix))
+        yield {
+          ...obj,
+          modified: new Date(
+            now - (obj.key === "tracks/recent" ? 0 : 26 * 3600_000),
+          ),
+        };
+    };
+    const remove = f.objects.delete.bind(f.objects);
+    let entered = 0,
+      settled = false,
+      pruned = 0;
+    let allEntered!: () => void, release!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      allEntered = resolve;
+    });
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    f.repo.prune = async () => {
+      pruned++;
+    };
+    f.objects.delete = async (key) => {
+      assert.notEqual(key, protectedKey);
+      assert.notEqual(key, activeKey);
+      assert.notEqual(key, "tracks/recent");
+      entered++;
+      if (entered === 8) allEntered();
+      if (key === "tracks/orphan-0") throw Error("temporary delete failure");
+      await blocked;
+      await remove(key);
+    };
+    const cleanup = f.tracks.flush(now, true).then(
+      () => {
+        settled = true;
+        return null;
+      },
+      (error: unknown) => {
+        settled = true;
+        return error;
+      },
+    );
+    await waiting;
+    assert.equal(entered, 8);
+    assert.equal(settled, false);
+    assert.equal(pruned, 0);
+    release();
+    assert((await cleanup) instanceof Error);
+    assert.equal(entered, 8);
+    assert.equal(pruned, 0);
+    f.objects.delete = remove;
+    await f.tracks.flush(now, true);
+    assert.equal(pruned, 1);
+    const remaining = [];
+    for await (const obj of list("tracks/")) remaining.push(obj.key);
+    assert.deepEqual(
+      remaining.sort(),
+      [activeKey, protectedKey, "tracks/recent"].sort(),
+    );
+    assert.equal(f.tracks.lastError, null);
+  },
+);

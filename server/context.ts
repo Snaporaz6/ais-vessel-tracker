@@ -18,9 +18,9 @@ import { LiveStore, unknownVessel } from "./live-store.js";
 import { Ingestor } from "../ingestor/index.js";
 import { SanctionsCache } from "../api/services/sanctions.js";
 import type { VesselPosition } from "../shared/types.js";
-export async function createContext() {
+export async function createContext(options: { requireAIS?: boolean } = {}) {
   dotenv({ path: process.env.ENV_FILE ?? resolve(".env.local") });
-  const config = runtimeConfig(),
+  const config = runtimeConfig(options),
     repo = config.demo
       ? new MemoryRepository()
       : new PostgresRepository(

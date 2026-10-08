@@ -68,6 +68,10 @@ I test automatici utilizzano demo esplicita, volume temporaneo, PostgreSQL local
 
 Vercel Preview deve puntare al backend di staging e non a quello pubblico. Non mantenere contemporaneamente due stack pagati oltre il budget: spegnere lo staging dopo la verifica, oppure alternare le prove senza toccare i dati produzione. Sul piano Supabase gratuito non presupporre branching a pagamento; per i test SQL è disponibile PostgreSQL locale con PGlite.
 
+Per consultare un backup ripristinato senza una seconda acquisizione, usare `npm run start:snapshot` dopo la compilazione. Richiede esplicitamente `NODE_ENV=test`, `SNAPSHOT_TEST_ONLY=true`, `DEMO_MODE=false`, database e bucket isolati, `STORAGE_DIR` nuovo e CORS della Preview. Non configurare la chiave AIS né il token amministrativo di produzione. Il lettore non avvia acquisizione, importazioni, backup o manutenzione. Le risposte hanno `X-AIS-Environment: staging-snapshot`; `/health` deve rispondere 200 e `/ready` deve dichiarare AIS disconnesso con 503, anche quando database e archivio sono disponibili. La mappa live può essere vuota: provare ricerca, scheda e tracce del periodo effettivamente ripristinato.
+
+Railway assegna `PORT`, che prevale su `API_PORT`: il dominio del servizio di prova deve instradare verso la porta effettiva riportata da `snapshot_listening`. Usare una sola replica in Europa e spegnere la distribuzione di prova dopo la verifica; conservare database, bucket e configurazione per riattivarla. Le due variabili API di Vercel Preview rimangono dirette allo staging anche quando è spento: un errore esplicito non deve trasformarsi in accesso alla produzione.
+
 ## Manutenzione, controlli e importazioni
 
 - Ogni 500 ms, se necessario: consegna outbox, idempotente.
@@ -86,6 +90,8 @@ Il riavvio legge lo spool a blocchi conservando soltanto l'ultima posizione per 
 Gli errori del servizio compaiono nei log con eventi sanitizzati. Sul limite volume o guasti persistenti intervenire prima che lo spool si esaurisca; non eliminare manualmente file non ancora archiviati.
 
 I trasferimenti di archivi piccoli procedono in gruppi di massimo otto; spool oltre 1 MiB o archivi con oltre 4.000 punti vengono elaborati da soli. Dopo un errore si attende la conclusione dell'intero gruppo prima di rilasciare il blocco o riprovare: le copie temporanee non verificate restano sul volume. La manutenzione scarica gli oggetti freddi soltanto quando gli estremi attraversano una fascia di campionamento o scatta la retention. Gli eventi di manutenzione includono `duration_ms`; `archive_flushed_at` indica il completamento effettivo, non l'avvio del ciclo.
+
+Anche la cancellazione giornaliera degli oggetti obsoleti procede in gruppi di massimo otto, aspettando tutte le risposte prima di riprovare un errore. Sono eliminabili solo oggetti non più citati dal catalogo o dai backup conservati e vecchi di oltre 24 ore. Il fallimento della pulizia conserva l'errore e impedisce di dichiarare completata la manutenzione del giorno.
 
 Per la prima importazione:
 

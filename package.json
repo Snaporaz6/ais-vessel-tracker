@@ -6,6 +6,7 @@
   "scripts": {
     "dev:server": "tsx watch server/index.ts",
     "start": "node dist/server/index.js",
+    "start:snapshot": "node dist/scripts/serve-snapshot.js",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "dev:frontend": "npm --prefix frontend run dev",

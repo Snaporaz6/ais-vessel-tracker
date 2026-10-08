@@ -3,7 +3,9 @@ import { z } from "zod";
 import { MEDITERRANEAN_BBOX, SPOOL_LIMIT_BYTES } from "./config.js";
 
 /** Validated runtime settings; called after dotenv by the entrypoint. */
-export function runtimeConfig() {
+export function runtimeConfig({
+  requireAIS = true,
+}: { requireAIS?: boolean } = {}) {
   const schema = z.object({
     NODE_ENV: z
       .enum(["development", "test", "production"])
@@ -84,7 +86,9 @@ export function runtimeConfig() {
       "S3_BUCKET",
       "S3_ACCESS_KEY_ID",
       "S3_SECRET_ACCESS_KEY",
-    ].filter((k) => !process.env[k]);
+    ].filter(
+      (k) => (k !== "AISSTREAM_API_KEY" || requireAIS) && !process.env[k],
+    );
     if (missing.length)
       throw new Error(`Missing settings: ${missing.join(", ")}`);
   }
