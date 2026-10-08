@@ -47,7 +47,7 @@ export default function VesselPhoto({
         }}
       >
         <span style={{ fontSize: 20, opacity: 0.5 }}>🚢</span>
-        No photo available
+        Foto non disponibile
       </div>
     );
   }

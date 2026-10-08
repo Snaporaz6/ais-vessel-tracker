@@ -2,6 +2,7 @@ import type { VesselDetail, PortCall } from "../../shared/types";
 import { date, value, duration, shipNames } from "../lib/format";
 import AnomalyBadge from "./AnomalyBadge";
 import SanctionBadge from "./SanctionBadge";
+import VesselPhoto from "./VesselPhoto";
 export default function VesselView({
   vessel: v,
   stops,
@@ -17,6 +18,7 @@ export default function VesselView({
     check = v.sanctions_check;
   return (
     <>
+      <VesselPhoto key={v.mmsi} mmsi={v.mmsi} imo={v.imo} vesselName={v.name} height={180} />
       <p className="eyebrow">
         {shipNames[v.ship_type]} · {v.flag || "Bandiera non disponibile"}
       </p>
