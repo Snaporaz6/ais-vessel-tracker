@@ -69,14 +69,25 @@ export function summarize(
           measured(s.database_bytes) &&
           measured(s.archive_bytes) &&
           s.maintenance_errors !== undefined &&
-          Object.keys(s.maintenance_errors).length === 0 &&
           ["OFAC", "EU"].every((source) =>
             s.sanctions_sources?.some(
-              (s) => s.source === source && s.status === "ok",
+              (s) => s.source === source && typeof s.status === "string",
             ),
-          ) &&
-          !s.archive_error,
+          ),
       );
+  const maintenanceHealthy = (s: Sample) =>
+    s.maintenance_errors !== undefined &&
+    Object.keys(s.maintenance_errors).length === 0 &&
+    !s.archive_error &&
+    ["OFAC", "EU"].every((source) =>
+      s.sanctions_sources?.some(
+        (entry) => entry.source === source && entry.status === "ok",
+      ),
+    );
+  const maintenanceDegraded = ordered.filter(
+      (s) => !maintenanceHealthy(s),
+    ).length,
+    maintenanceRecovered = !!last && maintenanceHealthy(last);
   const db90 =
     last?.database_bytes !== undefined && dbDaily !== null
       ? last.database_bytes + dbDaily * Math.max(0, 90 - days)
@@ -106,6 +117,8 @@ export function summarize(
     invalid_samples: invalid,
     latest_sample_fresh: fresh,
     operational_metrics_complete: metricsComplete,
+    maintenance_degraded_samples: maintenanceDegraded,
+    maintenance_currently_healthy: maintenanceRecovered,
     unavailable_samples: outage,
     missing_samples: missing,
     restarts_observed: resets,
@@ -124,6 +137,7 @@ export function summarize(
       outage === 0 &&
       resets === 0 &&
       metricsComplete &&
+      maintenanceRecovered &&
       dbFits &&
       withinBudget,
   };
@@ -183,8 +197,16 @@ async function main() {
         database_bytes: sample.database_bytes,
         archive_bytes: sample.archive_bytes,
         rss_bytes: sample.rss_bytes,
+        maintenance_degraded_samples: summary.maintenance_degraded_samples,
+        maintenance_currently_healthy: summary.maintenance_currently_healthy,
       }),
     );
+    if (
+      all.length === 1 ||
+      all.length % 60 === 0 ||
+      process.argv.includes("--once")
+    )
+      console.info(JSON.stringify({ event: "beta_summary", ...summary }));
     if (!sample.ready)
       console.warn(JSON.stringify({ event: "beta_unavailable", at }));
     if (summary.passed && !gateReported) {

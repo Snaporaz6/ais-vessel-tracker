@@ -120,3 +120,43 @@ test("seven days require recent valid timestamps rather than elapsed wall time a
   samples.push({ ...samples[0], at: "invalid timestamp" });
   assert.equal(summarize(samples, 24, end).passed, false);
 });
+
+test("recovered maintenance retries remain visible and unresolved faults or missing metrics block release", () => {
+  const end = Date.now(),
+    start = end - 7 * 86400_000;
+  const samples = Array.from({ length: 10081 }, (_, i) => ({
+    at: new Date(start + i * 60_000).toISOString(),
+    ready: true,
+    uptime_seconds: i * 60,
+    database_bytes: 10_000_000,
+    archive_bytes: 1_000_000,
+    archive_error: null as string | null,
+    maintenance_errors: {} as Record<string, number>,
+    sanctions_sources: [
+      { source: "OFAC", status: "ok" },
+      { source: "EU", status: "ok" },
+    ],
+  }));
+  for (const sample of samples.slice(180, 240)) {
+    sample.maintenance_errors.sanctions = start + 240 * 60_000;
+    sample.sanctions_sources[1].status = "unavailable";
+  }
+  const recovered = summarize(samples, 24, end);
+  assert.equal(recovered.operational_metrics_complete, true);
+  assert.equal(recovered.maintenance_degraded_samples, 60);
+  assert.equal(recovered.maintenance_currently_healthy, true);
+  assert.equal(recovered.passed, true);
+  samples.at(-1)!.maintenance_errors.maintenance_backup = end + 5 * 60_000;
+  assert.equal(summarize(samples, 24, end).passed, false);
+  samples.at(-1)!.maintenance_errors = {};
+  samples.at(-1)!.archive_error = "ARCHIVE_UNAVAILABLE";
+  assert.equal(summarize(samples, 24, end).passed, false);
+  samples.at(-1)!.archive_error = null;
+  samples.at(-1)!.sanctions_sources[1].status = "stale";
+  assert.equal(summarize(samples, 24, end).passed, false);
+  samples.at(-1)!.sanctions_sources[1].status = "ok";
+  const missing = samples.map((s, i) =>
+    i === 180 ? { ...s, maintenance_errors: undefined } : s,
+  );
+  assert.equal(summarize(missing, 24, end).passed, false);
+});
