@@ -1,3 +1,13 @@
+# Sessione operativa — 8 ottobre 2026
+
+Completato il ripristino nel Supabase cloud isolato: 25.789 navi, 669 tracce con tutti i checksum verificati e 2.211 sanzioni. Copiati e riletti i 669 oggetti in un bucket Railway EU West separato. Il lettore di snapshot `serve-snapshot` non avvia AIS, importazioni o manutenzione; la Preview protetta del ramo `codex/beta-staging` usa solo le risorse isolate. Ricerca, scheda, pagina server, finestre 1/7/30/90 e formato telefono verificati; CORS della produzione respinto. Contenitore di prova spento dopo le verifiche per contenere i costi; dati e configurazione conservati.
+
+La notte ha confermato cicli ordinari di circa 7–17 minuti, ma la pulizia giornaliera seriale ha impiegato 93 minuti. Il backend `90f917d`, distribuito alle 06:21 UTC, elimina gli oggetti obsoleti in gruppi limitati, conservando quelli attivi, recenti o citati dai backup. Riavvio previsto registrato, AIS recuperato dopo circa 14 secondi. Nuova finestra del monitor dall’8 ottobre alle 06:33:56 UTC con misure precedenti preservate; sette giorni non prima del 15 ottobre alla stessa ora. Il monitor `88bcf56` distingue i ritentativi recuperati dai guasti attivi e rende consultabile il riepilogo nei log senza nuovi accessi SSH.
+
+Verifiche: 54 test automatici, otto prove browser, compilazioni, lint, carico locale e audit superati nella CI. Backup automatico dell’8 ottobre scaricato e verificato; tre tracce controllate a campione. Bucket effettivo 223,3 MB comprendendo copie protette; consumo Railway rilevato 0,39358 USD, non previsione mensile. Restano tempi della nuova pulizia, sette giorni reali, capacità database a 90 giorni e previsione totale entro 25 €. Main invariato, proposta #2 in bozza; risultati in docs/STATUS.md.
+
+---
+
 # Sessione operativa — 7 ottobre 2026
 
 Beta reale su Vercel Hobby e Railway, Supabase esistente ripristinato e migrazioni additive verificate. Ramo di lavoro e produzione frontend: `codex/mediterranean-beta`; main resta invariato e la proposta #2 resta in bozza. Storico reale dal 6 ottobre alle 18:39 UTC.

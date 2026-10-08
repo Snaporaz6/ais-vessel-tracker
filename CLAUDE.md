@@ -7,6 +7,7 @@ Beta pubblica Mediterraneo senza account: mappa live, ricerca, schede, storico p
 Node ≥22, preferito 24 LTS. `npm ci` e `npm --prefix frontend ci`.
 - Backend unico: `npm run dev:server`; produzione `npm run build` poi `npm start`.
 - Frontend: `npm run dev:frontend`; build `npm run build:frontend`.
+- Lettore staging ripristinato: `npm run start:snapshot`, solo con NODE_ENV=test, SNAPSHOT_TEST_ONLY=true e risorse isolate; vedere OPERATIONS.
 - Controlli: `npm run verify`, `npm run lint`, `npm run build`.
 - Browser: `npx playwright install chromium`, `npm run test:e2e`.
 - Carico: `npm run test:load`; AIS reale: `npx tsx scripts/verify-live.ts`.
