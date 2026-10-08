@@ -82,6 +82,7 @@ export default function VesselDrawer({
           vessel={vessel}
           stops={stops}
           stopsError={stopsError}
+          showPhoto
           onShowTrack={() => onShowTrack(mmsi)}
         />
       ) : (

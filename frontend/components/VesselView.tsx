@@ -8,17 +8,27 @@ export default function VesselView({
   stops,
   onShowTrack,
   stopsError,
+  showPhoto = false,
 }: {
   vessel: VesselDetail;
   stops: PortCall[];
   onShowTrack?: () => void;
   stopsError?: string;
+  showPhoto?: boolean;
 }) {
   const p = v.last_position,
     check = v.sanctions_check;
   return (
     <>
-      <VesselPhoto key={v.mmsi} mmsi={v.mmsi} imo={v.imo} vesselName={v.name} height={180} />
+      {showPhoto && (
+        <VesselPhoto
+          key={v.mmsi}
+          mmsi={v.mmsi}
+          imo={v.imo}
+          vesselName={v.name}
+          height={180}
+        />
+      )}
       <p className="eyebrow">
         {shipNames[v.ship_type]} · {v.flag || "Bandiera non disponibile"}
       </p>
