@@ -1,78 +1,123 @@
 "use client";
 
-import { useState } from "react";
+import Image from "next/image";
+import { useEffect, useState } from "react";
+import type { VesselPhotoData } from "../lib/vessel-photos";
 
 interface VesselPhotoProps {
   mmsi: string;
   imo: string | null;
   vesselName: string;
-  /** Altezza del contenitore immagine in px */
   height?: number;
 }
 
-/** Costruisce URL foto nave da MarineTraffic, preferendo IMO se disponibile */
-function getPhotoUrl(mmsi: string, imo: string | null): string {
-  if (imo) {
-    return `https://photos.marinetraffic.com/ais/showphoto.aspx?imo=${imo}&size=thumb300`;
-  }
-  return `https://photos.marinetraffic.com/ais/showphoto.aspx?mmsi=${mmsi}&size=thumb300`;
+export default function VesselPhoto(props: VesselPhotoProps) {
+  // AIS can add an IMO after selection. Reset failed/loading state for each identity.
+  return <Photo key={`${props.mmsi}:${props.imo ?? ""}`} {...props} />;
 }
 
-/**
- * Componente client per la foto nave con fallback elegante.
- * Usa MarineTraffic come sorgente, con placeholder se la foto non è disponibile.
- */
-export default function VesselPhoto({
-  mmsi,
-  imo,
-  vesselName,
-  height = 160,
-}: VesselPhotoProps) {
-  const [hasError, setHasError] = useState(false);
+function Photo({ mmsi, imo, vesselName, height = 180 }: VesselPhotoProps) {
+  const [photo, setPhoto] = useState<VesselPhotoData | null>(null);
+  const [status, setStatus] = useState<
+    "loading" | "image" | "ready" | "missing" | "error"
+  >("loading");
+  const [attempt, setAttempt] = useState(0);
 
-  if (hasError) {
-    return (
-      <div
-        style={{
-          height: Math.min(height, 80),
-          borderRadius: 8,
-          background: "var(--bg-card)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-          color: "var(--text-secondary)",
-          fontSize: 12,
-          border: "1px solid var(--border)",
-        }}
-      >
-        <span style={{ fontSize: 20, opacity: 0.5 }}>🚢</span>
-        Foto non disponibile
-      </div>
-    );
-  }
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+    setPhoto(null);
+    setStatus("loading");
+    const timeout = setTimeout(() => {
+      controller.abort();
+      if (active) setStatus("error");
+    }, 12000);
+    const params = new URLSearchParams({ mmsi });
+    if (imo && /^[1-9]\d{6}$/.test(imo)) params.set("imo", imo);
+    fetch(`/api/vessel-photo?${params}`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Photo unavailable");
+        return response.json() as Promise<{ photo: VesselPhotoData | null }>;
+      })
+      .then(({ photo: result }) => {
+        if (!active || controller.signal.aborted) return;
+        setPhoto(result);
+        setStatus(result ? "image" : "missing");
+      })
+      .catch(() => {
+        if (active) setStatus("error");
+      })
+      .finally(() => clearTimeout(timeout));
+    return () => {
+      active = false;
+      controller.abort();
+      clearTimeout(timeout);
+    };
+  }, [mmsi, imo, attempt]);
+
+  useEffect(() => {
+    if (status !== "image") return;
+    const timer = setTimeout(() => setStatus("error"), 12000);
+    return () => clearTimeout(timer);
+  }, [status]);
 
   return (
-    <div
-      style={{
-        borderRadius: 8,
-        overflow: "hidden",
-        background: "#1a1a2e",
-        border: "1px solid var(--border)",
-      }}
-    >
-      <img
-        src={getPhotoUrl(mmsi, imo)}
-        alt={vesselName}
-        style={{
-          width: "100%",
-          height,
-          objectFit: "cover",
-          display: "block",
-        }}
-        onError={() => setHasError(true)}
-        referrerPolicy="no-referrer"
-      />
-    </div>
+    <figure className="vessel-photo">
+      <div className="vessel-photo-frame" style={{ height }}>
+        {photo && (status === "image" || status === "ready") && (
+          <Image
+            src={photo.url}
+            alt={`Fotografia di ${vesselName}`}
+            fill
+            unoptimized
+            loading="lazy"
+            sizes="(max-width: 900px) 100vw, 640px"
+            style={{
+              objectFit: "contain",
+              opacity: status === "ready" ? 1 : 0,
+            }}
+            onLoad={() => setStatus("ready")}
+            onError={() => setStatus("error")}
+            referrerPolicy="no-referrer"
+          />
+        )}
+        {status !== "ready" && (
+          <div className="vessel-photo-state" role="status" aria-live="polite">
+            <span>
+              {status === "loading" || status === "image"
+                ? "Caricamento foto…"
+                : status === "missing"
+                  ? "Nessuna foto disponibile nelle fonti libere."
+                  : "Foto temporaneamente non disponibile."}
+            </span>
+            {status === "error" && (
+              <button type="button" onClick={() => setAttempt((n) => n + 1)}>
+                Riprova foto
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+      {photo && status === "ready" && (
+        <figcaption>
+          <a href={photo.sourceUrl} target="_blank" rel="noopener noreferrer">
+            Foto: {photo.author}
+          </a>
+          {" · "}
+          {photo.licenseUrl ? (
+            <a
+              href={photo.licenseUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {photo.license}
+            </a>
+          ) : (
+            photo.license
+          )}
+          {" · Wikimedia Commons"}
+        </figcaption>
+      )}
+    </figure>
   );
 }

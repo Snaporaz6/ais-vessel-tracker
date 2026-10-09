@@ -1,6 +1,6 @@
-# Stato della beta — 8 ottobre 2026
+# Stato della beta — 10 ottobre 2026
 
-La [beta Mediterraneo](https://ais-vessel-tracker.vercel.app) è online senza account per le verifiche, con dati AIS reali. Il ripristino cloud isolato e la Preview sono stati verificati. La release resta da qualificare: durata della manutenzione aggiornata, sette giorni sulla versione finale, capacità del database a 90 giorni e costo mensile verificato. Il ramo è `codex/mediterranean-beta`; main resta invariato e la [proposta #2](https://github.com/Snaporaz6/ais-vessel-tracker/pull/2) resta in bozza.
+La [beta Mediterraneo](https://ais-vessel-tracker.vercel.app) è online senza account per le verifiche, con dati AIS reali. Il ripristino cloud isolato e la Preview sono stati verificati. La release resta da qualificare: durata della manutenzione aggiornata, sette giorni sulla versione finale, capacità del database a 90 giorni e costo mensile verificato. La [proposta #2](https://github.com/Snaporaz6/ais-vessel-tracker/pull/2) è stata integrata in `main` (`c8d0d13`) e distribuita in produzione. Le misure operative riportate sotto appartengono alle date indicate; non sono nuove misure del 10 ottobre.
 
 ## Implementazione verificata
 
@@ -11,6 +11,15 @@ La [beta Mediterraneo](https://ais-vessel-tracker.vercel.app) è online senza ac
 - Ricerca MMSI/IMO e similarità del nome, schede aggiornate, tracce 1/7/30/90 giorni, soste rilevate con algoritmo condiviso, anomalie persistenti e fonti sanzioni esplicite. Popup sicuri e interfaccia italiana desktop/telefono. Il worker cartografico viene distribuito con il modulo condiviso della stessa versione; i test selezionano punti realmente disegnati sulla mappa.
 - Migrazioni additive 002/003 verificate dopo backup pre-migrazione: 22.672 navi, 596.609 posizioni legacy, 923 sanzioni e 5.171 anomalie preservate al momento della migrazione. Accesso pubblico a tabelle e vecchia RPC negato. La retention successiva degli eventi scaduti è distinta dalla verifica pre/post migrazione.
 - **54 test automatici e otto prove browser** superati, oltre a compilazioni backend/frontend, lint, carico locale e audit delle dipendenze di produzione. [CI del commit 88bcf56](https://github.com/Snaporaz6/ais-vessel-tracker/actions/runs/37737890512) superata; include guasti archivio, append concorrenti, ripristino parziale, campionamento di 90 giorni, PostgreSQL e permessi.
+
+## Foto delle imbarcazioni — correzione del 10 ottobre
+
+- Sostituiti gli URL MarineTraffic non verificati con un endpoint del frontend che consulta le API pubbliche Wikidata e Wikimedia Commons. Corrispondenza esatta tramite IMO (P458) o, quando assente, MMSI (P587); categoria Commons associata o categoria IMO come alternativa. Nessuna ricerca fotografica per semplice nome.
+- Immagine nella scheda sulla mappa e nella pagina completa, con autore, licenza e collegamento alla pagina originale. Le immagini senza identificazione o crediti sufficienti non vengono mostrate. La copertura delle fonti libere è parziale: non tutte le navi hanno una foto.
+- Foto assente e fonte temporaneamente non disponibile hanno messaggi distinti. Timeout del servizio di 8 secondi, del browser di 12 secondi, ritentativo manuale e annullamento quando cambia la nave; lo stato precedente viene azzerato anche quando arriva un nuovo IMO.
+- Richieste alla fonte memorizzate per 24 ore, risposta valida pubblica per un'ora nel browser e 24 ore sul CDN; errori non memorizzati. Nessuna nuova dipendenza, chiave API o modifica al backend AIS.
+- Prove automatiche: 59 test, compilazioni e lint; 14 prove browser su desktop e telefono comprendono decodifica dell'immagine, crediti, cambio nave, scheda completa, ritentativo, errore immagine e timeout.
+- Prova reale della sorgente e dell'endpoint compilato: MSC ZOE (MMSI 352757000, IMO 9703318), fotografia di Walter Rademacher, CC BY-SA 3.0; verificata anche MSC Magnifica. La prova dell'immagine reale in produzione viene eseguita dopo la distribuzione.
 
 ## Prove sui servizi reali
 
