@@ -400,3 +400,65 @@ dd {
   color: var(--text-secondary);
   text-decoration: underline;
 }
+
+/* The language control stays available on the map, drawers and detail pages. */
+.language-switch {
+  position: fixed;
+  top: 18px;
+  right: 64px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #111827f2;
+  color: var(--text-secondary);
+  box-shadow: 0 4px 16px #0003;
+}
+.language-switch select {
+  padding: 5px 2px;
+  border: 0;
+  width: 92px;
+  font-size: 12px;
+}
+.language-switch button {
+  padding: 5px;
+  font-size: 11px;
+}
+.language-switch button[aria-pressed="true"] {
+  color: #93c5fd;
+  border-color: #60a5fa;
+}
+.detail-page {
+  padding-top: 76px;
+}
+@media (min-width: 901px) {
+  .vessel-drawer {
+    padding-top: 82px;
+  }
+}
+@media (max-width: 900px) {
+  .language-switch {
+    top: 10px;
+    right: 16px;
+  }
+  .detail-page {
+    padding-top: 68px;
+  }
+}
+@media (max-width: 380px) {
+  .brand {
+    max-width: 125px;
+    padding: 8px 6px;
+    font-size: 10px;
+  }
+  .language-switch {
+    gap: 2px;
+    padding: 3px;
+  }
+  .language-switch select {
+    width: 80px;
+  }
+}

@@ -1,4 +1,5 @@
 "use client";
+import { useLanguage } from "./LanguageProvider";
 
 import { useState } from "react";
 import type { ShipType } from "../../shared/types";
@@ -30,6 +31,7 @@ export default function VesselFilter({
   onFilterChange,
   typeCounts,
 }: VesselFilterProps) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
 
   const allSelected = visibleTypes.size === ALL_TYPES.size;
@@ -54,8 +56,8 @@ export default function VesselFilter({
       <button
         onClick={() => setOpen((prev) => !prev)}
         style={toggleButtonStyle}
-        title="Filtra tipologie navi"
-        aria-label="Filtra tipologie navi"
+        title={t("Filtra tipologie navi")}
+        aria-label={t("Filtra tipologie navi")}
       >
         <svg
           width="18"
@@ -79,12 +81,12 @@ export default function VesselFilter({
         <div style={panelStyle}>
           <div style={headerStyle}>
             <span style={{ fontWeight: 700, fontSize: 13, color: "#f3f4f6" }}>
-              Filtra navi
+              {t("Filtra navi")}
             </span>
             <button
               onClick={() => setOpen(false)}
               style={closeButtonStyle}
-              aria-label="Chiudi filtri"
+              aria-label={t("Chiudi filtri")}
             >
               <svg
                 width="14"
@@ -108,14 +110,14 @@ export default function VesselFilter({
               disabled={allSelected}
               style={quickActionStyle(allSelected)}
             >
-              Tutti
+              {t("Tutti")}
             </button>
             <button
               onClick={deselectAll}
               disabled={noneSelected}
               style={quickActionStyle(noneSelected)}
             >
-              Nessuno
+              {t("Nessuno")}
             </button>
           </div>
 
@@ -176,7 +178,7 @@ export default function VesselFilter({
                       color: checked ? "#e5e7eb" : "#6b7280",
                     }}
                   >
-                    {label}
+                    {t(label)}
                   </span>
 
                   {count > 0 && (

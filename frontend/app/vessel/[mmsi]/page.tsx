@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { BackToMap, PageError } from "../../../components/LocalizedPage";
 import { getVessel, getPortCalls } from "../../../lib/api";
 import VesselView from "../../../components/VesselView";
 export default async function VesselPage({
@@ -10,8 +10,8 @@ export default async function VesselPage({
   if (!/^[1-9]\d{8}$/.test(mmsi))
     return (
       <main className="detail-page">
-        <Link href="/">← Mappa</Link>
-        <p>MMSI non valido.</p>
+        <BackToMap short />
+        <PageError message="MMSI non valido." />
       </main>
     );
   const [v, s] = await Promise.allSettled([
@@ -20,7 +20,7 @@ export default async function VesselPage({
   ]);
   return (
     <main className="detail-page">
-      <Link href="/">← Mappa del Mediterraneo</Link>
+      <BackToMap />
       {v.status === "fulfilled" ? (
         <VesselView
           vessel={v.value}
@@ -32,11 +32,13 @@ export default async function VesselPage({
           }
         />
       ) : (
-        <div className="notice" role="alert">
-          {v.reason instanceof Error
-            ? v.reason.message
-            : "Scheda temporaneamente non disponibile."}
-        </div>
+        <PageError
+          message={
+            v.reason instanceof Error
+              ? v.reason.message
+              : "Scheda temporaneamente non disponibile."
+          }
+        />
       )}
     </main>
   );

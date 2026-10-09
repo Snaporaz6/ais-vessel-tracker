@@ -1,3 +1,5 @@
+"use client";
+import { useLanguage } from "./LanguageProvider";
 import type { AnomalyType } from "../../shared/types";
 
 const LABELS: Record<AnomalyType, string> = {
@@ -19,6 +21,7 @@ interface AnomalyBadgeProps {
 }
 
 export default function AnomalyBadge({ type }: AnomalyBadgeProps) {
+  const { t } = useLanguage();
   return (
     <span
       style={{
@@ -33,7 +36,7 @@ export default function AnomalyBadge({ type }: AnomalyBadgeProps) {
         marginBottom: 2,
       }}
     >
-      {LABELS[type] ?? type}
+      {t(LABELS[type] ?? type)}
     </span>
   );
 }

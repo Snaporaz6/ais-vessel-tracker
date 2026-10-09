@@ -1,5 +1,6 @@
 import type { ShipType } from "../../shared/types";
-export const shipNames: Record<ShipType, string> = {
+import { INTL_LOCALES, translate, type Locale } from "./i18n";
+const SHIP_NAMES: Record<ShipType, string> = {
   cargo: "Cargo",
   tanker: "Petroliera",
   passenger: "Passeggeri",
@@ -9,15 +10,35 @@ export const shipNames: Record<ShipType, string> = {
   military: "Militare",
   other: "Tipo non disponibile",
 };
-export const date = (s: string | null | undefined) =>
-  s
-    ? new Date(s).toLocaleString("it-IT", {
+export function createFormatters(locale: Locale) {
+  const t = (key: string, params?: Record<string, string | number>) =>
+    translate(locale, key, params);
+  const intl = INTL_LOCALES[locale];
+  const numbers = (number: number) => number.toLocaleString(intl);
+  const decimal = (number: number) =>
+    number.toLocaleString(intl, {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    });
+  const shipNames = Object.fromEntries(
+    Object.entries(SHIP_NAMES).map(([key, label]) => [key, t(label)]),
+  ) as Record<ShipType, string>;
+  const date = (input: string | null | undefined) => {
+    if (!input || !Number.isFinite(new Date(input).getTime()))
+      return t("Non disponibile");
+    return (
+      new Date(input).toLocaleString(intl, {
         timeZone: "UTC",
         dateStyle: "short",
         timeStyle: "short",
       }) + " UTC"
-    : "Non disponibile";
-export const value = (n: number | null | undefined, suffix = "") =>
-  n == null ? "Non disponibile" : `${n.toFixed(1)}${suffix}`;
-export const duration = (hours: number) =>
-  hours < 24 ? `${hours.toFixed(1)} ore` : `${(hours / 24).toFixed(1)} giorni`;
+    );
+  };
+  const value = (number: number | null | undefined, suffix = "") =>
+    number == null ? t("Non disponibile") : `${decimal(number)}${suffix}`;
+  const duration = (hours: number) =>
+    t(hours < 24 ? "{count} ore" : "{count} giorni", {
+      count: decimal(hours < 24 ? hours : hours / 24),
+    });
+  return { date, value, duration, shipNames, numbers };
+}

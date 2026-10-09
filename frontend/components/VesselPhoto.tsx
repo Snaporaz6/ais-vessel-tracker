@@ -1,4 +1,5 @@
 "use client";
+import { useLanguage } from "./LanguageProvider";
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
@@ -17,6 +18,7 @@ export default function VesselPhoto(props: VesselPhotoProps) {
 }
 
 function Photo({ mmsi, imo, vesselName, height = 180 }: VesselPhotoProps) {
+  const { t } = useLanguage();
   const [photo, setPhoto] = useState<VesselPhotoData | null>(null);
   const [status, setStatus] = useState<
     "loading" | "image" | "ready" | "missing" | "error"
@@ -67,7 +69,7 @@ function Photo({ mmsi, imo, vesselName, height = 180 }: VesselPhotoProps) {
         {photo && (status === "image" || status === "ready") && (
           <Image
             src={photo.url}
-            alt={`Fotografia di ${vesselName}`}
+            alt={t("Fotografia di {name}", { name: vesselName })}
             fill
             unoptimized
             loading="lazy"
@@ -85,14 +87,14 @@ function Photo({ mmsi, imo, vesselName, height = 180 }: VesselPhotoProps) {
           <div className="vessel-photo-state" role="status" aria-live="polite">
             <span>
               {status === "loading" || status === "image"
-                ? "Caricamento foto…"
+                ? t("Caricamento foto…")
                 : status === "missing"
-                  ? "Nessuna foto disponibile nelle fonti libere."
-                  : "Foto temporaneamente non disponibile."}
+                  ? t("Nessuna foto disponibile nelle fonti libere.")
+                  : t("Foto temporaneamente non disponibile.")}
             </span>
             {status === "error" && (
               <button type="button" onClick={() => setAttempt((n) => n + 1)}>
-                Riprova foto
+                {t("Riprova foto")}
               </button>
             )}
           </div>
@@ -101,7 +103,7 @@ function Photo({ mmsi, imo, vesselName, height = 180 }: VesselPhotoProps) {
       {photo && status === "ready" && (
         <figcaption>
           <a href={photo.sourceUrl} target="_blank" rel="noopener noreferrer">
-            Foto: {photo.author}
+            {t("Foto: {author}", { author: photo.author })}
           </a>
           {" · "}
           {photo.licenseUrl ? (

@@ -16,7 +16,7 @@ import {
   observationGap,
 } from "../../shared/history";
 import { getLiveVessels, getTrack } from "../lib/api";
-import { date, shipNames } from "../lib/format";
+import { useLanguage } from "./LanguageProvider";
 const EMPTY: FeatureCollection = { type: "FeatureCollection", features: [] };
 const COLORS: Record<ShipType, string> = {
   cargo: "#22c55e",
@@ -46,6 +46,12 @@ export default function VesselMap({
   isGlobe,
   center,
 }: Props) {
+  const { t, date, shipNames, numbers, errorText, locale } = useLanguage();
+  const language = useRef({ t, date, shipNames });
+  const popup = useRef<maplibregl.Popup | null>(null);
+  useEffect(() => {
+    language.current = { t, date, shipNames };
+  }, [t, date, shipNames]);
   const container = useRef<HTMLDivElement>(null),
     map = useRef<maplibregl.Map | null>(null),
     click = useRef(onVesselClick),
@@ -73,6 +79,18 @@ export default function VesselMap({
       minZoom: 2,
       maxZoom: 17,
       attributionControl: { compact: true },
+      locale: {
+        "Map.Title": language.current.t("Mappa delle navi"),
+        "NavigationControl.ZoomIn": language.current.t("Ingrandisci"),
+        "NavigationControl.ZoomOut": language.current.t("Riduci"),
+        "NavigationControl.ResetBearing": language.current.t(
+          "Ripristina orientamento",
+        ),
+        "AttributionControl.ToggleAttribution": language.current.t(
+          "Mostra attribuzioni",
+        ),
+        "Popup.Close": language.current.t("Chiudi popup"),
+      },
     });
     map.current = m;
     m.addControl(new maplibregl.NavigationControl(), "bottom-right");
@@ -164,29 +182,36 @@ export default function VesselMap({
         if (!f || f.geometry.type !== "Point") return;
         const p = f.properties!,
           mmsi = String(p.mmsi);
+        const { t, date, shipNames } = language.current;
         const content = document.createElement("div"),
           name = document.createElement("strong");
         name.textContent = String(p.name);
         content.append(name);
         for (const text of [
           mmsi,
-          shipNames[p.ship_type as ShipType] ?? "Tipo non disponibile",
-          p.speed == null ? "Velocità non disponibile" : `${p.speed} kn`,
+          shipNames[p.ship_type as ShipType] ?? t("Tipo non disponibile"),
+          p.speed == null ? t("Velocità non disponibile") : `${p.speed} kn`,
           date(String(p.timestamp)),
           p.is_sanctioned === true
-            ? "Corrispondenza sanzioni"
+            ? t("Corrispondenza sanzioni")
             : p.sanction_status === "no_match"
-              ? "Nessuna corrispondenza nelle liste consultate"
-              : "Controllo sanzioni non disponibile",
+              ? t("Nessuna corrispondenza nelle liste consultate")
+              : t("Controllo sanzioni non disponibile"),
         ]) {
           const row = document.createElement("p");
           row.textContent = text;
           content.append(row);
         }
-        new maplibregl.Popup()
+        popup.current?.remove();
+        popup.current = new maplibregl.Popup()
           .setLngLat((f.geometry as Point).coordinates as [number, number])
           .setDOMContent(content)
           .addTo(m);
+        const close = popup.current
+          .getElement()
+          .querySelector(".maplibregl-popup-close-button");
+        close?.setAttribute("aria-label", t("Chiudi popup"));
+        close?.setAttribute("title", t("Chiudi popup"));
         click.current(mmsi);
       });
       m.on("click", "clusters", async (event) => {
@@ -410,60 +435,93 @@ export default function VesselMap({
         essential: true,
       });
   }, [ready, center]);
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    popup.current?.remove();
+    const controls = [
+      [".maplibregl-canvas", "Mappa delle navi"],
+      [".maplibregl-ctrl-zoom-in", "Ingrandisci"],
+      [".maplibregl-ctrl-zoom-out", "Riduci"],
+      [".maplibregl-ctrl-compass", "Ripristina orientamento"],
+      [".maplibregl-ctrl-attrib-button", "Mostra attribuzioni"],
+    ];
+    for (const [selector, key] of controls) {
+      const button = map.current.getContainer().querySelector(selector);
+      button?.setAttribute("aria-label", t(key));
+      button?.setAttribute("title", t(key));
+    }
+  }, [locale, ready, t]);
   const source = data?.source;
   return (
     <>
       <div
         ref={container}
         className="map-container"
-        aria-label="Mappa delle navi"
+        aria-label={t("Mappa delle navi")}
       />
       <div className="map-status" aria-live="polite">
         <strong>
           {source?.status === "demo"
-            ? "DEMO · dati interamente fittizi"
+            ? t("DEMO · dati interamente fittizi")
             : source?.status === "live"
-              ? "AIS · osservazioni live"
-              : "AIS · acquisizione non aggiornata"}
+              ? t("AIS · osservazioni live")
+              : t("AIS · acquisizione non aggiornata")}
         </strong>
         <span>
           {data
-            ? `${data.total_in_bbox.toLocaleString("it-IT")} navi nell’area · ${data.total_live.toLocaleString("it-IT")} osservate negli ultimi 10 minuti`
-            : "Caricamento osservazioni…"}
+            ? t(
+                "{area} navi nell’area · {live} osservate negli ultimi 10 minuti",
+                {
+                  area: numbers(data.total_in_bbox),
+                  live: numbers(data.total_live),
+                },
+              )
+            : t("Caricamento osservazioni…")}
         </span>
-        <span>Ultima ricezione: {date(source?.last_message_at)}</span>
-        <span>Storico disponibile dal {date(data?.history_started_at)}</span>
         <span>
-          Copertura limitata alle osservazioni ricevute nel Mediterraneo.
+          {t("Ultima ricezione: {date}", {
+            date: date(source?.last_message_at),
+          })}
+        </span>
+        <span>
+          {t("Storico disponibile dal {date}", {
+            date: date(data?.history_started_at),
+          })}
+        </span>
+        <span>
+          {t("Copertura limitata alle osservazioni ricevute nel Mediterraneo.")}
         </span>
         {data?.truncated && (
           <p className="notice">
-            Visualizzate 5.000 navi: restringi l’area della mappa.
+            {t("Visualizzate 5.000 navi: restringi l’area della mappa.")}
           </p>
         )}
         {error && (
           <p role="alert" className="notice">
-            {error}
+            {errorText(error)}
           </p>
         )}
         {baseError && (
           <p role="alert" className="notice">
-            {baseError}
+            {errorText(baseError)}
           </p>
         )}
         {(trackError || trackView.error) && (
           <p role="alert" className="notice">
-            Storico: {trackError || trackView.error}
+            {t("Storico")}: {errorText(trackError || trackView.error)}
           </p>
         )}
         {meta && (
           <p className="small">
-            {displayedTrack.length.toLocaleString("it-IT")} punti ·{" "}
-            {meta.sampled ? "traccia semplificata · " : ""}
-            {meta.gaps.length} interruzioni ·{" "}
+            {t("{count} punti", { count: numbers(displayedTrack.length) })} ·{" "}
+            {meta.sampled ? `${t("traccia semplificata")} · ` : ""}
+            {t("{count} interruzioni", {
+              count: numbers(meta.gaps.length),
+            })}{" "}
+            ·{" "}
             {meta.first_at
               ? `${date(displayedTrack[0]?.timestamp ?? meta.first_at)} — ${date(displayedTrack.at(-1)?.timestamp ?? meta.last_at)}`
-              : "Nessuna osservazione nella finestra scelta."}
+              : t("Nessuna osservazione nella finestra scelta.")}
           </p>
         )}
       </div>

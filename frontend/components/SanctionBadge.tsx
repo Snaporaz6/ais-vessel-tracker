@@ -1,8 +1,11 @@
+"use client";
+import { useLanguage } from "./LanguageProvider";
 interface SanctionBadgeProps {
   source: "OFAC" | "EU";
 }
 
 export default function SanctionBadge({ source }: SanctionBadgeProps) {
+  const { t } = useLanguage();
   return (
     <span
       style={{
@@ -17,7 +20,7 @@ export default function SanctionBadge({ source }: SanctionBadgeProps) {
         marginBottom: 2,
       }}
     >
-      CORRISPONDENZA SANZIONI ({source === "EU" ? "UE" : source})
+      {t("CORRISPONDENZA SANZIONI")} ({source === "EU" ? t("UE") : source})
     </span>
   );
 }

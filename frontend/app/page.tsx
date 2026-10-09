@@ -1,4 +1,5 @@
 "use client";
+import { useLanguage } from "../components/LanguageProvider";
 import dynamic from "next/dynamic";
 import { useEffect, useState, useCallback } from "react";
 import type { ShipType, VesselPosition } from "../../shared/types";
@@ -7,7 +8,7 @@ import VesselFilter from "../components/VesselFilter";
 import VesselDrawer from "../components/VesselDrawer";
 const Map = dynamic(() => import("../components/Map"), {
   ssr: false,
-  loading: () => <p className="map-loading">Caricamento mappa…</p>,
+  loading: MapLoading,
 });
 const ALL: ShipType[] = [
   "cargo",
@@ -19,7 +20,12 @@ const ALL: ShipType[] = [
   "military",
   "other",
 ];
+function MapLoading() {
+  const { t } = useLanguage();
+  return <p className="map-loading">{t("Caricamento mappa…")}</p>;
+}
 export default function Home() {
+  const { t } = useLanguage();
   const [selected, setSelected] = useState<string | null>(null),
     [track, setTrack] = useState<string | null>(null),
     [days, setDays] = useState(7),
@@ -51,7 +57,7 @@ export default function Home() {
       />
       <div className="brand">
         <strong>AIS Vessel Tracker</strong>
-        <span>Mediterraneo · beta</span>
+        <span>{t("Mediterraneo · beta")}</span>
       </div>
       <SearchBar onSelect={(v) => setSelected(v.mmsi)} />
       <VesselFilter
@@ -62,13 +68,13 @@ export default function Home() {
       <button
         className="globe-toggle"
         onClick={() => setGlobe((s) => !s)}
-        aria-label="Cambia proiezione mappa"
+        aria-label={t("Cambia proiezione mappa")}
       >
         {globe ? "2D" : "3D"}
       </button>
       {track && (
         <div className="track-controls">
-          <label htmlFor="track-days">Storico</label>
+          <label htmlFor="track-days">{t("Storico")}</label>
           <select
             id="track-days"
             value={days}
@@ -76,11 +82,14 @@ export default function Home() {
           >
             {[1, 7, 30, 90].map((d) => (
               <option key={d} value={d}>
-                {d} {d === 1 ? "giorno" : "giorni"}
+                {t(d === 1 ? "{count} giorno" : "{count} giorni", { count: d })}
               </option>
             ))}
           </select>
-          <button onClick={() => setTrack(null)} aria-label="Nascondi traccia">
+          <button
+            onClick={() => setTrack(null)}
+            aria-label={t("Nascondi traccia")}
+          >
             ×
           </button>
         </div>
