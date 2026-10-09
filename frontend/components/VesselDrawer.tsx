@@ -1,4 +1,5 @@
 "use client";
+import { useLanguage } from "./LanguageProvider";
 import { useEffect, useState } from "react";
 import type {
   VesselDetail,
@@ -18,6 +19,7 @@ export default function VesselDrawer({
   onShowTrack: (m: string) => void;
   onPosition: (p: VesselPosition | null) => void;
 }) {
+  const { t, errorText } = useLanguage();
   const [vessel, setVessel] = useState<VesselDetail | null>(null),
     [stops, setStops] = useState<PortCall[]>([]),
     [error, setError] = useState(""),
@@ -71,12 +73,16 @@ export default function VesselDrawer({
     };
   }, [mmsi, onPosition]);
   return (
-    <aside className="vessel-drawer" aria-label="Scheda nave">
-      <button className="close" onClick={onClose} aria-label="Chiudi scheda">
+    <aside className="vessel-drawer" aria-label={t("Scheda nave")}>
+      <button
+        className="close"
+        onClick={onClose}
+        aria-label={t("Chiudi scheda")}
+      >
         ×
       </button>
       {error ? (
-        <p role="alert">{error}</p>
+        <p role="alert">{errorText(error)}</p>
       ) : vessel ? (
         <VesselView
           vessel={vessel}
@@ -85,7 +91,7 @@ export default function VesselDrawer({
           onShowTrack={() => onShowTrack(mmsi)}
         />
       ) : (
-        <p role="status">Caricamento scheda…</p>
+        <p role="status">{t("Caricamento scheda…")}</p>
       )}
     </aside>
   );

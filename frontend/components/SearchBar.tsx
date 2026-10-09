@@ -1,13 +1,14 @@
 "use client";
+import { useLanguage } from "./LanguageProvider";
 import { useEffect, useRef, useState } from "react";
 import { searchVessels } from "../lib/api";
 import type { Vessel } from "../../shared/types";
-import { shipNames } from "../lib/format";
 export default function SearchBar({
   onSelect,
 }: {
   onSelect: (v: Vessel) => void;
 }) {
+  const { t, shipNames, errorText } = useLanguage();
   const [query, setQuery] = useState(""),
     [results, setResults] = useState<Vessel[]>([]),
     [status, setStatus] = useState(""),
@@ -26,7 +27,7 @@ export default function SearchBar({
       return () => controller.abort();
     }
     const timer = setTimeout(() => {
-      setStatus("Ricerca in corso…");
+      setStatus(t("Ricerca in corso…"));
       setOpen(true);
       searchVessels(query.trim(), controller.signal)
         .then((rows) => {
@@ -47,7 +48,7 @@ export default function SearchBar({
   return (
     <div className="search-panel">
       <label className="sr-only" htmlFor="vessel-search">
-        Cerca una nave
+        {t("Cerca una nave")}
       </label>
       <input
         id="vessel-search"
@@ -57,12 +58,12 @@ export default function SearchBar({
         onKeyDown={(e) => {
           if (e.key === "Escape") setOpen(false);
         }}
-        placeholder="Nome, MMSI o IMO"
+        placeholder={t("Nome, MMSI o IMO")}
         autoComplete="off"
       />
       {open && (
         <div className="search-results">
-          <p role="status">{status}</p>
+          <p role="status">{status ? errorText(status) : ""}</p>
           {results.map((v) => (
             <button
               key={v.mmsi}

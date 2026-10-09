@@ -29,6 +29,21 @@ export default defineConfig({
       ],
   use: {
     baseURL: process.env.E2E_BASE_URL || "http://localhost:3000",
+    storageState: {
+      cookies: [
+        {
+          name: "ais-language",
+          value: "it",
+          domain: "localhost",
+          path: "/",
+          expires: -1,
+          httpOnly: false,
+          secure: false,
+          sameSite: "Lax",
+        },
+      ],
+      origins: [],
+    },
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     launchOptions: {
