@@ -366,3 +366,37 @@ dd {
     font-size: 14px;
   }
 }
+
+.vessel-photo {
+  margin: 0 0 20px;
+}
+.vessel-photo-frame {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.vessel-photo-state {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: center;
+}
+.vessel-photo figcaption {
+  margin-top: 6px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.vessel-photo figcaption a {
+  color: var(--text-secondary);
+  text-decoration: underline;
+}
