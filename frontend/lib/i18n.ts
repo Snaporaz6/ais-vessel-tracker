@@ -16,6 +16,58 @@ export const INTL_LOCALES: Record<Locale, string> = {
 
 // Italian source text and reviewed English, French and German translations.
 export const messages = {
+  "Copertura della traccia": [
+    "Track coverage",
+    "Couverture de la trace",
+    "Abdeckung der Spur",
+  ],
+  "Caricamento traccia…": [
+    "Loading track…",
+    "Chargement de la trace…",
+    "Spur wird geladen…",
+  ],
+  "Posizioni AIS ricevute": [
+    "Received AIS positions",
+    "Positions AIS reçues",
+    "Empfangene AIS-Positionen",
+  ],
+  "Intervalli senza osservazioni": [
+    "Intervals without observations",
+    "Périodes sans observations",
+    "Zeiträume ohne Beobachtungen",
+  ],
+  "La linea si interrompe dove mancano osservazioni AIS. I punti arancioni segnano i limiti dei vuoti.":
+    [
+      "The line breaks where AIS observations are missing. Orange dots mark gap boundaries.",
+      "La ligne s’interrompt lorsque des observations AIS manquent. Les points orange marquent les limites des interruptions.",
+      "Die Linie ist unterbrochen, wo AIS-Beobachtungen fehlen. Orange Punkte markieren die Grenzen der Lücken.",
+    ],
+  "Mostra collegamenti indicativi": [
+    "Show indicative links",
+    "Afficher les liaisons indicatives",
+    "Ungefähre Verbindungen anzeigen",
+  ],
+  "I tratti tratteggiati collegano in linea retta le posizioni note: non ricostruiscono il percorso reale.":
+    [
+      "Dashed lines connect known positions in a straight line; they do not reconstruct the actual route.",
+      "Les lignes pointillées relient les positions connues en ligne droite : elles ne reconstituent pas le trajet réel.",
+      "Gestrichelte Linien verbinden bekannte Positionen geradlinig; sie rekonstruieren nicht die tatsächliche Route.",
+    ],
+  "Dettaglio delle interruzioni": [
+    "Gap details",
+    "Détail des interruptions",
+    "Details der Lücken",
+  ],
+  "{hours} h {minutes} min": [
+    "{hours} h {minutes} min",
+    "{hours} h {minutes} min",
+    "{hours} Std. {minutes} Min.",
+  ],
+  "Nessuna interruzione segnalata nelle osservazioni disponibili.": [
+    "No gaps flagged in the available observations.",
+    "Aucune interruption signalée dans les observations disponibles.",
+    "Keine Lücken in den verfügbaren Beobachtungen gemeldet.",
+  ],
   Lingua: ["Language", "Langue", "Sprache"],
   "Rileva automaticamente": [
     "Detect automatically",

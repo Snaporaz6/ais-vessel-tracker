@@ -35,6 +35,13 @@ La [beta Mediterraneo](https://ais-vessel-tracker.vercel.app) è online senza ac
 - Il clic apre la scheda laterale senza modificare centro o zoom. Ricerca e collegamenti diretti conservano il posizionamento sulla nave; il clic su un gruppo continua a espandere il gruppo.
 - Aggiornata l’asserzione della prova browser esistente: il clic seleziona la scheda, senza richiedere il vecchio popup.
 
+## Copertura e interruzioni delle tracce — 10 ottobre
+
+- Analizzata GSL EFFIE (MMSI 636023059): alle 07:52 UTC l’API restituiva tutti i 461 punti disponibili, senza campionamento aggiuntivo. Quattro interruzioni esplicite: circa 9 h 01 min, 3 h 54 min, 8 h 48 min e 27 h 35 min. La finestra selezionata era di sette giorni, ma le osservazioni disponibili iniziavano il 6 ottobre alle 18:48 UTC. I vuoti erano presenti nei dati restituiti, non causati dalla linea cartografica.
+- Corretto il disegno dei segmenti con un solo punto: le osservazioni isolate restano visibili. Punti arancioni mostrano i limiti dei vuoti; dati ricevuti e vuoti sono distinti.
+- La scheda della nave con traccia attiva mostra copertura, date, numero di punti e interruzioni, con dettaglio di durata e orari UTC. Opzione disattivata inizialmente per mostrare collegamenti rettilinei tratteggiati: sono indicativi, non un percorso ricostruito.
+- Nessuna modifica all’acquisizione, agli archivi o al backend. Le osservazioni mancanti non vengono inventate; per recuperarne altre servirebbe una fonte storica aggiuntiva.
+
 ## Prove sui servizi reali
 
 **Backup e ripristino.** Il 6 ottobre un backup di Supabase e bucket Railway è stato ripristinato in PostgreSQL locale isolato (PGlite): 25.789 navi, 669 tracce catalogate, 2.211 sanzioni; verificati tutti i 669 checksum traccia e le righe ripristinate. La stessa copia è stata poi ripristinata con successo nel Supabase cloud isolato `ais-beta-staging`: conteggi verificati per tutte le tabelle, ricerca esatta e tutti i 669 checksum traccia. Le 669 tracce (142.247 byte) sono state copiate e verificate anche in un bucket privato Railway EU West separato, senza scrivere nella produzione. Il backup automatico del 7 ottobre alle 04:23 UTC è stato scaricato e verificato: 27.541 navi, 120 anomalie, 7.680 soste, 10.548 tracce, 2.211 sanzioni. Verificati anche tre oggetti traccia di quel backup; non è dichiarata una seconda verifica completa dei 10.548 oggetti. Il backup automatico dell’8 ottobre alle 03:38 UTC contiene 30.500 navi, 977 anomalie, 21.710 soste, 19.247 tracce e 2.211 sanzioni: gzip/checksum verificati e tre tracce controllate a campione. La verifica completa dei 669 oggetti appartiene alla copia del 6 ottobre, non ai backup giornalieri successivi.
