@@ -46,12 +46,12 @@ export default function VesselMap({
   isGlobe,
   center,
 }: Props) {
-  const { t, date, shipNames, numbers, errorText, locale } = useLanguage();
-  const language = useRef({ t, date, shipNames });
+  const { t, date, numbers, errorText, locale } = useLanguage();
+  const language = useRef({ t });
   const popup = useRef<maplibregl.Popup | null>(null);
   useEffect(() => {
-    language.current = { t, date, shipNames };
-  }, [t, date, shipNames]);
+    language.current = { t };
+  }, [t]);
   const container = useRef<HTMLDivElement>(null),
     map = useRef<maplibregl.Map | null>(null),
     click = useRef(onVesselClick),
@@ -177,42 +177,36 @@ export default function VesselMap({
           "circle-stroke-color": "#fff",
         },
       });
+      // Hover labels never pan the map or capture pointer input.
+      const label = new maplibregl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        focusAfterOpen: false,
+        anchor: "bottom",
+        offset: 12,
+        maxWidth: "none",
+        className: "vessel-name-tooltip",
+      });
+      popup.current = label;
+      let hoveredName: string | null = null;
+      m.on("mousemove", "vessel-points", (event) => {
+        const f = event.features?.[0];
+        if (!f || f.geometry.type !== "Point") return;
+        const name = String(f.properties?.name || f.properties?.mmsi || "");
+        if (name !== hoveredName) {
+          label.setText(name);
+          hoveredName = name;
+        }
+        label.setLngLat(event.lngLat);
+        if (!label.isOpen()) label.addTo(m);
+      });
+      m.on("mouseleave", "vessel-points", () => label.remove());
+      m.on("movestart", () => label.remove());
       m.on("click", "vessel-points", (event) => {
         const f = event.features?.[0];
         if (!f || f.geometry.type !== "Point") return;
-        const p = f.properties!,
-          mmsi = String(p.mmsi);
-        const { t, date, shipNames } = language.current;
-        const content = document.createElement("div"),
-          name = document.createElement("strong");
-        name.textContent = String(p.name);
-        content.append(name);
-        for (const text of [
-          mmsi,
-          shipNames[p.ship_type as ShipType] ?? t("Tipo non disponibile"),
-          p.speed == null ? t("Velocità non disponibile") : `${p.speed} kn`,
-          date(String(p.timestamp)),
-          p.is_sanctioned === true
-            ? t("Corrispondenza sanzioni")
-            : p.sanction_status === "no_match"
-              ? t("Nessuna corrispondenza nelle liste consultate")
-              : t("Controllo sanzioni non disponibile"),
-        ]) {
-          const row = document.createElement("p");
-          row.textContent = text;
-          content.append(row);
-        }
-        popup.current?.remove();
-        popup.current = new maplibregl.Popup()
-          .setLngLat((f.geometry as Point).coordinates as [number, number])
-          .setDOMContent(content)
-          .addTo(m);
-        const close = popup.current
-          .getElement()
-          .querySelector(".maplibregl-popup-close-button");
-        close?.setAttribute("aria-label", t("Chiudi popup"));
-        close?.setAttribute("title", t("Chiudi popup"));
-        click.current(mmsi);
+        label.remove();
+        click.current(String(f.properties!.mmsi));
       });
       m.on("click", "clusters", async (event) => {
         const f = event.features?.[0];
@@ -239,6 +233,8 @@ export default function VesselMap({
     });
     return () => {
       resize.disconnect();
+      popup.current?.remove();
+      popup.current = null;
       m.remove();
       if (map.current === m) map.current = null;
       setReady(false);
