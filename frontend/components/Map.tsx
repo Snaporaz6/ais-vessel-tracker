@@ -206,6 +206,7 @@ export default function VesselMap({
         const f = event.features?.[0];
         if (!f || f.geometry.type !== "Point") return;
         label.remove();
+        m.stop();
         click.current(String(f.properties!.mmsi));
       });
       m.on("click", "clusters", async (event) => {
