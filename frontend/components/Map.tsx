@@ -425,10 +425,11 @@ export default function VesselMap({
       map.current?.setProjection({ type: isGlobe ? "globe" : "mercator" });
   }, [ready, isGlobe]);
   useEffect(() => {
-    if (ready && center)
-      map.current?.flyTo({
+    const m = map.current;
+    if (ready && center && m)
+      m.flyTo({
         center: [center.lon, center.lat],
-        zoom: 9,
+        zoom: Math.max(m.getZoom(), 9),
         essential: true,
       });
   }, [ready, center]);
