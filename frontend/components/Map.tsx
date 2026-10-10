@@ -110,7 +110,8 @@ export default function VesselMap({
     const resize = new ResizeObserver(() => m.resize());
     resize.observe(container.current);
     m.on("error", (event) => {
-      if ("sourceId" in event && event.sourceId === "bathymetry") setBathymetryError(true);
+      if ("sourceId" in event && event.sourceId === "bathymetry")
+        setBathymetryError(true);
       else setBaseError("La cartografia non è disponibile o è incompleta.");
     });
     m.on("zoomend", () => setMapZoom(m.getZoom()));
@@ -282,27 +283,75 @@ export default function VesselMap({
       m.getStyle().layers.find((layer) => layer.type === "symbol")?.id ??
       "clusters";
     m.addSource("bathymetry", {
-      type: "raster",
-      tileSize: 512,
-      minzoom: 4,
+      type: "geojson",
+      data: "/bathymetry/mediterranean-contours.json",
+      tolerance: 0.2,
       maxzoom: 12,
-      tiles: [`${window.location.origin}/api/bathymetry?v=1&z={z}&x={x}&y={y}`],
       attribution:
         '<a href="https://emodnet.ec.europa.eu/en/bathymetry" target="_blank" rel="noopener">EMODnet Bathymetry</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>',
     });
-    m.addLayer(
-      {
-        id: "bathymetry-contours",
-        type: "raster",
-        source: "bathymetry",
-        minzoom: 4,
-        paint: { "raster-opacity": 0.85, "raster-fade-duration": 200 },
-      },
-      before,
-    );
+    const groups = [
+      { name: "major", minzoom: 4, depths: [1000, 2000, 5000, 7000] },
+      { name: "middle", minzoom: 6, depths: [200, 500] },
+      { name: "coastal", minzoom: 8, depths: [50, 100] },
+    ];
+    for (const group of groups) {
+      m.addLayer(
+        {
+          id: `bathymetry-${group.name}`,
+          type: "line",
+          source: "bathymetry",
+          minzoom: group.minzoom,
+          filter: ["in", "depth", ...group.depths],
+          paint: {
+            "line-color": "#648797",
+            "line-opacity": 0.65,
+            "line-width": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              4,
+              0.65,
+              8,
+              1,
+              12,
+              1.3,
+            ],
+          },
+        },
+        before,
+      );
+      m.addLayer(
+        {
+          id: `bathymetry-${group.name}-labels`,
+          type: "symbol",
+          source: "bathymetry",
+          minzoom: group.minzoom,
+          filter: ["in", "depth", ...group.depths],
+          layout: {
+            "symbol-placement": "line",
+            "symbol-spacing": 250,
+            "text-field": ["concat", ["to-string", ["get", "depth"]], " m"],
+            "text-size": 11,
+            "text-padding": 12,
+          },
+          paint: {
+            "text-color": "#a2bac5",
+            "text-halo-color": "#283237",
+            "text-halo-width": 1.5,
+          },
+        },
+        before,
+      );
+    }
     return () => {
-      if (m.getLayer("bathymetry-contours"))
-        m.removeLayer("bathymetry-contours");
+      for (const group of groups) {
+        for (const id of [
+          `bathymetry-${group.name}-labels`,
+          `bathymetry-${group.name}`,
+        ])
+          if (m.getLayer(id)) m.removeLayer(id);
+      }
       if (m.getSource("bathymetry")) m.removeSource("bathymetry");
     };
   }, [ready, bathymetry]);
@@ -567,7 +616,7 @@ export default function VesselMap({
               </p>
               <p>
                 {t(
-                  "Copertura dei mari europei. Non utilizzabile per la navigazione.",
+                  "Copertura del Mediterraneo. Non utilizzabile per la navigazione.",
                 )}
               </p>
             </details>

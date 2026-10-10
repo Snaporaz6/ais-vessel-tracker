@@ -33,10 +33,10 @@ export const messages = {
       "Courbes généralisées : 50, 100, 200, 500, 1 000, 2 000, 5 000 et 7 000 m. Le détail augmente avec le zoom.",
       "Generalisierte Tiefenlinien: 50, 100, 200, 500, 1.000, 2.000, 5.000 und 7.000 m. Mehr Details beim Vergrößern.",
     ],
-  "Copertura dei mari europei. Non utilizzabile per la navigazione.": [
-    "European seas coverage. Not for navigation.",
-    "Couverture des mers européennes. Ne pas utiliser pour la navigation.",
-    "Abdeckung europäischer Meere. Nicht zur Navigation geeignet.",
+  "Copertura del Mediterraneo. Non utilizzabile per la navigazione.": [
+    "Mediterranean coverage. Not for navigation.",
+    "Couverture de la Méditerranée. Ne pas utiliser pour la navigation.",
+    "Abdeckung des Mittelmeers. Nicht zur Navigation geeignet.",
   ],
   "Ingrandisci per vedere i fondali.": [
     "Zoom in to see the seabed.",

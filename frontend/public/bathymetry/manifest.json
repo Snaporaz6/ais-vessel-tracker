@@ -1,0 +1,20 @@
+{
+  "source": "https://ows.emodnet-bathymetry.eu/wfs",
+  "layer": "emodnet:contours",
+  "catalogVersion": "2022",
+  "importedAt": "2026-10-10T08:55:52Z",
+  "license": "CC BY 4.0",
+  "attribution": "EMODnet Bathymetry Consortium",
+  "bounds": [
+    -6,
+    30,
+    36.5,
+    46
+  ],
+  "sourceFeatures": 6363,
+  "clippedFeatures": 6406,
+  "simplificationDegrees": 0.0005,
+  "bytes": 7993092,
+  "points": 419620,
+  "sha256": "32c1064f35592433b914a21a7492a423aa4469232e3fa522df6b86505800854c"
+}
