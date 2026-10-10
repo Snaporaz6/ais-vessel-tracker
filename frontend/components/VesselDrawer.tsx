@@ -1,6 +1,6 @@
 "use client";
 import { useLanguage } from "./LanguageProvider";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type {
   VesselDetail,
   PortCall,
@@ -13,7 +13,9 @@ export default function VesselDrawer({
   onClose,
   onShowTrack,
   onPosition,
+  children,
 }: {
+  children?: ReactNode;
   mmsi: string;
   onClose: () => void;
   onShowTrack: (m: string) => void;
@@ -81,6 +83,7 @@ export default function VesselDrawer({
       >
         ×
       </button>
+      {children}
       {error ? (
         <p role="alert">{errorText(error)}</p>
       ) : vessel ? (

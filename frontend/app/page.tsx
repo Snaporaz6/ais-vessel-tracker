@@ -5,6 +5,8 @@ import { useEffect, useState, useCallback } from "react";
 import type { ShipType, VesselPosition } from "../../shared/types";
 import SearchBar from "../components/SearchBar";
 import VesselFilter from "../components/VesselFilter";
+import TrackSummary from "../components/TrackSummary";
+import type { TrackDisplayInfo } from "../lib/track-display";
 import VesselDrawer from "../components/VesselDrawer";
 const Map = dynamic(() => import("../components/Map"), {
   ssr: false,
@@ -29,6 +31,8 @@ export default function Home() {
   const [selected, setSelected] = useState<string | null>(null),
     [track, setTrack] = useState<string | null>(null),
     [days, setDays] = useState(7),
+    [trackInfo, setTrackInfo] = useState<TrackDisplayInfo | null>(null),
+    [showGapLinks, setShowGapLinks] = useState(false),
     [types, setTypes] = useState(new Set(ALL)),
     [counts, setCounts] = useState<Record<string, number>>({}),
     [globe, setGlobe] = useState(false),
@@ -61,6 +65,8 @@ export default function Home() {
         onTypeCounts={setCounts}
         isGlobe={globe}
         center={center}
+        showGapLinks={showGapLinks}
+        onTrackInfo={setTrackInfo}
       />
       <div className="brand">
         <strong>AIS Vessel Tracker</strong>
@@ -112,7 +118,19 @@ export default function Home() {
           onClose={() => setSelected(null)}
           onShowTrack={setTrack}
           onPosition={onPosition}
-        />
+        >
+          {track === selected && (
+            <TrackSummary
+              info={
+                trackInfo?.mmsi === track && trackInfo.days === days
+                  ? trackInfo
+                  : null
+              }
+              showLinks={showGapLinks}
+              onShowLinks={setShowGapLinks}
+            />
+          )}
+        </VesselDrawer>
       )}
     </main>
   );

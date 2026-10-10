@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import type { FeatureCollection, Point, LineString } from "geojson";
+import type { FeatureCollection, Point } from "geojson";
 import type {
   LiveMapResponse,
   ShipType,
@@ -10,12 +10,13 @@ import type {
   TrackMetadata,
 } from "../../shared/types";
 import {
-  splitTrack,
+  trackGaps,
   mergePositions,
   downsampleTrack,
   observationGap,
 } from "../../shared/history";
 import { getLiveVessels, getTrack } from "../lib/api";
+import { trackGeometry, type TrackDisplayInfo } from "../lib/track-display";
 import { useLanguage } from "./LanguageProvider";
 const EMPTY: FeatureCollection = { type: "FeatureCollection", features: [] };
 const COLORS: Record<ShipType, string> = {
@@ -36,6 +37,8 @@ type Props = {
   onTypeCounts: (c: Record<string, number>) => void;
   isGlobe: boolean;
   center: VesselPosition | null;
+  showGapLinks: boolean;
+  onTrackInfo: (info: TrackDisplayInfo | null) => void;
 };
 export default function VesselMap({
   onVesselClick,
@@ -45,6 +48,8 @@ export default function VesselMap({
   onTypeCounts,
   isGlobe,
   center,
+  showGapLinks,
+  onTrackInfo,
 }: Props) {
   const { t, date, numbers, errorText, locale } = useLanguage();
   const language = useRef({ t });
@@ -62,7 +67,7 @@ export default function VesselMap({
     [baseError, setBaseError] = useState(""),
     [trackError, setTrackError] = useState(""),
     [track, setTrack] = useState<VesselPosition[]>([]),
-    [meta, setMeta] = useState<TrackMetadata | null>(null);
+    [meta, setMeta] = useState<(TrackMetadata & { mmsi: string }) | null>(null);
   useEffect(() => {
     click.current = onVesselClick;
     projection.current = isGlobe;
@@ -158,11 +163,28 @@ export default function VesselMap({
         id: "track-line",
         type: "line",
         source: "track",
-        filter: ["==", ["geometry-type"], "LineString"],
+        filter: [
+          "all",
+          ["==", ["geometry-type"], "LineString"],
+          ["==", ["get", "kind"], "observed"],
+        ],
         paint: {
           "line-color": "#60a5fa",
           "line-width": 3,
           "line-opacity": 0.85,
+        },
+      });
+      m.addLayer({
+        id: "track-gaps",
+        type: "line",
+        source: "track",
+        filter: ["==", ["get", "kind"], "gap"],
+        layout: { visibility: "none" },
+        paint: {
+          "line-color": "#f59e0b",
+          "line-width": 2,
+          "line-opacity": 0.7,
+          "line-dasharray": [3, 3],
         },
       });
       m.addLayer({
@@ -296,7 +318,7 @@ export default function VesselMap({
         .then(({ points, metadata }) => {
           if (!signal.aborted && !stopped) {
             setTrack(points);
-            setMeta(metadata);
+            setMeta({ ...metadata, mmsi: trackMmsi });
             setTrackError("");
           }
         })
@@ -337,6 +359,8 @@ export default function VesselMap({
     [data, visibleTypes],
   );
   const trackView = useMemo(() => {
+    if (!meta || meta.mmsi !== trackMmsi || meta.requested_days !== trackDays)
+      return { points: [], error: "" };
     const live = data?.vessels.find((v) => v.mmsi === trackMmsi);
     const last = track.at(-1);
     if (!live || !last || live.timestamp <= last.timestamp)
@@ -364,49 +388,45 @@ export default function VesselMap({
           "La traccia contiene troppe interruzioni per aggiungere l’ultima posizione. Scegli una finestra più breve.",
       };
     }
-  }, [track, data, trackMmsi]);
+  }, [track, data, trackMmsi, trackDays, meta]);
   const displayedTrack = trackView.points;
-  const lines = useMemo<FeatureCollection>(
-    () => ({
-      type: "FeatureCollection",
-      features: [
-        ...splitTrack(displayedTrack)
-          .filter((s) => s.length > 1)
-          .map((s) => ({
-            type: "Feature" as const,
-            properties: {},
-            geometry: {
-              type: "LineString" as const,
-              coordinates: s.map((p) => [p.lon, p.lat]),
-            } as LineString,
-          })),
-        ...(displayedTrack.length
-          ? [
-              {
-                type: "Feature" as const,
-                properties: { color: "#22c55e" },
-                geometry: {
-                  type: "Point" as const,
-                  coordinates: [displayedTrack[0].lon, displayedTrack[0].lat],
-                },
-              },
-              {
-                type: "Feature" as const,
-                properties: { color: "#f59e0b" },
-                geometry: {
-                  type: "Point" as const,
-                  coordinates: [
-                    displayedTrack.at(-1)!.lon,
-                    displayedTrack.at(-1)!.lat,
-                  ],
-                },
-              },
-            ]
-          : []),
-      ],
-    }),
-    [displayedTrack],
-  );
+  const lines = useMemo(() => trackGeometry(displayedTrack), [displayedTrack]);
+  const gaps = useMemo(() => trackGaps(displayedTrack), [displayedTrack]);
+  useEffect(() => {
+    if (!trackMmsi) {
+      onTrackInfo(null);
+      return;
+    }
+    const loaded =
+      meta?.mmsi === trackMmsi && meta.requested_days === trackDays;
+    onTrackInfo({
+      mmsi: trackMmsi,
+      days: trackDays,
+      loading: !loaded && !trackError,
+      error: trackError || trackView.error,
+      count: displayedTrack.length,
+      firstAt: displayedTrack[0]?.timestamp ?? null,
+      lastAt: displayedTrack.at(-1)?.timestamp ?? null,
+      gaps,
+    });
+  }, [
+    trackMmsi,
+    trackDays,
+    meta,
+    trackError,
+    trackView.error,
+    displayedTrack,
+    gaps,
+    onTrackInfo,
+  ]);
+  useEffect(() => {
+    if (ready && map.current?.getLayer("track-gaps"))
+      map.current.setLayoutProperty(
+        "track-gaps",
+        "visibility",
+        showGapLinks ? "visible" : "none",
+      );
+  }, [ready, showGapLinks]);
   useEffect(() => {
     if (ready)
       (
@@ -514,7 +534,7 @@ export default function VesselMap({
             {t("{count} punti", { count: numbers(displayedTrack.length) })} ·{" "}
             {meta.sampled ? `${t("traccia semplificata")} · ` : ""}
             {t("{count} interruzioni", {
-              count: numbers(meta.gaps.length),
+              count: numbers(gaps.length),
             })}{" "}
             ·{" "}
             {meta.first_at
