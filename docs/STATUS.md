@@ -70,3 +70,10 @@ La spesa Railway rilevata l’8 ottobre è **0,39358 USD** per il periodo corren
 4. Verificare previsione totale entro **25 €/mese**, con imposte, traffico e staging, sul tetto di 30 €. Impostare avvisi e limiti disponibili senza upgrade automatici.
 
 Procedure in [OPERATIONS.md](OPERATIONS.md). Rapporti e backup sono conservati fuori dal repository; nessuna credenziale viene pubblicata. L'accessibilità dell'URL non equivale al superamento dei criteri di release.
+
+## Fondali — 10 ottobre
+
+- Livello batimetrico attivo per impostazione predefinita, disattivabile con «Fondali»; preferenza conservata nel browser. Curve reali EMODnet, linee blu grigie e quote in metri sotto etichette, navi e tracce; densità progressiva con lo zoom, visibile da zoom 4 anche in proiezione globo.
+- Servizio WMS ufficiale `emodnet:contours`, con stile SLD dedicato e tessere trasparenti 512 px; endpoint frontend con coordinate XYZ validate, timeout, cache CDN e nessuna chiave o nuova dipendenza. Eventuali errori del livello opzionale non sono segnalati come guasti della mappa base.
+- Fonte: EMODnet Bathymetry Consortium, CC BY 4.0. Il catalogo del livello indica “Bathymetric Contours version 2022”, generalizzazione alla scala 1:500.000, quote 50/100/200/500/1000/2000/5000/7000 m; piccoli contorni chiusi rimossi. Non equivale al dettaglio di una carta C-MAP e non è utilizzabile per navigazione. Metadati: https://sextant.ifremer.fr/geonetwork/srv/eng/csw?request=GetRecordById&elementSetName=full&service=CSW&version=2.0.2&OutputSchema=http://www.isotc211.org/2005/gmd&id=4f7ab468-f4b9-4c2c-8d3b-49a375cf9964
+- Legenda, attribuzione, limiti e stati del livello disponibili nelle quattro lingue del sito.

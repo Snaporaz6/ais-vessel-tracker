@@ -61,6 +61,14 @@ export default function VesselMap({
     map = useRef<maplibregl.Map | null>(null),
     click = useRef(onVesselClick),
     projection = useRef(isGlobe);
+  const [bathymetry, setBathymetry] = useState(true),
+    [bathymetryError, setBathymetryError] = useState(false),
+    [mapZoom, setMapZoom] = useState(4.5);
+  useEffect(() => {
+    try {
+      setBathymetry(localStorage.getItem("ais-bathymetry") !== "off");
+    } catch {}
+  }, []);
   const [ready, setReady] = useState(false),
     [data, setData] = useState<LiveMapResponse | null>(null),
     [error, setError] = useState(""),
@@ -101,9 +109,11 @@ export default function VesselMap({
     m.addControl(new maplibregl.NavigationControl(), "bottom-right");
     const resize = new ResizeObserver(() => m.resize());
     resize.observe(container.current);
-    m.on("error", () =>
-      setBaseError("La cartografia non è disponibile o è incompleta."),
-    );
+    m.on("error", (event) => {
+      if ("sourceId" in event && event.sourceId === "bathymetry") setBathymetryError(true);
+      else setBaseError("La cartografia non è disponibile o è incompleta.");
+    });
+    m.on("zoomend", () => setMapZoom(m.getZoom()));
     m.on("style.load", () => {
       m.setProjection({ type: projection.current ? "globe" : "mercator" });
       m.resize();
@@ -263,6 +273,39 @@ export default function VesselMap({
       setReady(false);
     };
   }, []);
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !ready || !bathymetry) return;
+    setBathymetryError(false);
+    // Below base labels and all vessel/track layers; transparent over water.
+    const before =
+      m.getStyle().layers.find((layer) => layer.type === "symbol")?.id ??
+      "clusters";
+    m.addSource("bathymetry", {
+      type: "raster",
+      tileSize: 512,
+      minzoom: 4,
+      maxzoom: 12,
+      tiles: [`${window.location.origin}/api/bathymetry?v=1&z={z}&x={x}&y={y}`],
+      attribution:
+        '<a href="https://emodnet.ec.europa.eu/en/bathymetry" target="_blank" rel="noopener">EMODnet Bathymetry</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>',
+    });
+    m.addLayer(
+      {
+        id: "bathymetry-contours",
+        type: "raster",
+        source: "bathymetry",
+        minzoom: 4,
+        paint: { "raster-opacity": 0.85, "raster-fade-duration": 200 },
+      },
+      before,
+    );
+    return () => {
+      if (m.getLayer("bathymetry-contours"))
+        m.removeLayer("bathymetry-contours");
+      if (m.getSource("bathymetry")) m.removeSource("bathymetry");
+    };
+  }, [ready, bathymetry]);
   useEffect(() => {
     const m = map.current;
     if (!m || !ready) return;
@@ -477,6 +520,70 @@ export default function VesselMap({
         className="map-container"
         aria-label={t("Mappa delle navi")}
       />
+      <div className="bathymetry-control">
+        <button
+          aria-pressed={bathymetry}
+          aria-controls="bathymetry-legend"
+          onClick={() =>
+            setBathymetry((current) => {
+              try {
+                localStorage.setItem("ais-bathymetry", current ? "off" : "on");
+              } catch {}
+              return !current;
+            })
+          }
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            aria-hidden="true"
+          >
+            <path d="M2 7c4-5 7 5 11 0s6-2 9 0M2 12c4-5 7 5 11 0s6-2 9 0M2 17c4-5 7 5 11 0s6-2 9 0" />
+          </svg>
+          {t("Fondali")}
+        </button>
+        {bathymetry && (
+          <div id="bathymetry-legend" className="bathymetry-legend">
+            <span className="bathymetry-key">{t("Profondità in metri")}</span>
+            <details>
+              <summary>{t("Fonte e dettaglio")}</summary>
+              <p>
+                <a
+                  href="https://emodnet.ec.europa.eu/en/bathymetry"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  EMODnet · CC BY 4.0
+                </a>
+              </p>
+              <p>
+                {t(
+                  "Curve generalizzate: 50, 100, 200, 500, 1.000, 2.000, 5.000 e 7.000 m. Il dettaglio aumenta con lo zoom.",
+                )}
+              </p>
+              <p>
+                {t(
+                  "Copertura dei mari europei. Non utilizzabile per la navigazione.",
+                )}
+              </p>
+            </details>
+            {mapZoom < 4 && (
+              <p role="status">{t("Ingrandisci per vedere i fondali.")}</p>
+            )}
+            {bathymetryError && (
+              <p role="status" className="notice">
+                {t(
+                  "Fondali temporaneamente incompleti. Disattiva e riattiva per riprovare.",
+                )}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
       <div className="map-status" aria-live="polite">
         <strong>
           {source?.status === "demo"
