@@ -16,6 +16,39 @@ export const INTL_LOCALES: Record<Locale, string> = {
 
 // Italian source text and reviewed English, French and German translations.
 export const messages = {
+  Fondali: ["Seabed", "Fonds marins", "Meeresboden"],
+  "Profondità in metri": [
+    "Depth in metres",
+    "Profondeur en mètres",
+    "Tiefe in Metern",
+  ],
+  "Fonte e dettaglio": [
+    "Source and detail",
+    "Source et détail",
+    "Quelle und Details",
+  ],
+  "Curve generalizzate: 50, 100, 200, 500, 1.000, 2.000, 5.000 e 7.000 m. Il dettaglio aumenta con lo zoom.":
+    [
+      "Generalised contours: 50, 100, 200, 500, 1,000, 2,000, 5,000 and 7,000 m. Detail increases as you zoom in.",
+      "Courbes généralisées : 50, 100, 200, 500, 1 000, 2 000, 5 000 et 7 000 m. Le détail augmente avec le zoom.",
+      "Generalisierte Tiefenlinien: 50, 100, 200, 500, 1.000, 2.000, 5.000 und 7.000 m. Mehr Details beim Vergrößern.",
+    ],
+  "Copertura dei mari europei. Non utilizzabile per la navigazione.": [
+    "European seas coverage. Not for navigation.",
+    "Couverture des mers européennes. Ne pas utiliser pour la navigation.",
+    "Abdeckung europäischer Meere. Nicht zur Navigation geeignet.",
+  ],
+  "Ingrandisci per vedere i fondali.": [
+    "Zoom in to see the seabed.",
+    "Zoomez pour voir les fonds marins.",
+    "Vergrößern, um den Meeresboden zu sehen.",
+  ],
+  "Fondali temporaneamente incompleti. Disattiva e riattiva per riprovare.": [
+    "Seabed layer temporarily incomplete. Switch off and on to retry.",
+    "Fonds marins temporairement incomplets. Désactivez puis réactivez pour réessayer.",
+    "Meeresboden vorübergehend unvollständig. Zum Wiederholen aus- und einschalten.",
+  ],
+
   "Copertura della traccia": [
     "Track coverage",
     "Couverture de la trace",

@@ -532,3 +532,57 @@ dd {
   display: block;
   color: var(--text-secondary);
 }
+
+/* Bathymetry uses the map's muted blue-grey palette, below AIS overlays. */
+.bathymetry-control {
+  position: absolute;
+  top: 216px;
+  left: 16px;
+  z-index: 10;
+}
+.bathymetry-control > button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px;
+  background: #111827eb;
+}
+.bathymetry-control > button[aria-pressed="true"] {
+  color: #b8d3df;
+  border-color: #648797;
+}
+.bathymetry-legend {
+  margin-top: 7px;
+  padding: 9px 11px;
+  width: 205px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  background: #111827eb;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.bathymetry-key {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #a2bac5;
+}
+.bathymetry-key::before {
+  content: "";
+  width: 23px;
+  height: 1px;
+  background: #648797;
+}
+.bathymetry-legend summary {
+  cursor: pointer;
+  margin-top: 5px;
+}
+.bathymetry-legend p {
+  margin: 6px 0 0;
+}
+@media (max-width: 640px) {
+  .bathymetry-legend {
+    width: 175px;
+  }
+}
