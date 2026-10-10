@@ -32,10 +32,14 @@ export default function Home() {
     [types, setTypes] = useState(new Set(ALL)),
     [counts, setCounts] = useState<Record<string, number>>({}),
     [globe, setGlobe] = useState(false),
+    [focusMap, setFocusMap] = useState(true),
     [center, setCenter] = useState<VesselPosition | null>(null);
   const onPosition = useCallback(
-    (p: VesselPosition | null) => setCenter(p),
-    [],
+    (p: VesselPosition | null) => {
+      // Search and direct links locate vessels; map clicks keep the current view.
+      if (focusMap) setCenter(p);
+    },
+    [focusMap],
   );
   useEffect(() => {
     const q = new URLSearchParams(window.location.search),
@@ -47,7 +51,10 @@ export default function Home() {
   return (
     <main className="map-screen">
       <Map
-        onVesselClick={setSelected}
+        onVesselClick={(mmsi) => {
+          setFocusMap(false);
+          setSelected(mmsi);
+        }}
         trackMmsi={track}
         trackDays={days}
         visibleTypes={types}
@@ -59,7 +66,12 @@ export default function Home() {
         <strong>AIS Vessel Tracker</strong>
         <span>{t("Mediterraneo · beta")}</span>
       </div>
-      <SearchBar onSelect={(v) => setSelected(v.mmsi)} />
+      <SearchBar
+        onSelect={(v) => {
+          setFocusMap(true);
+          setSelected(v.mmsi);
+        }}
+      />
       <VesselFilter
         visibleTypes={types}
         onFilterChange={setTypes}

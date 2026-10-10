@@ -36,29 +36,29 @@ a:hover {
   color: var(--accent-hover);
 }
 
-/* MapLibre GL overrides per dark theme */
-.maplibregl-popup-content {
-  background: var(--bg-card);
-  color: var(--text-primary);
-  border-radius: 8px;
-  padding: 12px 14px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--border);
+/* A vessel hover shows only its name, without a popup card or arrow. */
+.vessel-name-tooltip {
+  pointer-events: none;
+  z-index: 4;
 }
-
-.maplibregl-popup-tip {
-  border-top-color: var(--bg-card);
-}
-
-.maplibregl-popup-close-button {
-  color: var(--text-secondary);
-  font-size: 16px;
-  padding: 2px 6px;
-}
-
-.maplibregl-popup-close-button:hover {
-  color: var(--text-primary);
+.vessel-name-tooltip .maplibregl-popup-content {
+  pointer-events: none;
   background: transparent;
+  color: #fff;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-shadow:
+    0 1px 3px #000,
+    0 0 5px #000;
+  white-space: nowrap;
+}
+.vessel-name-tooltip .maplibregl-popup-tip {
+  display: none;
 }
 
 button,
@@ -321,9 +321,6 @@ dd {
   top: 10px;
   font-size: 24px;
   padding: 0 10px;
-}
-.maplibregl-popup-content p {
-  font-size: 12px;
 }
 @media (max-width: 900px) {
   .brand {

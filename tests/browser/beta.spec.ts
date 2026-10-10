@@ -74,10 +74,9 @@ test("i punti AIS sono disegnati e selezionabili attraverso il worker cartografi
     await canvas.click({
       position: { x: bounds!.width / 2, y: bounds!.height / 2 },
     });
-    await expect(page.locator(".maplibregl-popup-content")).toContainText(
-      "Aurora cartografica",
-      { timeout: 1000 },
-    );
+    await expect(page.locator(".vessel-drawer h1")).toContainText("Aurora", {
+      timeout: 1000,
+    });
   }).toPass({ timeout: 15_000 });
   await expect(page.locator(".vessel-drawer h1")).toContainText("Aurora");
   expect(errors).toEqual([]);
