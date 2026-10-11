@@ -52,3 +52,7 @@ Fonti e licenze: [NGA World Port Index](https://msi.nga.mil/Publications/WPI), [
 ## Compilazione container backend
 
 Railway non segue automaticamente i push: la produzione usa upload CLI espliciti. Il build Docker usa `tsconfig.server.json` e `npm run build:server`, escludendo i test frontend dal container; `npm run build` e la CI continuano a compilare/controllare i test nell'ambiente completo. Questo corregge il riferimento del test foto a un modulo frontend non copiato nella vecchia immagine.
+
+## Tema nelle pagine complete — 11 ottobre 2026
+
+La preferenza è ora condivisa nel layout del sito, non più limitata al componente della mappa. Cookie per il rendering server, migrazione delle preferenze localStorage esistenti e applicazione prima del disegno iniziale preservano Light/ECDIS anche nelle schede nave/località, con ricaricamento completo. Dark resta il default. Dettagli in [VESSEL-PHOTOS.md](VESSEL-PHOTOS.md).

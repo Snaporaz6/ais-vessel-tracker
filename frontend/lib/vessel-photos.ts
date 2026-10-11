@@ -21,7 +21,7 @@ function apiUrl(host: string, params: Record<string, string>) {
 async function fetchJson(url: string, signal: AbortSignal) {
   const options: RequestInit & { next: { revalidate: number } } = {
     headers: { "User-Agent": USER_AGENT },
-    signal,
+    signal: AbortSignal.any([signal, AbortSignal.timeout(3000)]),
     next: { revalidate: 86400 },
   };
   const response = await fetch(url, options);
@@ -105,12 +105,43 @@ async function categoryFiles(
       list: "categorymembers",
       cmtitle: page.title,
       cmnamespace: "6",
-      cmlimit: "3",
+      cmlimit: "12",
       cmtype: "file",
     }),
     signal,
   );
-  return (members.query?.categorymembers ?? []).map((p: any) => p.title);
+  const files = (members.query?.categorymembers ?? []).map((p: any) => p.title);
+  if (files.length) return files;
+  // Ship categories frequently contain only subcategories by year or location.
+  // Stay inside the identified ship's category and cap traversal at one level.
+  const children = await read(
+    apiUrl("commons.wikimedia.org", {
+      action: "query",
+      list: "categorymembers",
+      cmtitle: page.title,
+      cmnamespace: "14",
+      cmlimit: "3",
+      cmtype: "subcat",
+    }),
+    signal,
+  );
+  const results = await Promise.all(
+    (children.query?.categorymembers ?? []).map(async (child: any) => {
+      const data = await read(
+        apiUrl("commons.wikimedia.org", {
+          action: "query",
+          list: "categorymembers",
+          cmtitle: child.title,
+          cmnamespace: "6",
+          cmlimit: "4",
+          cmtype: "file",
+        }),
+        signal,
+      );
+      return (data.query?.categorymembers ?? []).map((p: any) => p.title);
+    }),
+  );
+  return results.flat();
 }
 
 /** Resolve by exact IMO/MMSI; never infer a ship's identity from its name. */
@@ -122,53 +153,160 @@ export async function resolveVesselPhoto(
   const { mmsi, imo } = identity;
   const property = imo ? "P458" : "P587";
   const identifier = imo ?? mmsi;
-  const search = await read(
-    apiUrl("www.wikidata.org", {
-      action: "query",
-      list: "search",
-      srnamespace: "0",
-      srlimit: "5",
-      srsearch: `haswbstatement:${property}=${identifier}`,
-    }),
-    signal,
-  );
-  const ids = (search.query?.search ?? [])
-    .map((result: any) => result.title)
-    .filter((id: unknown) => typeof id === "string" && /^Q\d+$/.test(id));
-  let files: string[] = [];
-  let category: string | null = null;
-  if (ids.length) {
-    const data = await read(
+  let entity: any = null;
+  let failure: unknown = null;
+  try {
+    const search = await read(
       apiUrl("www.wikidata.org", {
-        action: "wbgetentities",
-        ids: ids.join("|"),
-        props: "claims|sitelinks",
-        sitefilter: "commonswiki",
+        action: "query",
+        list: "search",
+        srnamespace: "0",
+        srlimit: "5",
+        srsearch: `haswbstatement:${property}=${identifier}`,
       }),
       signal,
     );
-    const entities = Object.values(data.entities ?? {}).filter((entity: any) =>
-      claimValues(entity, property).includes(identifier),
-    ) as any[];
-    // Multiple ships with the same identifier are ambiguous; show no photograph.
-    if (entities.length > 1) return null;
-    if (entities.length === 1) {
-      files = claimValues(entities[0], "P18")
+    const ids = (search.query?.search ?? [])
+      .map((result: any) => result.title)
+      .filter((id: unknown) => typeof id === "string" && /^Q\d+$/.test(id));
+    if (ids.length) {
+      const data = await read(
+        apiUrl("www.wikidata.org", {
+          action: "wbgetentities",
+          ids: ids.join("|"),
+          props: "claims|sitelinks",
+          sitefilter: "commonswiki|enwiki|itwiki",
+        }),
+        signal,
+      );
+      const entities = Object.entries(data.entities ?? {}).filter(
+        ([, item]: any) => claimValues(item, property).includes(identifier),
+      );
+      if (entities.length > 1) return null;
+      if (entities.length === 1)
+        entity = { ...(entities[0][1] as any), id: entities[0][0] };
+    }
+  } catch (error) {
+    failure = error;
+  }
+
+  const files = entity
+    ? claimValues(entity, "P18")
         .slice(0, 3)
-        .map((name) => `File:${name}`);
-      const title = entities[0].sitelinks?.commonswiki?.title;
-      if (typeof title === "string" && title.startsWith("Category:"))
-        category = title;
+        .map((name) => `File:${name}`)
+    : [];
+  if (files.length) {
+    try {
+      const photo = await photoFromFiles(files, read, signal);
+      if (photo) return photo;
+    } catch (error) {
+      failure = error;
     }
   }
-  if (!files.length && (category || imo)) {
-    files = await categoryFiles(
-      category ?? `Category:IMO ${imo}`,
-      read,
-      signal,
-    );
+
+  const linked = entity?.sitelinks?.commonswiki?.title;
+  const category =
+    typeof linked === "string" && linked.startsWith("Category:")
+      ? linked
+      : entity && claimValues(entity, "P373")[0]
+        ? `Category:${claimValues(entity, "P373")[0]}`
+        : imo
+          ? `Category:IMO ${imo}`
+          : null;
+  if (category) {
+    try {
+      const candidates = await categoryFiles(category, read, signal);
+      if (candidates.length) {
+        const photo = await photoFromFiles(candidates, read, signal);
+        if (photo) return photo;
+      }
+    } catch (error) {
+      failure = error;
+    }
   }
-  if (!files.length) return null;
+
+  if (entity) {
+    // Independent discovery paths: structured Commons depicts statements and
+    // Wikipedia's lead image, both attached to the exact validated Wikidata ID.
+    const results = await Promise.allSettled([
+      (async () => {
+        const search = await read(
+          apiUrl("commons.wikimedia.org", {
+            action: "query",
+            list: "search",
+            srnamespace: "6",
+            srlimit: "6",
+            srsearch: `haswbstatement:P180=${entity.id} filetype:bitmap`,
+          }),
+          signal,
+        );
+        return (search.query?.search ?? [])
+          .map((p: any) => p.title)
+          .filter(
+            (title: unknown) =>
+              typeof title === "string" && title.startsWith("File:"),
+          );
+      })(),
+      wikipediaFiles(entity, read, signal),
+    ]);
+    const candidates: string[] = [];
+    for (const result of results) {
+      if (result.status === "fulfilled") candidates.push(...result.value);
+      else failure = result.reason;
+    }
+    if (candidates.length) {
+      try {
+        const photo = await photoFromFiles(
+          [...new Set(candidates)],
+          read,
+          signal,
+        );
+        if (photo) return photo;
+      } catch (error) {
+        failure = error;
+      }
+    }
+  }
+  if (failure) throw failure;
+  return null;
+}
+
+async function wikipediaFiles(
+  entity: any,
+  read: JsonFetcher,
+  signal: AbortSignal,
+): Promise<string[]> {
+  const site = entity.sitelinks?.enwiki?.title ? "enwiki" : "itwiki";
+  const title = entity.sitelinks?.[site]?.title;
+  if (!title) return [];
+  const data = await read(
+    apiUrl(site === "enwiki" ? "en.wikipedia.org" : "it.wikipedia.org", {
+      action: "query",
+      titles: title,
+      redirects: "1",
+      prop: "pageimages|pageprops",
+      piprop: "name",
+      pilicense: "free",
+      ppprop: "wikibase_item",
+    }),
+    signal,
+  );
+  return (data.query?.pages ?? [])
+    .filter(
+      (p: any) =>
+        p.pageprops?.wikibase_item === entity.id &&
+        typeof p.pageimage === "string",
+    )
+    .map((p: any) => `File:${p.pageimage}`);
+  // All files are subsequently resolved on Commons; Wikipedia-only/nonfree
+  // images cannot pass photoFromFiles' host, attribution and license checks.
+}
+
+async function photoFromFiles(
+  files: string[],
+  read: JsonFetcher,
+  signal: AbortSignal,
+): Promise<VesselPhotoData | null> {
   const data = await read(
     apiUrl("commons.wikimedia.org", {
       action: "query",
@@ -176,7 +314,8 @@ export async function resolveVesselPhoto(
       prop: "imageinfo",
       iiprop: "url|mime|extmetadata",
       iiurlwidth: "640",
-      iiextmetadatafilter: "Artist|Attribution|LicenseShortName|LicenseUrl",
+      iiextmetadatafilter:
+        "Artist|Attribution|LicenseShortName|LicenseUrl|Copyrighted|Restrictions",
     }),
     signal,
   );
@@ -194,7 +333,14 @@ export async function resolveVesselPhoto(
       metadata.Attribution?.value || metadata.Artist?.value,
     );
     const license = plainText(metadata.LicenseShortName?.value);
-    if (!url || !sourceUrl || !author || !license) continue;
+    // Restrict automatic reuse to explicit free licenses suitable for a future
+    // commercial service. Unknown/NC/ND/custom permissions remain excluded.
+    const reusable =
+      /^(?:CC0(?: 1\.0)?|Public domain|CC BY(?:-SA)? (?:1\.0|2\.0|2\.5|3\.0|4\.0))$/i.test(
+        license,
+      );
+    if (!url || !sourceUrl || !author || !license || !reusable) continue;
+    if (plainText(metadata.Restrictions?.value)) continue;
     return {
       url,
       sourceUrl,

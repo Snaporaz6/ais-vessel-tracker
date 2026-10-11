@@ -4,11 +4,13 @@ import { useLanguage } from "./LanguageProvider";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import type { VesselPhotoData } from "../lib/vessel-photos";
+import type { ShipType } from "../../shared/types";
 
 interface VesselPhotoProps {
   mmsi: string;
   imo: string | null;
   vesselName: string;
+  shipType: ShipType;
   height?: number;
 }
 
@@ -17,13 +19,21 @@ export default function VesselPhoto(props: VesselPhotoProps) {
   return <Photo key={`${props.mmsi}:${props.imo ?? ""}`} {...props} />;
 }
 
-function Photo({ mmsi, imo, vesselName, height = 180 }: VesselPhotoProps) {
-  const { t } = useLanguage();
+function Photo({
+  mmsi,
+  imo,
+  vesselName,
+  shipType,
+  height = 180,
+}: VesselPhotoProps) {
+  const { t, shipNames } = useLanguage();
   const [photo, setPhoto] = useState<VesselPhotoData | null>(null);
   const [status, setStatus] = useState<
     "loading" | "image" | "ready" | "missing" | "error"
   >("loading");
   const [attempt, setAttempt] = useState(0);
+  const illustration =
+    shipType !== "other" ? `/vessel-types/${shipType}.jpg` : null;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -34,7 +44,7 @@ function Photo({ mmsi, imo, vesselName, height = 180 }: VesselPhotoProps) {
       controller.abort();
       if (active) setStatus("error");
     }, 12000);
-    const params = new URLSearchParams({ mmsi });
+    const params = new URLSearchParams({ mmsi, v: "2" });
     if (imo && /^[1-9]\d{6}$/.test(imo)) params.set("imo", imo);
     fetch(`/api/vessel-photo?${params}`, { signal: controller.signal })
       .then(async (response) => {
@@ -66,6 +76,18 @@ function Photo({ mmsi, imo, vesselName, height = 180 }: VesselPhotoProps) {
   return (
     <figure className="vessel-photo">
       <div className="vessel-photo-frame" style={{ height }}>
+        {status !== "ready" && illustration && (
+          <Image
+            src={illustration}
+            alt={t("Illustrazione della categoria: {category}", {
+              category: shipNames[shipType],
+            })}
+            fill
+            unoptimized
+            sizes="(max-width: 900px) 100vw, 640px"
+            style={{ objectFit: "contain" }}
+          />
+        )}
         {photo && (status === "image" || status === "ready") && (
           <Image
             src={photo.url}
@@ -83,7 +105,7 @@ function Photo({ mmsi, imo, vesselName, height = 180 }: VesselPhotoProps) {
             referrerPolicy="no-referrer"
           />
         )}
-        {status !== "ready" && (
+        {status !== "ready" && !illustration && (
           <div className="vessel-photo-state" role="status" aria-live="polite">
             <span>
               {status === "loading" || status === "image"
@@ -100,6 +122,25 @@ function Photo({ mmsi, imo, vesselName, height = 180 }: VesselPhotoProps) {
           </div>
         )}
       </div>
+      {status !== "ready" && illustration && (
+        <figcaption role="status" aria-live="polite">
+          {t("Illustrazione di categoria · non è una foto di questa nave.")}{" "}
+          {(status === "loading" || status === "image") &&
+            t("Caricamento foto…")}
+          {status === "missing" &&
+            t("Nessuna foto disponibile nelle fonti libere.")}
+          {status === "error" && t("Foto temporaneamente non disponibile.")}
+          {status === "error" && (
+            <button
+              className="photo-retry"
+              type="button"
+              onClick={() => setAttempt((n) => n + 1)}
+            >
+              {t("Riprova foto")}
+            </button>
+          )}
+        </figcaption>
+      )}
       {photo && status === "ready" && (
         <figcaption>
           <a href={photo.sourceUrl} target="_blank" rel="noopener noreferrer">

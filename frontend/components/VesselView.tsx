@@ -25,6 +25,7 @@ export default function VesselView({
         mmsi={v.mmsi}
         imo={v.imo}
         vesselName={v.name}
+        shipType={v.ship_type}
         height={180}
       />
       <p className="eyebrow">

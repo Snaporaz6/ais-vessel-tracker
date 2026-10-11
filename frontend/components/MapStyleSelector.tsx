@@ -1,19 +1,13 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import type { Map } from "maplibre-gl";
 import { applyMapTheme, type MapTheme } from "../lib/map-theme";
 import { useLanguage } from "./LanguageProvider";
+import { useTheme } from "./ThemeProvider";
 export default function MapStyleSelector({ map }: { map: Map }) {
   const { t } = useLanguage();
-  const [theme, setTheme] = useState<MapTheme>("dark");
+  const { theme, select } = useTheme();
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("ais-map-theme-v1");
-      if (saved === "light" || saved === "ecdis") setTheme(saved);
-    } catch {}
-  }, []);
-  useEffect(() => {
-    document.documentElement.dataset.mapTheme = theme;
     let frame = 0;
     const apply = () => {
       cancelAnimationFrame(frame);
@@ -43,10 +37,7 @@ export default function MapStyleSelector({ map }: { map: Map }) {
         value={theme}
         onChange={(event) => {
           const next = event.target.value as MapTheme;
-          setTheme(next);
-          try {
-            localStorage.setItem("ais-map-theme-v1", next);
-          } catch {}
+          select(next);
         }}
       >
         <option value="dark">Dark</option>
