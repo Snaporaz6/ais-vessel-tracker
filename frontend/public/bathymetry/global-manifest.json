@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "name": "Worldwide generalized bathymetric contours",
+  "source": "https://oceania.generic-mapping-tools.org/server/earth/earth_gebco/earth_gebco_06m_g.grd",
+  "sourceDocumentation": "https://www.generic-mapping-tools.org/remote-datasets/earth-gebco.html",
+  "sourceTitle": "GEBCO Earth Relief 2025 at 06 arc minutes",
+  "sourceDescription": "Reduced by Gaussian Cartesian filtering (31.5 km fullwidth) from GEBCO_2025.nc [GEBCO Bathymetric Compilation Group, 2025 GEBCO 2025 Grid; https://doi.org/10.5285/37c52e96-24ea-67ce-e063-7086abc05f29]",
+  "sourceSha256": "8c6ffff1dd70f6bb6bfb7876a4d4ce2b71abd2a888fc1dfb47cac2be0edfe03d",
+  "catalogVersion": "GEBCO 2025 / GMT 6 arc-minute derivative",
+  "doi": "https://doi.org/10.5285/37c52e96-24ea-67ce-e063-7086abc05f29",
+  "license": "Public domain, source attribution required by GEBCO terms",
+  "licenseUrl": "https://www.gebco.net/data-products/gridded-bathymetry/terms-of-use",
+  "attribution": "GEBCO Compilation Group (2025); generalized by GMT; contours derived by AIS Vessel Tracker",
+  "importedAt": "2026-10-10T20:02:24.907405Z",
+  "gridSpacingDegrees": 0.1,
+  "gaussianFilterFullWidthKm": 31.5,
+  "bounds": [
+    -180,
+    -85.0511287798066,
+    180,
+    85.0511287798066
+  ],
+  "originalGridBounds": [
+    -180,
+    -90,
+    180,
+    90
+  ],
+  "levelsMetres": [
+    200,
+    500,
+    1000,
+    2000,
+    3000,
+    4000,
+    5000,
+    6000,
+    7000,
+    8000,
+    9000,
+    10000
+  ],
+  "sourceLines": 30494,
+  "clippedLines": 30438,
+  "minZoom": 0,
+  "maxZoom": 5,
+  "tiles": 1365,
+  "nonemptyTiles": 975,
+  "bytes": 12460410,
+  "largestTileBytes": 1356869,
+  "zooms": {
+    "0": {
+      "tiles": 1,
+      "bytes": 1356869
+    },
+    "1": {
+      "tiles": 4,
+      "bytes": 1677981
+    },
+    "2": {
+      "tiles": 16,
+      "bytes": 1952557
+    },
+    "3": {
+      "tiles": 64,
+      "bytes": 2204132
+    },
+    "4": {
+      "tiles": 256,
+      "bytes": 2456487
+    },
+    "5": {
+      "tiles": 1024,
+      "bytes": 2812384
+    }
+  },
+  "tileTemplate": "/bathymetry/global-tiles/{z}/{x}/{y}.pbf",
+  "sourceLayer": "contours",
+  "notForNavigation": true,
+  "limitations": [
+    "Generalized overview, not the original 15 arc-second grid",
+    "Variable survey coverage; grid includes inferred/interpolated depths",
+    "No derived contours above Web Mercator latitude limits",
+    "Mediterranean detailed contours remain sourced separately from EMODnet"
+  ]
+}

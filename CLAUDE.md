@@ -1,7 +1,7 @@
 # AIS Vessel Tracker — indicazioni per lo sviluppo
 
 ## Obiettivo e limiti
-Beta pubblica Mediterraneo senza account: mappa live, ricerca, schede, storico progressivo 90 giorni, soste rilevate, anomalie e controlli OFAC/UE. Tetto 30 €/mese; apertura soltanto con previsione totale verificata ≤25 € e sette giorni di osservazione. Copertura globale, notifiche, monetizzazione e riconoscimento porti rinviati.
+Beta pubblica Mediterraneo senza account: mappa live, ricerca, schede, storico progressivo 90 giorni, soste rilevate, anomalie e controlli OFAC/UE. Tetto 30 €/mese; apertura soltanto con previsione totale verificata ≤25 € e sette giorni di osservazione. Acquisizione AIS globale, notifiche e monetizzazione rinviate. Livelli informativi globali autorizzati e implementati: docs/ROADMAP-MAPPA-GLOBALE.md; AIS live/storico restano nel Mediterraneo.
 
 ## Comandi
 Node ≥22, preferito 24 LTS. `npm ci` e `npm --prefix frontend ci`.
@@ -24,8 +24,9 @@ Node ≥22, preferito 24 LTS. `npm ci` e `npm --prefix frontend ci`.
 - Live deduplicato ogni 2 s; storico ordinario 1/5/30/120 minuti per 48h/7d/30d/90d, più punti significativi. Anomalie analizzate sul live prima del campionamento.
 - Scrittura archivio: oggetto immutabile + rilettura/checksum → catalogo → eliminazione sola parte spool verificata. Retry idempotenti; append durante upload devono restare sul volume. Conservare oggetti citati dai backup recenti.
 - Riavvio: checkpoint, archivio, spool e outbox ricostruiscono ultime posizioni, cooldown e soste. Non usare un vuoto dell'intero servizio come anomalia della singola nave.
-- Un solo StopDetector alimenta schede e località. Chiamare le soste “soste rilevate”; nessun catalogo porti disponibile.
+- Un solo StopDetector alimenta schede e località. Chiamare le soste “soste rilevate”. Il catalogo mondiale NGA è cartografico: non attribuire automaticamente soste, disponibilità degli ormeggi o congestione ufficiale ai porti.
 - Sanzioni sostituite atomicamente con staging validato; mantenere liste valide sui guasti. Esplicitare disponibilità, data, fonte e ambito, anche nelle corrispondenze.
+- Livelli marini: dati e licenze in docs/MARINE-DATA-SOURCES.md, GLOBAL-BATHYMETRY.md, MARINE-FORECAST.md e MARITIME-WARNINGS.md. Fonti parziali e snapshot datati sono espliciti; niente geometrie/coordinate/rating di rischio inventati. Separare data della fonte, validità e consultazione.
 - MapLibre imperativo in useEffect, cleanup remove, GeoJSON clustering. Popup DOM con textContent; mai HTML interpolato da AIS. Interrompere tracce sui vuoti, preservare primo/ultimo punto.
 - Next.js richiede worker e modulo condiviso MapLibre insieme in `frontend/public/maplibre/`. I ganci predev/prebuild li copiano dalla versione installata; non committare file generati. Verificare che una nave disegnata sia selezionabile: la presenza del canvas non prova il caricamento del worker.
 - Import frontend dei moduli condivisi senza suffisso .js (Turbopack); backend NodeNext con .js.

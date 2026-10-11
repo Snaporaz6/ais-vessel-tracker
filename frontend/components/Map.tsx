@@ -18,6 +18,12 @@ import {
 import { getLiveVessels, getTrack } from "../lib/api";
 import { trackGeometry, type TrackDisplayInfo } from "../lib/track-display";
 import { useLanguage } from "./LanguageProvider";
+import MarineLayers from "./MarineLayers";
+import { viewportBounds } from "../lib/marine-map-layers";
+import {
+  addGlobalBathymetry,
+  removeGlobalBathymetry,
+} from "../lib/global-bathymetry";
 const EMPTY: FeatureCollection = { type: "FeatureCollection", features: [] };
 const COLORS: Record<ShipType, string> = {
   cargo: "#22c55e",
@@ -63,7 +69,7 @@ export default function VesselMap({
     projection = useRef(isGlobe);
   const [bathymetry, setBathymetry] = useState(true),
     [bathymetryError, setBathymetryError] = useState(false),
-    [mapZoom, setMapZoom] = useState(4.5);
+    [outsideAIS, setOutsideAIS] = useState(false);
   useEffect(() => {
     try {
       setBathymetry(localStorage.getItem("ais-bathymetry") !== "off");
@@ -89,7 +95,7 @@ export default function VesselMap({
       style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
       center: [15, 38],
       zoom: 4.5,
-      minZoom: 2,
+      minZoom: 1,
       maxZoom: 17,
       attributionControl: { compact: true },
       locale: {
@@ -110,11 +116,19 @@ export default function VesselMap({
     const resize = new ResizeObserver(() => m.resize());
     resize.observe(container.current);
     m.on("error", (event) => {
-      if ("sourceId" in event && event.sourceId === "bathymetry")
+      if (
+        "sourceId" in event &&
+        (event.sourceId === "bathymetry" ||
+          event.sourceId === "global-bathymetry")
+      )
         setBathymetryError(true);
+      else if (
+        "sourceId" in event &&
+        String(event.sourceId).startsWith("marine-")
+      )
+        return;
       else setBaseError("La cartografia non è disponibile o è incompleta.");
     });
-    m.on("zoomend", () => setMapZoom(m.getZoom()));
     m.on("style.load", () => {
       m.setProjection({ type: projection.current ? "globe" : "mercator" });
       m.resize();
@@ -245,14 +259,18 @@ export default function VesselMap({
       m.on("click", "clusters", async (event) => {
         const f = event.features?.[0];
         if (!f || f.geometry.type !== "Point") return;
-        const zoom = await (
-          m.getSource("vessels") as maplibregl.GeoJSONSource
-        ).getClusterExpansionZoom(Number(f.properties!.cluster_id));
-        if (map.current === m)
-          m.easeTo({
-            center: (f.geometry as Point).coordinates as [number, number],
-            zoom,
-          });
+        try {
+          const zoom = await (
+            m.getSource("vessels") as maplibregl.GeoJSONSource
+          ).getClusterExpansionZoom(Number(f.properties!.cluster_id));
+          if (map.current === m)
+            m.easeTo({
+              center: (f.geometry as Point).coordinates as [number, number],
+              zoom,
+            });
+        } catch {
+          // A refresh may have removed this cluster while its worker was responding.
+        }
       });
       for (const layer of ["vessel-points", "clusters"]) {
         m.on("mouseenter", layer, () => {
@@ -282,6 +300,7 @@ export default function VesselMap({
     const before =
       m.getStyle().layers.find((layer) => layer.type === "symbol")?.id ??
       "clusters";
+    addGlobalBathymetry(m, { beforeId: before, visible: true });
     m.addSource("bathymetry", {
       type: "geojson",
       data: "/bathymetry/mediterranean-contours.json",
@@ -353,6 +372,7 @@ export default function VesselMap({
           if (m.getLayer(id)) m.removeLayer(id);
       }
       if (m.getSource("bathymetry")) m.removeSource("bathymetry");
+      removeGlobalBathymetry(m);
     };
   }, [ready, bathymetry]);
   useEffect(() => {
@@ -363,13 +383,32 @@ export default function VesselMap({
     const load = async () => {
       controller?.abort();
       controller = new AbortController();
-      const signal = controller.signal,
-        b = m.getBounds();
+      const signal = controller.signal;
+      const [west, south, east, north] = viewportBounds(m);
+      const spans =
+        west <= east
+          ? [[west, east]]
+          : [
+              [west, 180],
+              [-180, east],
+            ];
+      const intersections = spans
+        .filter(([w, e]) => w < 36.5 && e > -6)
+        .map(([w, e]) => [Math.max(-6, w), Math.min(36.5, e)]);
+      if (!intersections.length || north <= 30 || south >= 46) {
+        if (!stopped) {
+          setOutsideAIS(true);
+          setData(null);
+          setError("");
+        }
+        return;
+      }
+      setOutsideAIS(false);
       const bbox = [
-        Math.max(-180, b.getWest()),
-        Math.max(-90, b.getSouth()),
-        Math.min(180, b.getEast()),
-        Math.min(90, b.getNorth()),
+        Math.min(...intersections.map(([w]) => w)),
+        Math.max(30, south),
+        Math.max(...intersections.map(([, e]) => e)),
+        Math.min(46, north),
       ];
       try {
         const value = await getLiveVessels(bbox.join(","), signal);
@@ -569,11 +608,12 @@ export default function VesselMap({
         className="map-container"
         aria-label={t("Mappa delle navi")}
       />
-      <div className="bathymetry-control">
-        <button
-          aria-pressed={bathymetry}
-          aria-controls="bathymetry-legend"
-          onClick={() =>
+      {ready && map.current && (
+        <MarineLayers
+          map={map.current}
+          bathymetry={bathymetry}
+          bathymetryError={bathymetryError}
+          onBathymetryChange={() =>
             setBathymetry((current) => {
               try {
                 localStorage.setItem("ais-bathymetry", current ? "off" : "on");
@@ -581,65 +621,19 @@ export default function VesselMap({
               return !current;
             })
           }
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            aria-hidden="true"
-          >
-            <path d="M2 7c4-5 7 5 11 0s6-2 9 0M2 12c4-5 7 5 11 0s6-2 9 0M2 17c4-5 7 5 11 0s6-2 9 0" />
-          </svg>
-          {t("Fondali")}
-        </button>
-        {bathymetry && (
-          <div id="bathymetry-legend" className="bathymetry-legend">
-            <span className="bathymetry-key">{t("Profondità in metri")}</span>
-            <details>
-              <summary>{t("Fonte e dettaglio")}</summary>
-              <p>
-                <a
-                  href="https://emodnet.ec.europa.eu/en/bathymetry"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  EMODnet · CC BY 4.0
-                </a>
-              </p>
-              <p>
-                {t(
-                  "Curve generalizzate: 50, 100, 200, 500, 1.000, 2.000, 5.000 e 7.000 m. Il dettaglio aumenta con lo zoom.",
-                )}
-              </p>
-              <p>
-                {t(
-                  "Copertura del Mediterraneo. Non utilizzabile per la navigazione.",
-                )}
-              </p>
-            </details>
-            {mapZoom < 4 && (
-              <p role="status">{t("Ingrandisci per vedere i fondali.")}</p>
-            )}
-            {bathymetryError && (
-              <p role="status" className="notice">
-                {t(
-                  "Fondali temporaneamente incompleti. Disattiva e riattiva per riprovare.",
-                )}
-              </p>
-            )}
-          </div>
-        )}
-      </div>
+          vessels={vessels}
+          observedTrack={displayedTrack}
+        />
+      )}
       <div className="map-status" aria-live="polite">
         <strong>
-          {source?.status === "demo"
-            ? t("DEMO · dati interamente fittizi")
-            : source?.status === "live"
-              ? t("AIS · osservazioni live")
-              : t("AIS · acquisizione non aggiornata")}
+          {outsideAIS
+            ? t("Mappa globale · AIS della demo nel Mediterraneo")
+            : source?.status === "demo"
+              ? t("DEMO · dati interamente fittizi")
+              : source?.status === "live"
+                ? t("AIS · osservazioni live")
+                : t("AIS · acquisizione non aggiornata")}
         </strong>
         <span>
           {data
@@ -650,7 +644,11 @@ export default function VesselMap({
                   live: numbers(data.total_live),
                 },
               )
-            : t("Caricamento osservazioni…")}
+            : outsideAIS
+              ? t(
+                  "Nessuna acquisizione AIS fuori dal Mediterraneo in questa demo.",
+                )
+              : t("Caricamento osservazioni…")}
         </span>
         <span>
           {t("Ultima ricezione: {date}", {

@@ -1,0 +1,94 @@
+{
+  "source": "UK Maritime Trade Operations (UKMTO)",
+  "sourceUrl": "https://www.ukmto.org/recent-incidents",
+  "retrievedAt": "2026-10-11T08:00:43.000Z",
+  "checkedAt": "2026-10-11T08:00:43.000Z",
+  "coverageThrough": "2026-10-05",
+  "complete": false,
+  "access": "Official reports read through public search retrieval. Normal direct site requests returned HTTP 403. This is a dated, manually verified extract, not a live feed or a complete incident archive.",
+  "licenseUrl": "https://www.ukmto.org/terms-and-conditions",
+  "attribution": "Contains public sector information licensed under the Open Government Licence. Source: UK Maritime Trade Operations (UKMTO), © Crown copyright. This app is not endorsed by UKMTO.",
+  "reports": [
+    {
+      "id": "ukmto-152-26", "name": "UKMTO 152-26 — SUSPICIOUS ACTIVITY", "kind": "incident",
+      "category": "SUSPICIOUS ACTIVITY", "occurredAt": "2026-10-05T08:27:00.000Z", "reportedAt": "2026-10-05",
+      "eventStatus": "reported", "position": null,
+      "description": "Tanker reportedly ordered to turn back near Khasab."
+    },
+    {
+      "id": "ukmto-151-26", "name": "UKMTO 151-26 — SUSPICIOUS ACTIVITY", "kind": "incident",
+      "category": "SUSPICIOUS ACTIVITY", "occurredAt": null, "reportedAt": "2026-10-04",
+      "eventStatus": "reported", "position": null,
+      "description": "Explosions reported near tanker south of Al Mukha."
+    },
+    {
+      "id": "ukmto-150-26", "name": "UKMTO 150-26 — ATTACK", "kind": "attack",
+      "category": "ATTACK", "occurredAt": null, "reportedAt": "2026-10-04",
+      "eventStatus": "reported", "position": null,
+      "description": "Reported tanker projectile strike; engine room damaged, Hormuz."
+    },
+    {
+      "id": "ukmto-149-26", "name": "UKMTO 149-26 — ATTACK", "kind": "attack",
+      "category": "ATTACK", "occurredAt": null, "reportedAt": "2026-10-02",
+      "eventStatus": "reported", "position": null,
+      "description": "Reported crude tanker projectile strike east of Oman."
+    },
+    {
+      "id": "ukmto-148-26", "name": "UKMTO 148-26 — ATTACK", "kind": "attack",
+      "category": "ATTACK", "occurredAt": null, "reportedAt": "2026-10-02T11:22:00.000Z",
+      "eventStatus": "reported", "position": null,
+      "description": "Reported tanker strike; fire extinguished in Hormuz."
+    },
+    {
+      "id": "ukmto-147-26", "name": "UKMTO 147-26 — ATTACK", "kind": "attack",
+      "category": "ATTACK", "occurredAt": null, "reportedAt": "2026-10-01",
+      "eventStatus": "reported", "position": null,
+      "description": "Third-party report: tanker projectile strike and fire, Hormuz."
+    },
+    {
+      "id": "ukmto-146-26", "name": "UKMTO 146-26 — ATTACK", "kind": "attack",
+      "category": "ATTACK", "occurredAt": null, "reportedAt": "2026-09-30",
+      "eventStatus": "reported", "position": null,
+      "description": "Time-late report: tanker projectile strike, Hormuz."
+    },
+    {
+      "id": "ukmto-145-26", "name": "UKMTO 145-26 — ATTACK", "kind": "attack",
+      "category": "ATTACK", "occurredAt": null, "reportedAt": "2026-09-30",
+      "eventStatus": "reported", "position": null,
+      "description": "Time-late report: inbound tanker projectile strike, Hormuz."
+    },
+    {
+      "id": "ukmto-144-26", "name": "UKMTO 144-26 — ATTACK", "kind": "attack",
+      "category": "ATTACK", "occurredAt": null, "reportedAt": "2026-09-30",
+      "eventStatus": "reported", "position": null,
+      "description": "Time-late report: crude tanker projectile strike, Hormuz."
+    },
+    {
+      "id": "ukmto-143-26", "name": "UKMTO 143-26 — SUSPICIOUS ACTIVITY", "kind": "incident",
+      "category": "SUSPICIOUS ACTIVITY", "occurredAt": "2026-09-28", "reportedAt": "2026-09-28",
+      "eventStatus": "suspected", "position": null,
+      "description": "Suspected projectile strike, Hormuz; fire reportedly extinguished."
+    },
+    {
+      "id": "ukmto-142-26", "name": "UKMTO 142-26 — ATTACK", "kind": "attack",
+      "category": "ATTACK", "occurredAt": null, "reportedAt": "2026-09-23T06:30:00.000Z",
+      "eventStatus": "reported", "position": null,
+      "description": "Cargo vessel reportedly struck in Hormuz; fire reported."
+    },
+    {
+      "id": "ukmto-139-26", "name": "UKMTO 139-26 — ATTACK", "kind": "attack",
+      "category": "ATTACK", "occurredAt": "2026-09-16", "reportedAt": "2026-09-18",
+      "eventStatus": "reported", "position": null,
+      "description": "Time-late report: outbound tanker projectile strike, Hormuz."
+    },
+    {
+      "id": "ukmto-045-26", "name": "UKMTO 045-26 — HIJACK", "kind": "piracy",
+      "category": "HIJACK", "occurredAt": null, "reportedAt": "2026-04-21T11:40:00.000Z",
+      "publishedAt": "2026-04-25", "eventStatus": "reported",
+      "position": [50.53333333333333, 8.933333333333334],
+      "positionText": "0856N 05032E", "locationRole": "last_reported_vessel_position",
+      "sourceUrl": "https://www.ukmto.org/-/media/ukmto/products/20260424-ukmto_warning_045-26.pdf?rev=4f66cb1859744663a67c4c2b91a080f5",
+      "description": "Military authorities reported a tanker hijack and subsequent movement into Somali waters. Published position 0856N 05032E is the vessel's last reported position, not the hijack origin. Reported 21 April; update issued 25 April 2026. Historical report; current vessel status unverified."
+    }
+  ]
+}

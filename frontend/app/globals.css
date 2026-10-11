@@ -533,56 +533,231 @@ dd {
   color: var(--text-secondary);
 }
 
-/* Bathymetry uses the map's muted blue-grey palette, below AIS overlays. */
-.bathymetry-control {
+/* Nautical layers share the existing map palette and stay below vessel details. */
+.marine-layers-control {
   position: absolute;
   top: 216px;
   left: 16px;
-  z-index: 10;
+  z-index: 18;
 }
-.bathymetry-control > button {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 8px 10px;
-  background: #111827eb;
-}
-.bathymetry-control > button[aria-pressed="true"] {
-  color: #b8d3df;
-  border-color: #648797;
-}
-.bathymetry-legend {
-  margin-top: 7px;
-  padding: 9px 11px;
-  width: 205px;
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--text-secondary);
-  background: #111827eb;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-.bathymetry-key {
+.marine-layers-toggle {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #a2bac5;
+  background: #111827eb;
+  font-size: 12px;
 }
-.bathymetry-key::before {
-  content: "";
-  width: 23px;
-  height: 1px;
-  background: #648797;
+.marine-layers-toggle > span {
+  color: #9bb6c6;
+  font-variant-numeric: tabular-nums;
 }
-.bathymetry-legend summary {
+.marine-layer-panel {
+  width: min(300px, calc(100vw - 32px));
+  max-height: calc(100dvh - 270px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-top: 7px;
+  padding: 14px;
+  background: #111827f5;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px #0004;
+}
+.marine-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+.marine-panel-heading button {
+  font-size: 20px;
+  padding: 0 8px;
+}
+.marine-panel-note {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+.marine-layer-panel fieldset {
+  margin: 16px 0 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  padding: 12px 0 0;
+  min-width: 0;
+}
+.marine-layer-panel legend {
+  padding: 0 6px 0 0;
+  color: #b5c3ce;
+  font-size: 12px;
+}
+.marine-layer-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 34px;
+  font-size: 12px;
   cursor: pointer;
-  margin-top: 5px;
 }
-.bathymetry-legend p {
-  margin: 6px 0 0;
+.marine-layer-row input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #8faeba;
+  flex: 0 0 auto;
 }
-@media (max-width: 640px) {
-  .bathymetry-legend {
-    width: 175px;
+.marine-layer-swatch {
+  width: 15px;
+  height: 2px;
+  flex: 0 0 auto;
+}
+.marine-layer-info {
+  margin: 0 0 9px 25px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.marine-layer-info summary {
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+.marine-layer-info p {
+  margin: 5px 0;
+}
+.marine-layer-info a {
+  color: #a7c8d4;
+}
+.marine-layer-info button {
+  margin-top: 6px;
+  padding: 5px 9px;
+  font-size: 11px;
+}
+.marine-warning-options,
+.marine-forecast-time {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  font-size: 11px;
+  color: #d9be9a;
+}
+.marine-warning-options > label,
+.marine-forecast-time {
+  display: flex;
+  gap: 7px;
+}
+.marine-warning-options > label:not(.marine-layer-row) {
+  flex-direction: column;
+}
+.marine-warning-options select,
+.marine-forecast-time select {
+  width: 100%;
+  font-size: 12px;
+  padding: 7px;
+}
+.marine-warning-options p {
+  margin: 0;
+}
+.marine-track-alerts {
+  position: absolute;
+  top: 112px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  max-width: min(470px, calc(100% - 90px));
+  border: 1px solid #755f40;
+  border-radius: 6px;
+  padding: 7px 10px;
+  background: #201d18e8;
+  color: #ddc49d;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.marine-feature-panel {
+  position: absolute;
+  top: 216px;
+  left: 330px;
+  z-index: 22;
+  width: 320px;
+  max-height: calc(100dvh - 250px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  background: #111827f5;
+  box-shadow: 0 8px 24px #0004;
+}
+.marine-feature-panel h2 {
+  font-size: 18px;
+  margin: 7px 30px 12px 0;
+  overflow-wrap: anywhere;
+}
+.marine-feature-kind {
+  font-size: 11px;
+  margin: 0;
+}
+.marine-feature-description {
+  font-size: 12px;
+  max-height: 170px;
+  overflow-y: auto;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.marine-feature-panel dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 12px;
+}
+.marine-feature-panel dd {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.marine-observed-stops {
+  font-size: 11px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  margin: 10px 0 18px;
+  color: var(--text-secondary);
+}
+.marine-observed-stops h3 {
+  font-size: 12px;
+  color: var(--text-primary);
+}
+@media (max-width: 900px) {
+  .marine-track-alerts {
+    top: 151px;
+    left: 74px;
+    transform: none;
+    max-width: calc(100% - 90px);
   }
+  .marine-feature-panel {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: 55dvh;
+    border-radius: 14px 14px 0 0;
+  }
+  .marine-layer-panel {
+    max-height: calc(100dvh - 265px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marine-layer-panel,
+  .marine-feature-panel {
+    scroll-behavior: auto;
+  }
+}
+
+.marine-source-status {
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+.marine-warning-legend {
+  line-height: 1.8;
 }
