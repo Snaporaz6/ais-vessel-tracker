@@ -18,6 +18,16 @@ export const INTL_LOCALES: Record<Locale, string> = {
 // Italian source text and reviewed English, French and German translations.
 export const messages = {
   ...mapMessages,
+  "Illustrazione della categoria: {category}": [
+    "Category illustration: {category}",
+    "Illustration de la catégorie : {category}",
+    "Illustration der Kategorie: {category}",
+  ],
+  "Illustrazione di categoria · non è una foto di questa nave.": [
+    "Category illustration · not a photo of this vessel.",
+    "Illustration de catégorie · ce n’est pas une photo de ce navire.",
+    "Kategorieillustration · kein Foto dieses Schiffes.",
+  ],
   Fondali: ["Seabed", "Fonds marins", "Meeresboden"],
   "Profondità in metri": [
     "Depth in metres",

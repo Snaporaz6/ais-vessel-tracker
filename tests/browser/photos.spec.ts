@@ -52,7 +52,8 @@ test("the photograph decodes with attribution in the drawer and full page; chang
   await expect(
     page.getByText("Nessuna foto disponibile nelle fonti libere."),
   ).toBeVisible();
-  await expect(image).toHaveCount(0);
+  await expect(image).toHaveCount(1);
+  await expect(image).toHaveAttribute("src", "/vessel-types/cargo.jpg");
   await expect(
     page.getByRole("link", { name: "Foto: Fotografo della prova" }),
   ).toHaveCount(0);

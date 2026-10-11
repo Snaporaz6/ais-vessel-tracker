@@ -397,6 +397,11 @@ dd {
   color: var(--text-secondary);
   text-decoration: underline;
 }
+.photo-retry {
+  margin-left: 6px;
+  padding: 2px 6px;
+  font-size: 11px;
+}
 
 /* The language control stays available on the map, drawers and detail pages. */
 .language-switch {

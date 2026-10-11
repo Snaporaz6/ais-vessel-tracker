@@ -113,3 +113,5 @@ La CI controlla ogni proposta di modifica, installa dai lockfile, compila e veri
 Licenza MIT.
 
 Stili Dark/Light/ECDIS ispirato, cache giornaliera per area e schede portuali: [documentazione](docs/MAP-STYLES-PORT-TRAFFIC.md).
+
+Foto libere, illustrazioni JPG per categoria e persistenza del tema nelle schede complete: [fonti e implementazione](docs/VESSEL-PHOTOS.md).

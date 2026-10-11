@@ -24,7 +24,11 @@ export async function GET(request: Request) {
     return Response.json(
       { photo },
       {
-        headers: { "Cache-Control": "public, max-age=3600, s-maxage=86400" },
+        headers: {
+          "Cache-Control": photo
+            ? "public, max-age=3600, s-maxage=86400"
+            : "public, max-age=300, s-maxage=3600",
+        },
       },
     );
   } catch {
