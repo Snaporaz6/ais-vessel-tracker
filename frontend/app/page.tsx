@@ -42,6 +42,7 @@ export default function Home() {
     [counts, setCounts] = useState<Record<string, number>>({}),
     [globe, setGlobe] = useState(false),
     [focusMap, setFocusMap] = useState(true),
+    [focusVersion, setFocusVersion] = useState(0),
     [center, setCenter] = useState<
       (VesselPosition & { preserveZoom?: boolean }) | null
     >(null);
@@ -116,7 +117,7 @@ export default function Home() {
       // Search and direct links locate vessels; map clicks keep the current view.
       if (focusMap) setCenter(p);
     },
-    [focusMap],
+    [focusMap, focusVersion],
   );
   useEffect(() => {
     const restoreSelection = () => {
@@ -124,6 +125,8 @@ export default function Home() {
         v = q.get("vessel"),
         trackMmsi = q.get("track");
       setFocusMap(true);
+      // A cached map must locate the vessel again even if focus was already enabled.
+      setFocusVersion((version) => version + 1);
       setSelected(v && /^[1-9]\d{8}$/.test(v) ? v : null);
       setTrack(trackMmsi && /^[1-9]\d{8}$/.test(trackMmsi) ? trackMmsi : null);
     };
