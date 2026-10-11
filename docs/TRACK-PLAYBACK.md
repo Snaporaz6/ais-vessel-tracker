@@ -9,7 +9,8 @@ Aggiornamento: 11 ottobre 2026. Frontend soltanto; acquisizione e archivio AIS M
 - Cursore proporzionale al tempo fra prima e ultima osservazione, con data e ora UTC; tasti osservazione precedente/successiva, Riproduci/Pausa e Ultima posizione. Nessuna riproduzione automatica all'apertura.
 - Riproduzione accelerata: circa 30 secondi per la finestra disponibile, aggiornamento ogni 125 ms. Può saltare fix intermedi nello scorrimento accelerato; i tasti precedente/successivo consentono di ispezionare le singole osservazioni.
 - «Centra» porta la mappa alla posizione mostrata mantenendo lo zoom. Lo scorrimento temporale, da solo, non sposta la camera.
-- Copertura e cursore si aprono subito sotto i pulsanti «Mostra/Nascondi traccia» e «Scheda completa», nella scheda della nave; chiudendola il cursore rimane disponibile come pannello sulla mappa. Spostando il controllo viene fermata la riproduzione, conservando il tempo selezionato. Quattro lingue e temi Dark/Light/ECDIS.
+- Sul desktop copertura e cursore si aprono subito sotto i pulsanti «Mostra/Nascondi traccia» e «Scheda completa», nella scheda della nave; chiudendola il cursore rimane disponibile come pannello sulla mappa. Spostando il controllo viene fermata la riproduzione, conservando il tempo selezionato. Quattro lingue e temi Dark/Light/ECDIS.
+- Su mobile la timeline sostituisce la scheda nave in un solo pannello in basso, riducibile e riapribile da «Traccia». Copertura e limiti sono espandibili; «Nascondi traccia» la disattiva. [Interfaccia mobile e prove](MOBILE-MAP.md).
 
 ## Ritorno alla mappa
 

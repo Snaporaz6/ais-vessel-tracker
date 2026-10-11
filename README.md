@@ -51,12 +51,12 @@ Nessun Redis, TimescaleDB o collegamento pubblico al database. Supabase conserva
 
 ## Storico e attendibilità
 
-| Età | Campionamento ordinario |
-|---|---:|
-| Ultime 48 ore | 1 minuto |
-| 3–7 giorni | 5 minuti |
-| 8–30 giorni | 30 minuti |
-| 31–90 giorni | 2 ore |
+| Età           | Campionamento ordinario |
+| ------------- | ----------------------: |
+| Ultime 48 ore |                1 minuto |
+| 3–7 giorni    |                5 minuti |
+| 8–30 giorni   |               30 minuti |
+| 31–90 giorni  |                   2 ore |
 
 Svolte, cambi di movimento/sosta, anomalie ed estremi dei vuoti mantengono punti aggiuntivi. La cache live accetta osservazioni ogni due secondi per nave; il campionamento dello storico non limita l'analisi delle anomalie.
 
@@ -70,20 +70,20 @@ OFAC: navi nella SDN. UE: navi nell'Annex XLII del Regolamento 833/2014, con amb
 
 ## API
 
-| Percorso GET | Risposta |
-|---|---|
-| `/health` | Processo attivo |
-| `/ready` | Database, bucket, volume, connessione AIS e ultima osservazione; 503 se degradato |
+| Percorso GET                                     | Risposta                                                                                |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| `/health`                                        | Processo attivo                                                                         |
+| `/ready`                                         | Database, bucket, volume, connessione AIS e ultima osservazione; 503 se degradato       |
 | `/api/map/live?bbox=lonMin,latMin,lonMax,latMax` | `vessels`, conteggi, `truncated`, stato/freschezza fonte, inizio storico; massimo 5.000 |
-| `/api/search?q=...` | MMSI/IMO esatti, similarità nome con pg_trgm |
-| `/api/vessel/:mmsi` | Scheda, ultima posizione live, anomalie, stato/data/fonte controllo sanzioni |
-| `/api/vessel/:mmsi/track?days=1\|7\|30\|90` | Elenco posizioni; massimo 5.000, inizio/fine conservati |
-| `/api/vessel/:mmsi/track/metadata?days=...` | Finestra disponibile, intervalli, interruzioni, conteggi |
-| `/api/vessel/:mmsi/portcalls` | Soste rilevate persistite |
-| `/api/vessel/:mmsi/anomalies` | Tipo reale degli eventi |
-| `/api/port-traffic/:id` | Attese AIS, soste e presenze entro 3 km da un porto NGA, solo Mediterraneo |
-| `/api/port/:lat,lon` | Soste nella località, con lo stesso algoritmo |
-| `/admin/metrics` | Metriche operative; richiede Bearer ADMIN_TOKEN |
+| `/api/search?q=...`                              | MMSI/IMO esatti, similarità nome con pg_trgm                                            |
+| `/api/vessel/:mmsi`                              | Scheda, ultima posizione live, anomalie, stato/data/fonte controllo sanzioni            |
+| `/api/vessel/:mmsi/track?days=1\|7\|30\|90`      | Elenco posizioni; massimo 5.000, inizio/fine conservati                                 |
+| `/api/vessel/:mmsi/track/metadata?days=...`      | Finestra disponibile, intervalli, interruzioni, conteggi                                |
+| `/api/vessel/:mmsi/portcalls`                    | Soste rilevate persistite                                                               |
+| `/api/vessel/:mmsi/anomalies`                    | Tipo reale degli eventi                                                                 |
+| `/api/port-traffic/:id`                          | Attese AIS, soste e presenze entro 3 km da un porto NGA, solo Mediterraneo              |
+| `/api/port/:lat,lon`                             | Soste nella località, con lo stesso algoritmo                                           |
+| `/admin/metrics`                                 | Metriche operative; richiede Bearer ADMIN_TOKEN                                         |
 
 La traccia mantiene il contratto elenco; gli header `X-Track-*` aggiungono estremi, conteggio e campionamento. Se le sole interruzioni superano la capacità della risposta, l'API chiede di restringere la finestra (422). Gli errori delle dipendenze diventano 503; i risultati vuoti sono restituiti soltanto dopo una lettura riuscita. API pubbliche limitate a 120 richieste/minuto per IP.
 
@@ -117,3 +117,5 @@ Stili Dark/Light/ECDIS ispirato, cache giornaliera per area e schede portuali: [
 Foto libere, illustrazioni JPG per categoria e persistenza del tema nelle schede complete: [fonti e implementazione](docs/VESSEL-PHOTOS.md).
 
 Traccia con cursore temporale, riproduzione delle osservazioni e pulsante Mostra/Nascondi: [controlli e limiti](docs/TRACK-PLAYBACK.md).
+
+Mobile: menu hamburger e un pannello alla volta in basso, con prove di utilizzo su tre formati: [interfaccia e verifiche](docs/MOBILE-MAP.md).

@@ -15,9 +15,15 @@ export default function VesselDrawer({
   onPosition,
   children,
   trackVisible,
+  hidden = false,
+  compact = false,
+  onCollapse,
 }: {
   children?: ReactNode;
   trackVisible: boolean;
+  hidden?: boolean;
+  compact?: boolean;
+  onCollapse?: () => void;
   mmsi: string;
   onClose: () => void;
   onShowTrack: (m: string) => void;
@@ -78,11 +84,35 @@ export default function VesselDrawer({
     };
   }, [mmsi, onPosition]);
   return (
-    <aside className="vessel-drawer" aria-label={t("Scheda nave")}>
+    <aside
+      className="vessel-drawer"
+      aria-label={t("Scheda nave")}
+      hidden={hidden}
+    >
+      {compact && (
+        <div className="mobile-sheet-heading vessel-sheet-heading">
+          <h2>{vessel?.name ?? mmsi}</h2>
+          <button
+            type="button"
+            onClick={onCollapse}
+            aria-label={t("Riduci scheda")}
+          >
+            ⌄
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("Chiudi scheda")}
+          >
+            ×
+          </button>
+        </div>
+      )}
       <button
         className="close"
         onClick={onClose}
         aria-label={t("Chiudi scheda")}
+        hidden={compact}
       >
         ×
       </button>
@@ -96,6 +126,7 @@ export default function VesselDrawer({
           onShowTrack={toggleTrack}
           trackVisible={trackVisible}
           trackPanel={children}
+          compact={compact}
         />
       ) : (
         <p role="status">{t("Caricamento scheda…")}</p>

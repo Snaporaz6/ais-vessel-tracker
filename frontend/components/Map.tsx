@@ -20,6 +20,7 @@ import { trackGeometry, type TrackDisplayInfo } from "../lib/track-display";
 import { useLanguage } from "./LanguageProvider";
 import MarineLayers from "./MarineLayers";
 import MapStyleSelector from "./MapStyleSelector";
+import { MapSetting, useMapUI } from "./MapUIProvider";
 import { trackMoment } from "../lib/track-playback";
 import { createTrackMarkers } from "../lib/track-markers";
 import { viewportBounds } from "../lib/marine-map-layers";
@@ -63,6 +64,7 @@ export default function VesselMap({
   playbackAt,
 }: Props) {
   const { t, date, numbers, errorText, locale } = useLanguage();
+  const { isMobile, panel, openPanel, closePanel } = useMapUI();
   const language = useRef({ t });
   const popup = useRef<maplibregl.Popup | null>(null);
   const trackMarkers = useRef<ReturnType<typeof createTrackMarkers> | null>(
@@ -702,7 +704,80 @@ export default function VesselMap({
           observedTrack={displayedTrack}
         />
       )}
-      <div className="map-status" aria-live="polite">
+      {isMobile && (
+        <MapSetting>
+          <button
+            type="button"
+            className="map-status-toggle"
+            onClick={() => openPanel("status")}
+          >
+            {t("Stato dati")}
+            <span>
+              {source?.status === "live"
+                ? "AIS"
+                : source?.status === "demo"
+                  ? "DEMO"
+                  : "…"}
+            </span>
+          </button>
+          {ready && (
+            <div className="map-menu-navigation" aria-label={t("Zoom mappa")}>
+              <span>{t("Zoom mappa")}</span>
+              <button
+                type="button"
+                aria-label={t("Riduci")}
+                onClick={() => map.current?.zoomOut()}
+              >
+                −
+              </button>
+              <button
+                type="button"
+                aria-label={t("Ingrandisci")}
+                onClick={() => map.current?.zoomIn()}
+              >
+                +
+              </button>
+              <button
+                type="button"
+                aria-label={t("Ripristina orientamento")}
+                onClick={() => map.current?.resetNorth()}
+              >
+                ↑ N
+              </button>
+            </div>
+          )}
+        </MapSetting>
+      )}
+      {isMobile &&
+        ((source && source.status !== "live") ||
+          error ||
+          baseError ||
+          outsideAIS) && (
+          <div className="mobile-source-badge" role="status">
+            {source?.status === "demo"
+              ? "DEMO"
+              : outsideAIS
+                ? t("AIS nel Mediterraneo")
+                : t("Dati non aggiornati")}
+          </div>
+        )}
+      <div
+        className="map-status"
+        aria-live="polite"
+        hidden={isMobile && panel !== "status"}
+      >
+        {isMobile && (
+          <div className="mobile-sheet-heading">
+            <h2>{t("Stato dati")}</h2>
+            <button
+              type="button"
+              aria-label={t("Chiudi stato dati")}
+              onClick={closePanel}
+            >
+              ×
+            </button>
+          </div>
+        )}
         <strong>
           {outsideAIS
             ? t("Mappa globale · AIS della demo nel Mediterraneo")

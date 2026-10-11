@@ -10,11 +10,13 @@ export default function TrackTimeline({
   at,
   onChange,
   onLocate,
+  compact = false,
 }: {
   points: VesselPosition[];
   at: number | null;
   onChange: (at: number | null) => void;
   onLocate: (position: VesselPosition) => void;
+  compact?: boolean;
 }) {
   const { t, date } = useLanguage();
   const moment = trackMoment(points, at);
@@ -52,6 +54,19 @@ export default function TrackTimeline({
     moment.at > Date.parse(points[moment.index].timestamp)
       ? moment.index
       : moment.index - 1;
+  const locateButton = (
+    <button
+      type="button"
+      className="track-locate"
+      disabled={!moment.position}
+      aria-label={t("Centra sulla posizione mostrata")}
+      onClick={() => {
+        if (moment.position) onLocate(moment.position);
+      }}
+    >
+      {t("Centra")}
+    </button>
+  );
   return (
     <section
       className="track-timeline"
@@ -124,22 +139,14 @@ export default function TrackTimeline({
         <button
           type="button"
           disabled={moment.live}
+          aria-label={t("Ultima posizione")}
           onClick={() => select(null)}
         >
-          {t("Ultima posizione")}
+          {t(compact ? "Ultima" : "Ultima posizione")}
         </button>
+        {compact && locateButton}
       </div>
-      <button
-        type="button"
-        className="track-locate"
-        disabled={!moment.position}
-        aria-label={t("Centra sulla posizione mostrata")}
-        onClick={() => {
-          if (moment.position) onLocate(moment.position);
-        }}
-      >
-        {t("Centra")}
-      </button>
+      {!compact && locateButton}
       {moment.gap ? (
         <p className="track-timeline-gap" role="status">
           {t("Nessuna posizione ricevuta in questo intervallo.")}{" "}
