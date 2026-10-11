@@ -1,19 +1,22 @@
 "use client";
+import { memo } from "react";
 import { useLanguage } from "./LanguageProvider";
 import type { VesselDetail, PortCall } from "../../shared/types";
 import AnomalyBadge from "./AnomalyBadge";
 import SanctionBadge from "./SanctionBadge";
 import VesselPhoto from "./VesselPhoto";
-export default function VesselView({
+function VesselView({
   vessel: v,
   stops,
   onShowTrack,
   stopsError,
+  trackVisible = false,
 }: {
   vessel: VesselDetail;
   stops: PortCall[];
   onShowTrack?: () => void;
   stopsError?: string;
+  trackVisible?: boolean;
 }) {
   const { t, date, value, duration, shipNames, errorText } = useLanguage();
   const p = v.last_position,
@@ -90,7 +93,9 @@ export default function VesselView({
       </section>
       <div className="actions">
         {onShowTrack ? (
-          <button onClick={onShowTrack}>{t("Mostra traccia")}</button>
+          <button onClick={onShowTrack} aria-pressed={trackVisible}>
+            {t(trackVisible ? "Nascondi traccia" : "Mostra traccia")}
+          </button>
         ) : (
           <a className="button" href={`/?vessel=${v.mmsi}&track=${v.mmsi}`}>
             {t("Mostra sulla mappa")}
@@ -206,3 +211,5 @@ export default function VesselView({
     </>
   );
 }
+
+export default memo(VesselView);

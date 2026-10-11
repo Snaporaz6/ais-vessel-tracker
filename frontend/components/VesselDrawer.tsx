@@ -1,6 +1,6 @@
 "use client";
 import { useLanguage } from "./LanguageProvider";
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type {
   VesselDetail,
   PortCall,
@@ -14,8 +14,10 @@ export default function VesselDrawer({
   onShowTrack,
   onPosition,
   children,
+  trackVisible,
 }: {
   children?: ReactNode;
+  trackVisible: boolean;
   mmsi: string;
   onClose: () => void;
   onShowTrack: (m: string) => void;
@@ -26,6 +28,7 @@ export default function VesselDrawer({
     [stops, setStops] = useState<PortCall[]>([]),
     [error, setError] = useState(""),
     [stopsError, setStopsError] = useState("");
+  const toggleTrack = useCallback(() => onShowTrack(mmsi), [onShowTrack, mmsi]);
   useEffect(() => {
     let c: AbortController | undefined;
     let stopped = false;
@@ -91,7 +94,8 @@ export default function VesselDrawer({
           vessel={vessel}
           stops={stops}
           stopsError={stopsError}
-          onShowTrack={() => onShowTrack(mmsi)}
+          onShowTrack={toggleTrack}
+          trackVisible={trackVisible}
         />
       ) : (
         <p role="status">{t("Caricamento scheda…")}</p>

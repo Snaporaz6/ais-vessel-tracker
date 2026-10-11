@@ -975,3 +975,189 @@ dd {
 :root:not([data-map-theme="dark"])[data-map-theme] .map-status strong {
   color: var(--accent);
 }
+
+/* Track playback: one vessel cursor, small gap crosses, a labelled latest fix. */
+.track-timeline {
+  margin: 12px 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.track-timeline-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+}
+.track-timeline-heading strong {
+  color: var(--text-primary);
+}
+.track-timeline-heading time {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.track-timeline input[type="range"] {
+  display: block;
+  width: 100%;
+  margin: 12px 0 5px;
+  padding: 0;
+  height: 22px;
+  border: 0;
+  accent-color: var(--accent);
+  cursor: ew-resize;
+}
+.track-timeline-bounds {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+.track-timeline-bounds span:last-child {
+  text-align: right;
+}
+.track-timeline-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+}
+.track-timeline-actions button {
+  padding: 5px 8px;
+  font-size: 12px;
+  min-height: 32px;
+}
+.track-timeline-actions button:last-child {
+  margin-left: auto;
+}
+.track-timeline-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.track-timeline-fix,
+.track-timeline-gap {
+  font-size: 11px;
+  margin: 8px 0 0;
+}
+.track-timeline-fix {
+  color: var(--text-secondary);
+}
+.track-timeline-gap {
+  color: var(--warning);
+}
+.track-timeline-floating {
+  position: absolute;
+  top: 120px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(360px, calc(100vw - 96px));
+  z-index: 20;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  box-shadow: 0 5px 20px #0003;
+}
+.track-timeline-floating .track-timeline {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.map-screen:has(.track-timeline-floating) .marine-track-alerts {
+  top: 355px;
+}
+button.track-position-marker,
+button.track-position-marker:hover {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  z-index: 5;
+  --cursor-color: #0891b2;
+}
+.track-position-marker[data-historic="true"] {
+  --cursor-color: #8b5cf6;
+}
+.track-position-arrow {
+  position: absolute;
+  inset: 0;
+  filter: drop-shadow(0 1px 3px #0009);
+}
+.track-position-arrow::before,
+.track-position-arrow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(50% 0, 93% 92%, 50% 72%, 7% 92%);
+  background: white;
+}
+.track-position-arrow::after {
+  inset: 3px;
+  background: var(--cursor-color);
+}
+.track-position-label {
+  position: absolute;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 250px;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 11px;
+  line-height: 1.4;
+  pointer-events: none;
+  white-space: normal;
+  text-align: center;
+}
+.track-latest-marker {
+  width: 14px;
+  height: 14px;
+  z-index: 4;
+  pointer-events: none;
+}
+.track-latest-square {
+  position: absolute;
+  inset: 1px;
+  border: 2px solid #0891b2;
+  background: var(--bg-secondary);
+  box-shadow: 0 0 0 1px white;
+}
+.track-latest-marker .track-position-label {
+  top: 21px;
+  bottom: auto;
+}
+:root:not([data-map-theme="dark"])[data-map-theme] .track-timeline-gap {
+  color: #864b09;
+}
+@media (max-width: 900px) {
+  .track-timeline-floating {
+    top: 150px;
+    left: calc(50% + 18px);
+  }
+  .map-screen:has(.track-timeline-floating) .marine-track-alerts {
+    top: 388px;
+  }
+  .track-timeline-actions button {
+    min-height: 36px;
+  }
+}
+.track-locate {
+  float: right;
+  margin: 5px 0 0 8px;
+  padding: 3px 6px;
+  font-size: 11px;
+}
+.track-locate:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.track-timeline::after {
+  content: "";
+  display: block;
+  clear: both;
+}

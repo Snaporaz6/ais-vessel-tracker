@@ -20,6 +20,8 @@ import { trackGeometry, type TrackDisplayInfo } from "../lib/track-display";
 import { useLanguage } from "./LanguageProvider";
 import MarineLayers from "./MarineLayers";
 import MapStyleSelector from "./MapStyleSelector";
+import { trackMoment } from "../lib/track-playback";
+import { createTrackMarkers } from "../lib/track-markers";
 import { viewportBounds } from "../lib/marine-map-layers";
 import {
   addGlobalBathymetry,
@@ -43,9 +45,10 @@ type Props = {
   visibleTypes: Set<ShipType>;
   onTypeCounts: (c: Record<string, number>) => void;
   isGlobe: boolean;
-  center: VesselPosition | null;
+  center: (VesselPosition & { preserveZoom?: boolean }) | null;
   showGapLinks: boolean;
   onTrackInfo: (info: TrackDisplayInfo | null) => void;
+  playbackAt: number | null;
 };
 export default function VesselMap({
   onVesselClick,
@@ -57,10 +60,18 @@ export default function VesselMap({
   center,
   showGapLinks,
   onTrackInfo,
+  playbackAt,
 }: Props) {
   const { t, date, numbers, errorText, locale } = useLanguage();
   const language = useRef({ t });
   const popup = useRef<maplibregl.Popup | null>(null);
+  const trackMarkers = useRef<ReturnType<typeof createTrackMarkers> | null>(
+    null,
+  );
+  const activeTrack = useRef(trackMmsi);
+  useEffect(() => {
+    activeTrack.current = trackMmsi;
+  }, [trackMmsi]);
   useEffect(() => {
     language.current = { t };
   }, [t]);
@@ -217,12 +228,29 @@ export default function VesselMap({
         id: "track-ends",
         type: "circle",
         source: "track",
-        filter: ["==", ["geometry-type"], "Point"],
+        filter: ["==", ["get", "kind"], "isolated"],
         paint: {
           "circle-color": ["get", "color"],
-          "circle-radius": 6,
-          "circle-stroke-width": 2,
+          "circle-radius": 2.5,
+          "circle-stroke-width": 0,
           "circle-stroke-color": "#fff",
+        },
+      });
+      m.addLayer({
+        id: "track-boundaries",
+        type: "symbol",
+        source: "track",
+        filter: ["in", ["get", "kind"], ["literal", ["start", "gap-boundary"]]],
+        layout: {
+          "text-field": "+",
+          "text-size": 14,
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+        },
+        paint: {
+          "text-color": ["get", "color"],
+          "text-halo-color": "#17212d",
+          "text-halo-width": 0.7,
         },
       });
       // Hover labels never pan the map or capture pointer input.
@@ -440,6 +468,7 @@ export default function VesselMap({
     setTrack([]);
     setMeta(null);
     setTrackError("");
+    if (!trackMmsi) return;
     const load = () => {
       if (!trackMmsi || document.visibilityState === "hidden" || stopped)
         return;
@@ -478,7 +507,16 @@ export default function VesselMap({
     () => ({
       type: "FeatureCollection",
       features: (data?.vessels ?? [])
-        .filter((v) => visibleTypes.has(v.ship_type))
+        .filter(
+          (v) =>
+            visibleTypes.has(v.ship_type) &&
+            !(
+              v.mmsi === trackMmsi &&
+              meta?.mmsi === trackMmsi &&
+              meta.requested_days === trackDays &&
+              track.length > 0
+            ),
+        )
         .map((v) => ({
           type: "Feature",
           geometry: { type: "Point", coordinates: [v.lon, v.lat] },
@@ -488,7 +526,7 @@ export default function VesselMap({
           },
         })),
     }),
-    [data, visibleTypes],
+    [data, visibleTypes, trackMmsi, trackDays, meta, track.length],
   );
   const trackView = useMemo(() => {
     if (!meta || meta.mmsi !== trackMmsi || meta.requested_days !== trackDays)
@@ -522,6 +560,42 @@ export default function VesselMap({
     }
   }, [track, data, trackMmsi, trackDays, meta]);
   const displayedTrack = trackView.points;
+  const moment = useMemo(() => {
+    const selected = trackMoment(displayedTrack, playbackAt);
+    const live = data?.vessels.find((v) => v.mmsi === trackMmsi);
+    if (!selected || !live || live.timestamp <= selected.latest.timestamp)
+      return selected;
+    const latest: VesselPosition = {
+      ...live,
+      heading: null,
+      nav_status: "unknown",
+    };
+    // Even when the sampled track cannot accept another point, its error must
+    // not replace a newer live fix with an old location labelled as current.
+    return {
+      ...selected,
+      latest,
+      position: playbackAt === null ? latest : selected.position,
+    };
+  }, [displayedTrack, playbackAt, data, trackMmsi]);
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    const markers = createTrackMarkers(map.current, () => {
+      if (activeTrack.current) click.current(activeTrack.current);
+    });
+    trackMarkers.current = markers;
+    return () => {
+      markers.destroy();
+      trackMarkers.current = null;
+    };
+  }, [ready]);
+  useEffect(() => {
+    trackMarkers.current?.update(
+      moment,
+      `${t("Ultima posizione AIS")} · ${date(moment?.latest.timestamp)}`,
+      `${t("Posizione storica")} · ${date(moment?.position?.timestamp)}`,
+    );
+  }, [ready, moment, t, date]);
   const lines = useMemo(() => trackGeometry(displayedTrack), [displayedTrack]);
   const gaps = useMemo(() => trackGaps(displayedTrack), [displayedTrack]);
   useEffect(() => {
@@ -540,6 +614,7 @@ export default function VesselMap({
       firstAt: displayedTrack[0]?.timestamp ?? null,
       lastAt: displayedTrack.at(-1)?.timestamp ?? null,
       gaps,
+      positions: displayedTrack,
     });
   }, [
     trackMmsi,
@@ -581,7 +656,7 @@ export default function VesselMap({
     if (ready && center && m)
       m.flyTo({
         center: [center.lon, center.lat],
-        zoom: Math.max(m.getZoom(), 9),
+        zoom: center.preserveZoom ? m.getZoom() : Math.max(m.getZoom(), 9),
         essential: true,
       });
   }, [ready, center]);

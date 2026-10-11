@@ -18,6 +18,65 @@ export const INTL_LOCALES: Record<Locale, string> = {
 // Italian source text and reviewed English, French and German translations.
 export const messages = {
   ...mapMessages,
+  Centra: ["Center", "Centrer", "Zentrieren"],
+  "Centra sulla posizione mostrata": [
+    "Center on the displayed position",
+    "Centrer sur la position affichée",
+    "Auf die angezeigte Position zentrieren",
+  ],
+  "Riproduzione della traccia": [
+    "Track playback",
+    "Lecture de la trace",
+    "Spurwiedergabe",
+  ],
+  "Ultima posizione AIS": [
+    "Latest AIS position",
+    "Dernière position AIS",
+    "Letzte AIS-Position",
+  ],
+  "Posizione storica": [
+    "Historical position",
+    "Position historique",
+    "Historische Position",
+  ],
+  "Data e ora della traccia": [
+    "Track date and time",
+    "Date et heure de la trace",
+    "Datum und Uhrzeit der Spur",
+  ],
+  "Osservazione precedente": [
+    "Previous observation",
+    "Observation précédente",
+    "Vorherige Beobachtung",
+  ],
+  "Osservazione successiva": [
+    "Next observation",
+    "Observation suivante",
+    "Nächste Beobachtung",
+  ],
+  Pausa: ["Pause", "Pause", "Pause"],
+  Riproduci: ["Play", "Lire", "Abspielen"],
+  "Ultima posizione": [
+    "Latest position",
+    "Dernière position",
+    "Letzte Position",
+  ],
+  "Nessuna posizione ricevuta in questo intervallo.": [
+    "No position received during this interval.",
+    "Aucune position reçue pendant cet intervalle.",
+    "In diesem Zeitraum wurde keine Position empfangen.",
+  ],
+  "Osservazione mostrata: {date}": [
+    "Displayed observation: {date}",
+    "Observation affichée : {date}",
+    "Angezeigte Beobachtung: {date}",
+  ],
+  "La linea si interrompe dove mancano osservazioni AIS. Le croci arancioni segnano i limiti dei vuoti.":
+    [
+      "The line breaks where AIS observations are missing. Orange crosses mark gap boundaries.",
+      "La ligne s’interrompt lorsque des observations AIS manquent. Les croix orange marquent les limites des interruptions.",
+      "Die Linie ist unterbrochen, wo AIS-Beobachtungen fehlen. Orange Kreuze markieren die Grenzen der Lücken.",
+    ],
   "Illustrazione della categoria: {category}": [
     "Category illustration: {category}",
     "Illustration de la catégorie : {category}",
