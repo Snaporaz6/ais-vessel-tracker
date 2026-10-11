@@ -81,6 +81,7 @@ OFAC: navi nella SDN. UE: navi nell'Annex XLII del Regolamento 833/2014, con amb
 | `/api/vessel/:mmsi/track/metadata?days=...` | Finestra disponibile, intervalli, interruzioni, conteggi |
 | `/api/vessel/:mmsi/portcalls` | Soste rilevate persistite |
 | `/api/vessel/:mmsi/anomalies` | Tipo reale degli eventi |
+| `/api/port-traffic/:id` | Attese AIS, soste e presenze entro 3 km da un porto NGA, solo Mediterraneo |
 | `/api/port/:lat,lon` | Soste nella località, con lo stesso algoritmo |
 | `/admin/metrics` | Metriche operative; richiede Bearer ADMIN_TOKEN |
 
@@ -110,3 +111,5 @@ npx tsx scripts/verify-live.ts
 La CI controlla ogni proposta di modifica, installa dai lockfile, compila e verifica UI/API. [OPERATIONS.md](docs/OPERATIONS.md) descrive staging, backup, ripristino, rollback e la soglia per l'apertura pubblica.
 
 Licenza MIT.
+
+Stili Dark/Light/ECDIS ispirato, cache giornaliera per area e schede portuali: [documentazione](docs/MAP-STYLES-PORT-TRAFFIC.md).

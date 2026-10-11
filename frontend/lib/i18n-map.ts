@@ -111,6 +111,144 @@ export const mapMessageAliases: Record<string, string> = {
   "generalised-0.1-degrees": "Geometria generalizzata a 0,1°",
 };
 export const mapMessages: Record<string, readonly [string, string, string]> = {
+  "Stile mappa": ["Map style", "Style de carte", "Kartenstil"],
+  "ECDIS ispirato": ["ECDIS inspired", "Inspiré ECDIS", "ECDIS inspiriert"],
+  "Stile illustrativo, non una carta ECDIS certificata. Fondali generalizzati alle scale panoramiche.":
+    [
+      "Illustrative style, not a certified ECDIS chart. Generalized seabed at overview scales.",
+      "Style illustratif, pas une carte ECDIS certifiée. Fonds généralisés aux échelles générales.",
+      "Illustrativer Stil, keine zertifizierte ECDIS-Karte. Generalisierter Meeresboden in Übersichtsmaßstäben.",
+    ],
+  "Aggiornamento ogni 30 minuti.": [
+    "Refresh every 30 minutes.",
+    "Actualisation toutes les 30 minutes.",
+    "Aktualisierung alle 30 Minuten.",
+  ],
+  "Previsioni aggiornate ogni 15 minuti.": [
+    "Forecasts refresh every 15 minutes.",
+    "Prévisions actualisées toutes les 15 minutes.",
+    "Vorhersagen werden alle 15 Minuten aktualisiert.",
+  ],
+  "Dati cartografici riutilizzati fino a 24 ore per area.": [
+    "Map data reused for up to 24 hours per area.",
+    "Données cartographiques réutilisées jusqu’à 24 heures par zone.",
+    "Kartendaten werden pro Gebiet bis zu 24 Stunden wiederverwendet.",
+  ],
+  "Traffico portuale AIS": [
+    "AIS port traffic",
+    "Trafic portuaire AIS",
+    "AIS-Hafenverkehr",
+  ],
+  Attese: ["Expected", "Attendus", "Erwartet"],
+  "Arrivi rilevati": [
+    "Observed arrivals",
+    "Arrivées observées",
+    "Beobachtete Ankünfte",
+  ],
+  "Partenze rilevate": [
+    "Observed departures",
+    "Départs observés",
+    "Beobachtete Abfahrten",
+  ],
+  "In porto / rada": [
+    "In port / anchorage",
+    "Au port / mouillage",
+    "Im Hafen / auf Reede",
+  ],
+  "Traffico portuale temporaneamente non disponibile.": [
+    "Port traffic temporarily unavailable.",
+    "Trafic portuaire temporairement indisponible.",
+    "Hafenverkehr vorübergehend nicht verfügbar.",
+  ],
+  "Aggiornamento non riuscito: sono mostrati i dati precedenti.": [
+    "Refresh failed: previous data is displayed.",
+    "Échec de l’actualisation : les données précédentes sont affichées.",
+    "Aktualisierung fehlgeschlagen: vorherige Daten werden angezeigt.",
+  ],
+  "Porto fuori dalla copertura AIS della demo. Sono disponibili solo i dati cartografici.":
+    [
+      "Port outside the demo AIS coverage. Only map data is available.",
+      "Port hors de la couverture AIS de la démo. Seules les données cartographiques sont disponibles.",
+      "Hafen außerhalb der AIS-Abdeckung der Demo. Nur Kartendaten sind verfügbar.",
+    ],
+  "Destinazioni ed ETA sono dichiarazioni AIS. Presenze entro 3 km, incluse le rade; arrivi e partenze indicano inizio e fine delle soste rilevate nelle ultime 48 ore, non scali ufficiali.":
+    [
+      "Destinations and ETAs are AIS declarations. Presence within 3 km includes anchorages; arrivals and departures show the start and end of detected stops over the last 48 hours, not official port calls.",
+      "Destinations et ETA sont déclarées par AIS. Les présences dans un rayon de 3 km incluent les mouillages ; arrivées et départs indiquent le début et la fin des arrêts détectés sur 48 heures, pas des escales officielles.",
+      "Ziele und ETA sind AIS-Angaben. Positionen im Umkreis von 3 km schließen Reeden ein; Ankünfte und Abfahrten zeigen Beginn und Ende erkannter Stopps der letzten 48 Stunden, keine offiziellen Hafenanläufe.",
+    ],
+  "Acquisizione AIS non aggiornata: gli elenchi possono essere incompleti.": [
+    "AIS feed is not current: lists may be incomplete.",
+    "Flux AIS non actualisé : les listes peuvent être incomplètes.",
+    "AIS-Daten sind nicht aktuell: Listen können unvollständig sein.",
+  ],
+  "Cerca nave, MMSI o IMO": [
+    "Search vessel, MMSI or IMO",
+    "Chercher navire, MMSI ou IMO",
+    "Schiff, MMSI oder IMO suchen",
+  ],
+  "Tutti i tipi": ["All types", "Tous les types", "Alle Typen"],
+  "Tutte le bandiere": ["All flags", "Tous les pavillons", "Alle Flaggen"],
+  "Lunghezza (m)": ["Length (m)", "Longueur (m)", "Länge (m)"],
+  "Lunghezza minima": ["Minimum length", "Longueur minimale", "Mindestlänge"],
+  "Lunghezza massima": [
+    "Maximum length",
+    "Longueur maximale",
+    "Maximale Länge",
+  ],
+  Min: ["Min", "Min", "Min"],
+  Max: ["Max", "Max", "Max"],
+  "Tipo / bandiera": ["Type / flag", "Type / pavillon", "Typ / Flagge"],
+  "Distanza diretta": [
+    "Direct distance",
+    "Distance directe",
+    "Direkte Entfernung",
+  ],
+  "Archivio delle soste non disponibile: movimenti parziali.": [
+    "Stop archive unavailable: movements are partial.",
+    "Archive des arrêts indisponible : mouvements partiels.",
+    "Stopp-Archiv nicht verfügbar: Bewegungsdaten unvollständig.",
+  ],
+  "Nessuna nave nei dati disponibili per questi filtri. Non esclude traffico non osservato.":
+    [
+      "No vessels in the available data for these filters. Unobserved traffic may still exist.",
+      "Aucun navire dans les données disponibles pour ces filtres. Du trafic non observé reste possible.",
+      "Keine Schiffe in den verfügbaren Daten für diese Filter. Unbeobachteter Verkehr ist weiterhin möglich.",
+    ],
+  "Distanza in linea diretta dall'ultima posizione, non una rotta navigabile. Ultimo porto, GT, DWT e anno di costruzione non sono disponibili dalla sorgente AIS attuale.":
+    [
+      "Straight-line distance from the last position, not a navigable route. Last port, GT, DWT and year built are unavailable from the current AIS source.",
+      "Distance en ligne droite depuis la dernière position, pas une route navigable. Dernier port, GT, DWT et année de construction sont indisponibles dans la source AIS actuelle.",
+      "Luftlinienentfernung von der letzten Position, keine befahrbare Route. Letzter Hafen, GT, DWT und Baujahr sind in der aktuellen AIS-Quelle nicht verfügbar.",
+    ],
+  "Elenco limitato a 200 elementi per categoria.": [
+    "List limited to 200 entries per category.",
+    "Liste limitée à 200 éléments par catégorie.",
+    "Liste auf 200 Einträge pro Kategorie begrenzt.",
+  ],
+  Aggiornato: ["Updated", "Actualisé", "Aktualisiert"],
+  "Solo AIS Mediterraneo, indipendente dai filtri della mappa.": [
+    "Mediterranean AIS only, independent of map filters.",
+    "AIS Méditerranée uniquement, indépendant des filtres de la carte.",
+    "Nur Mittelmeer-AIS, unabhängig von Kartenfiltern.",
+  ],
+  "Caratteristiche e servizi del porto": [
+    "Port characteristics and services",
+    "Caractéristiques et services du port",
+    "Hafeneigenschaften und Dienstleistungen",
+  ],
+  "Ancora sulla terraferma vicina; il tratto collega le coordinate originali NGA.":
+    [
+      "Anchor on nearby land; the line connects the original NGA coordinates.",
+      "Ancre sur la terre voisine ; le trait relie les coordonnées NGA originales.",
+      "Anker auf nahegelegenem Land; die Linie verbindet die ursprünglichen NGA-Koordinaten.",
+    ],
+  "Coordinate NGA": ["NGA coordinates", "Coordonnées NGA", "NGA-Koordinaten"],
+  "Dati precedenti conservati durante il caricamento.": [
+    "Previous data retained while loading.",
+    "Données précédentes conservées pendant le chargement.",
+    "Vorherige Daten bleiben während des Ladens sichtbar.",
+  ],
   "Livelli mappa": ["Map layers", "Couches de la carte", "Kartenebenen"],
   "Chiudi livelli": ["Close layers", "Fermer les couches", "Ebenen schließen"],
   "Mappa globale": ["Global map", "Carte mondiale", "Weltkarte"],

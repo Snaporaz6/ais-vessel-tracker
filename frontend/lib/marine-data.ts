@@ -51,7 +51,7 @@ const USER_AGENT =
   "AISVesselTracker/1.0 (https://github.com/Snaporaz6/ais-vessel-tracker)";
 const MAX_FEATURES = 1500;
 const MAX_BYTES = 5 * 1024 * 1024;
-const TTL = 30 * 60 * 1000;
+const TTL = 24 * 60 * 60 * 1000;
 const MAX_CACHE_BYTES = 24 * 1024 * 1024;
 const MAX_CACHE_ENTRIES = 36;
 const BOUNDARIES = new Set<MarineLayer>([
@@ -78,7 +78,7 @@ const CATALOG: Record<
     source: "NGA World Port Index",
     sourceUrl: "https://msi.nga.mil/Publications/WPI",
     license: "Public domain (US NGA)",
-    coverage: "global selected ports; community harbour detail at zoom 9",
+    coverage: "global NGA World Port Index catalogue",
   },
   anchorages: {
     minZoom: 9,
@@ -304,11 +304,13 @@ async function boundedJson(
     redirect: "error",
     headers: {
       "User-Agent": USER_AGENT,
+      "X-AIS-Cache-Day": new Date().toISOString().slice(0, 10),
       Accept: "application/json",
       ...(body ? { "Content-Type": "application/x-www-form-urlencoded" } : {}),
     },
     signal,
-    cache: "no-store",
+    cache: "force-cache",
+    next: { revalidate: 86400 },
   });
   if (
     !response.ok ||
@@ -1003,29 +1005,7 @@ async function resolveMarine(
         message: features.length ? data.metadata.message : "mapData.noFeatures",
       },
     };
-    if (layer !== "ports" || zoom < 9 || area(bbox) > 15) return base;
-    try {
-      const details = await osm(layer, bbox, signal);
-      return {
-        ...base,
-        features: [...features, ...details.features],
-        metadata: metadata(layer, {
-          updatedAt: data.metadata.updatedAt,
-          fetchedAt: details.metadata.fetchedAt,
-          status: details.metadata.status === "partial" ? "partial" : "ready",
-          message: details.metadata.message,
-        }),
-      };
-    } catch {
-      return {
-        ...base,
-        metadata: {
-          ...base.metadata,
-          status: "partial",
-          message: "mapData.partial",
-        },
-      };
-    }
+    return base;
   }
   if (layer === "anchorages" || layer === "navigation") {
     try {
@@ -1129,9 +1109,14 @@ export async function getMarineData(
         message: "mapData.areaTooLarge",
       }),
     };
-  const key = `${layer}:${Math.floor(zoom)}:${bbox.map((n) => n.toFixed(3)).join(",")}`;
+  const key = `${new Date().toISOString().slice(0, 10)}:${layer}:${Math.floor(zoom)}:${bbox.map((n) => n.toFixed(3)).join(",")}`;
   const cached = cache.get(key);
-  if (cached && Date.now() - cached.at < TTL) return cached.value;
+  if (
+    cached &&
+    Date.now() - cached.at <
+      (cached.value.metadata.status === "partial" ? 15 * 60_000 : TTL)
+  )
+    return cached.value;
   const running = inFlight.get(key);
   if (running) return running;
   if (activeRequests >= 5) return marineError(layer);
@@ -1139,11 +1124,7 @@ export async function getMarineData(
   const pending = resolveMarine(layer, bbox, zoom, AbortSignal.timeout(18000))
     .then((result) => {
       const value = capResponse(result, bbox);
-      if (
-        value.metadata.status !== "error" &&
-        value.metadata.status !== "partial"
-      )
-        putCache(key, value);
+      if (value.metadata.status !== "error") putCache(key, value);
       return value;
     })
     .catch(() => marineError(layer))
@@ -1153,4 +1134,9 @@ export async function getMarineData(
     });
   inFlight.set(key, pending);
   return pending;
+}
+
+export async function getCatalogPort(id: string) {
+  const data = await snapshot("ports");
+  return data.features.find((feature) => String(feature.properties?.id) === id);
 }

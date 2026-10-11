@@ -19,6 +19,7 @@ import { getLiveVessels, getTrack } from "../lib/api";
 import { trackGeometry, type TrackDisplayInfo } from "../lib/track-display";
 import { useLanguage } from "./LanguageProvider";
 import MarineLayers from "./MarineLayers";
+import MapStyleSelector from "./MapStyleSelector";
 import { viewportBounds } from "../lib/marine-map-layers";
 import {
   addGlobalBathymetry,
@@ -608,6 +609,7 @@ export default function VesselMap({
         className="map-container"
         aria-label={t("Mappa delle navi")}
       />
+      {ready && map.current && <MapStyleSelector map={map.current} />}
       {ready && map.current && (
         <MarineLayers
           map={map.current}

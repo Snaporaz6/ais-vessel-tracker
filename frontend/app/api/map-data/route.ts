@@ -28,13 +28,20 @@ export async function GET(request: Request) {
   const data = await getMarineData(layer, bbox, zoom);
   const failure = data.metadata.status === "error";
   const partial = data.metadata.status === "partial";
+  const secondsToDayEnd = Math.max(
+    1,
+    Math.floor(
+      ((Math.floor(Date.now() / 86400000) + 1) * 86400000 - Date.now()) / 1000,
+    ),
+  );
   return Response.json(data, {
     status: failure ? 503 : 200,
     headers: {
-      "Cache-Control":
-        failure || partial
-          ? "no-store"
-          : "public, max-age=300, s-maxage=1800, stale-while-revalidate=3600",
+      "Cache-Control": failure
+        ? "no-store"
+        : partial
+          ? "public, max-age=900, s-maxage=900"
+          : `public, max-age=${secondsToDayEnd}, s-maxage=${secondsToDayEnd}`,
       "X-Content-Type-Options": "nosniff",
     },
   });

@@ -23,7 +23,7 @@ const NGA_PAGE = "https://msi.nga.mil/NavWarnings";
 const MARAD_PAGE = "https://www.maritime.dot.gov/msci-advisories";
 const UKMTO_PAGE = "https://www.ukmto.org/recent-incidents";
 const NAV_AREAS = ["4", "12", "A", "P", "C"] as const;
-const CACHE_MS = 10 * 60_000;
+const CACHE_MS = 30 * 60_000;
 const FRESH_MS = 30 * 60_000;
 const MAX_FEATURES = 1200;
 const MAX_SOURCE_BYTES = 2_000_000;
@@ -685,7 +685,10 @@ async function loadBatches(): Promise<SourceBatch[]> {
     Promise.resolve(loadUkmtoSnapshot()),
   ])
     .then((batches) => {
-      cached = { expiresAt: Date.now() + CACHE_MS, batches };
+      cached = {
+        expiresAt: (Math.floor(Date.now() / CACHE_MS) + 1) * CACHE_MS,
+        batches,
+      };
       return batches;
     })
     .finally(() => {
@@ -799,7 +802,7 @@ export async function GET(request: Request): Promise<Response> {
   };
   return Response.json(result, {
     headers: {
-      "Cache-Control": "public, max-age=60, s-maxage=300",
+      "Cache-Control": `public, max-age=0, s-maxage=${Math.max(1, Math.floor(((Math.floor(Date.now() / CACHE_MS) + 1) * CACHE_MS - Date.now()) / 1000))}`,
       "X-Content-Type-Options": "nosniff",
     },
   });

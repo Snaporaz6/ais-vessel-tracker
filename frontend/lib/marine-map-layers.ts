@@ -7,6 +7,7 @@ import type { FeatureCollection } from "geojson";
 import type { LayerDefinition } from "./map-layer-catalog";
 
 export type LayerMetadata = {
+  cacheExpiresAt?: number;
   source?: string;
   sourceUrl?: string;
   license?: string;
@@ -79,8 +80,16 @@ export function addMarineLayer(map: MarineMap, definition: LayerDefinition) {
   const source = sourceId(definition.id),
     [fill, line, point, label] = marineLayerIds(definition.id);
   const before =
-    map.getStyle().layers.find((layer) => layer.type === "symbol")?.id ??
-    "clusters";
+    definition.id === "ports"
+      ? "clusters"
+      : (map
+          .getStyle()
+          .layers.find(
+            (layer) =>
+              layer.type === "symbol" &&
+              !layer.id.startsWith("marine-") &&
+              !layer.id.includes("bathymetry"),
+          )?.id ?? "clusters");
   const osm =
     '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors · ODbL</a>';
   const emodnet =
@@ -173,65 +182,139 @@ export function addMarineLayer(map: MarineMap, definition: LayerDefinition) {
     },
     before,
   );
-  map.addLayer(
-    {
-      id: point,
-      type: "circle",
-      source,
-      filter: ["==", ["geometry-type"], "Point"],
-      paint: {
-        "circle-radius":
-          definition.id === "warnings"
-            ? [
-                "case",
-                ["==", ["get", "precision"], "approximate_region"],
-                10,
-                7,
-              ]
-            : definition.id === "waves"
-              ? 12
-              : definition.id === "position-age"
-                ? 10
-                : 4,
-        "circle-color":
-          definition.id === "position-age"
-            ? [
-                "step",
-                ["get", "ageMinutes"],
-                "#a3b18a",
-                60,
-                "#d7ad68",
-                360,
-                "#bc7c70",
-              ]
-            : definition.id === "warnings"
-              ? warningColor
-              : definition.color,
-        "circle-opacity":
-          definition.id === "position-age"
-            ? 0.18
-            : definition.id === "waves"
-              ? 0.2
-              : definition.id === "warnings"
-                ? [
-                    "case",
-                    ["==", ["get", "precision"], "approximate_region"],
-                    0.15,
-                    0.8,
-                  ]
-                : 0.8,
-        "circle-stroke-color":
-          definition.id === "warnings" ? warningColor : definition.color,
-        "circle-stroke-width": 1,
+  if (definition.id === "ports") {
+    if (!map.hasImage("port-anchor")) {
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = 64;
+      const ctx = canvas.getContext("2d")!;
+      ctx.fillStyle = "#146488";
+      ctx.strokeStyle = "#eaf8ff";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(32, 32, 27, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 4;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.arc(32, 18, 4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(32, 23);
+      ctx.lineTo(32, 47);
+      ctx.moveTo(23, 28);
+      ctx.lineTo(41, 28);
+      ctx.moveTo(16, 35);
+      ctx.quadraticCurveTo(17, 47, 32, 48);
+      ctx.quadraticCurveTo(47, 47, 48, 35);
+      ctx.moveTo(14, 39);
+      ctx.lineTo(16, 34);
+      ctx.lineTo(21, 37);
+      ctx.moveTo(43, 37);
+      ctx.lineTo(48, 34);
+      ctx.lineTo(50, 39);
+      ctx.stroke();
+      map.addImage("port-anchor", ctx.getImageData(0, 0, 64, 64), {
+        pixelRatio: 2,
+      });
+    }
+    map.addLayer(
+      {
+        id: point,
+        type: "symbol",
+        source,
+        filter: ["==", ["geometry-type"], "Point"],
+        layout: {
+          "icon-image": "port-anchor",
+          "icon-size": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            2,
+            0.55,
+            7,
+            0.85,
+            12,
+            1,
+          ],
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+          "icon-padding": 2,
+        },
       },
-    },
-    before,
-  );
+      before,
+    );
+  } else {
+    map.addLayer(
+      {
+        id: point,
+        type: "circle",
+        source,
+        filter: ["==", ["geometry-type"], "Point"],
+        paint: {
+          "circle-radius":
+            definition.id === "warnings"
+              ? [
+                  "case",
+                  ["==", ["get", "precision"], "approximate_region"],
+                  10,
+                  7,
+                ]
+              : definition.id === "waves"
+                ? 12
+                : definition.id === "position-age"
+                  ? 10
+                  : 4,
+          "circle-color":
+            definition.id === "position-age"
+              ? [
+                  "step",
+                  ["get", "ageMinutes"],
+                  "#a3b18a",
+                  60,
+                  "#d7ad68",
+                  360,
+                  "#bc7c70",
+                ]
+              : definition.id === "warnings"
+                ? warningColor
+                : definition.color,
+          "circle-opacity":
+            definition.id === "position-age"
+              ? 0.18
+              : definition.id === "waves"
+                ? 0.2
+                : definition.id === "warnings"
+                  ? [
+                      "case",
+                      ["==", ["get", "precision"], "approximate_region"],
+                      0.15,
+                      0.8,
+                    ]
+                  : 0.8,
+          "circle-stroke-color":
+            definition.id === "warnings" ? warningColor : definition.color,
+          "circle-stroke-width": 1,
+        },
+      },
+      before,
+    );
+  }
   map.addLayer(
     {
       id: label,
       type: "symbol",
       source,
+      ...(definition.id === "ports"
+        ? {
+            filter: [
+              "==",
+              ["geometry-type"],
+              "Point",
+            ] as import("maplibre-gl").FilterSpecification,
+          }
+        : {}),
       minzoom:
         definition.id === "warnings" ||
         definition.id === "waves" ||
@@ -263,7 +346,7 @@ export function addMarineLayer(map: MarineMap, definition: LayerDefinition) {
           definition.id === "warnings" ||
           definition.id === "currents"
             ? [0, 0]
-            : [0, 1.1],
+            : [0, definition.id === "ports" ? 1.8 : 1.1],
         "text-padding": 10,
       },
       paint: {

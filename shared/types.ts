@@ -185,3 +185,45 @@ export interface TrackMetadata {
   gaps: { from: string; to: string }[];
   intervals: { maxAgeDays: number; intervalSeconds: number }[];
 }
+
+/** Port context from existing Mediterranean AIS; never an official port schedule. */
+export interface PortTrafficRow {
+  mmsi: string;
+  name: string;
+  ship_type: ShipType;
+  flag: string;
+  imo: string | null;
+  length: number | null;
+  width: number | null;
+  destination: string | null;
+  eta: string | null;
+  observed_at: string | null;
+  event_at: string | null;
+  distance_nm: number | null;
+  basis:
+    | "declared_destination"
+    | "nearby_position"
+    | "detected_stop_start"
+    | "detected_stop_end";
+}
+export interface PortTraffic {
+  port: {
+    id: string;
+    name: string;
+    unlocode: string | null;
+    country: string | null;
+    lat: number;
+    lon: number;
+  };
+  expected: PortTrafficRow[];
+  arrivals: PortTrafficRow[];
+  departures: PortTrafficRow[];
+  in_port: PortTrafficRow[];
+  scope: "mediterranean_observations" | "outside_ais_coverage";
+  source: SourceState;
+  generated_at: string;
+  radius_m: number;
+  events_hours: number;
+  results_limited: boolean;
+  movements_status: "ok" | "unavailable";
+}

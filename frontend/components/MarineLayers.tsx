@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Popup,
   type Map as MarineMap,
@@ -21,7 +21,6 @@ import {
   sourceId,
   viewportBounds,
   featureDetails,
-  EMPTY_MARINE,
   type MarineCollection,
   type LayerMetadata,
 } from "../lib/marine-map-layers";
@@ -30,6 +29,17 @@ import {
   NGA_DISCLAIMER,
   type MaritimeWarningCollection,
 } from "../lib/maritime-warnings";
+import {
+  cachedMarineRequest,
+  MARINE_DAY_MS,
+  WARNING_REFRESH_MS,
+  regionalBounds,
+  marineDetailZoom,
+  containsBounds,
+  type Bounds,
+} from "../lib/marine-cache";
+import { onshorePortMarkers } from "../lib/port-markers";
+import PortTraffic from "./PortTraffic";
 import type { VesselPosition } from "../../shared/types";
 
 type SelectedFeature = { layer: MapLayerId; feature: Feature<Geometry> };
@@ -84,6 +94,19 @@ export default function MarineLayers({
     null,
   );
   const [retry, setRetry] = useState(0);
+  const loaded = useRef(
+    new Map<
+      string,
+      { bounds: Bounds; zoom: number; expires: number; value: MarineCollection }
+    >(),
+  );
+  const regions = useRef(
+    new Map<
+      string,
+      { layer: MapLayerId; value: MarineCollection; expires: number }
+    >(),
+  );
+  const visibleData = useRef(new Map<MapLayerId, MarineCollection>());
   const enabledKey = enabled.slice().sort().join(",");
   useEffect(() => {
     try {
@@ -120,8 +143,8 @@ export default function MarineLayers({
   }
   useEffect(() => {
     if (!hydrated) return;
-    // A provider refresh or changed filter must not leave a stale detail card active.
-    setSelected(null);
+    setSelected((current) => (current?.layer === "warnings" ? null : current));
+    setWarnings(null);
     let stopped = false;
     let controller: AbortController | null = null;
     let debounce: ReturnType<typeof setTimeout> | undefined;
@@ -131,7 +154,17 @@ export default function MarineLayers({
         layer.id !== "density" &&
         layer.id !== "position-age",
     );
-    for (const definition of definitions) addMarineLayer(map, definition);
+    for (const layer of MAP_LAYERS) {
+      if (
+        !["density", "position-age"].includes(layer.id) &&
+        !definitions.includes(layer)
+      )
+        removeMarineLayer(map, layer.id);
+    }
+    for (const definition of definitions) {
+      if (!map.getSource(sourceId(definition.id)))
+        addMarineLayer(map, definition);
+    }
     const tooltip = new Popup({
       closeButton: false,
       closeOnClick: false,
@@ -193,42 +226,27 @@ export default function MarineLayers({
       }
     }
     async function load() {
-      setSelected(null);
       controller?.abort();
-      if (definitions.some((layer) => layer.id === "warnings"))
-        setWarnings(null);
       controller = new AbortController();
       const signal = controller.signal;
-      const bbox = viewportBounds(map)
-        .map((value) => value.toFixed(3))
-        .join(",");
+      const bounds = viewportBounds(map);
+      const bbox = bounds.map((value) => value.toFixed(3)).join(",");
       const zoom = Math.floor(map.getZoom());
       const tasks = definitions.slice();
       const forecast = definitions.filter(
         (layer) => layer.id === "waves" || layer.id === "currents",
       );
       let forecastRequest: Promise<MarineCollection> | undefined;
-      const request = async (url: string): Promise<MarineCollection> => {
-        const response = await fetch(url, {
-          signal: AbortSignal.any([signal, AbortSignal.timeout(35_000)]),
-        });
-        const value = await response.json();
-        if (
-          value?.type !== "FeatureCollection" ||
-          !Array.isArray(value.features)
-        )
-          throw new Error("mapData.unavailable");
-        return value as MarineCollection;
-      };
+      const request = (url: string, ttl = MARINE_DAY_MS) =>
+        cachedMarineRequest(url, ttl, signal);
       const worker = async () => {
         while (tasks.length && !signal.aborted && !stopped) {
           const layer = tasks.shift()!;
           const source = map.getSource(sourceId(layer.id)) as
             GeoJSONSource | undefined;
-          source?.setData(EMPTY_MARINE);
           setStates((current) => ({
             ...current,
-            [layer.id]: { loading: true },
+            [layer.id]: { ...current[layer.id], loading: true },
           }));
           if (zoom < layer.minZoom) {
             setStates((current) => ({
@@ -241,26 +259,78 @@ export default function MarineLayers({
                 },
               },
             }));
-            if (layer.id === "warnings") setWarnings(null);
             continue;
           }
           try {
             let value: MarineCollection;
+            let regionKey = "";
             if (layer.id === "warnings") {
               value = await request(
-                `/api/maritime-warnings?bbox=${encodeURIComponent(bbox)}&days=${days}&type=${warningType}`,
+                `/api/maritime-warnings?days=${days}&type=${warningType}`,
+                WARNING_REFRESH_MS,
               );
             } else if (forecast.some((entry) => entry.id === layer.id)) {
               forecastRequest ??= request(
                 `/api/marine-forecast?bbox=${encodeURIComponent(bbox)}&zoom=${zoom}&hours=${forecastHours}`,
+                15 * 60_000,
               );
               value = await forecastRequest;
             } else {
-              value = await request(
-                `/api/map-data?layer=${layer.id}&bbox=${encodeURIComponent(bbox)}&zoom=${zoom}`,
+              const detailZoom = Math.max(
+                layer.minZoom,
+                marineDetailZoom(layer.id, zoom),
               );
+              const prior = loaded.current.get(layer.id);
+              const region = regionalBounds(bounds, layer.id, zoom);
+              regionKey = `${layer.id}:${detailZoom}:${region.join(",")}`;
+              if (
+                prior &&
+                prior.zoom === detailZoom &&
+                prior.expires > Date.now() &&
+                containsBounds(prior.bounds, bounds)
+              )
+                value = prior.value;
+              else {
+                value = await request(
+                  `/api/map-data?layer=${layer.id}&bbox=${encodeURIComponent(region.join(","))}&zoom=${detailZoom}&day=${new Date().toISOString().slice(0, 10)}`,
+                );
+                if (
+                  !signal.aborted &&
+                  value.metadata.status !== "zoom-required"
+                )
+                  loaded.current.set(layer.id, {
+                    bounds: region,
+                    zoom: detailZoom,
+                    expires:
+                      value.metadata.cacheExpiresAt ??
+                      Date.now() +
+                        (value.metadata.status === "partial"
+                          ? 15 * 60_000
+                          : MARINE_DAY_MS),
+                    value,
+                  });
+              }
             }
             if (signal.aborted || stopped) continue;
+            if (layer.id === "warnings")
+              value = {
+                ...value,
+                features: value.features.map((feature) => {
+                  const props = feature.properties;
+                  if (
+                    props?.active === true &&
+                    (Date.now() - Date.parse(props.updatedAt) >
+                      WARNING_REFRESH_MS ||
+                      (props.validUntil &&
+                        Date.parse(props.validUntil) < Date.now()))
+                  )
+                    return {
+                      ...feature,
+                      properties: { ...props, active: false, status: "stale" },
+                    };
+                  return feature;
+                }),
+              };
             const features = value.features.filter((feature) => {
               if (layer.id === "warnings" && activeOnly)
                 return feature.properties?.active === true;
@@ -273,7 +343,52 @@ export default function MarineLayers({
                 );
               return true;
             });
-            source?.setData({ type: "FeatureCollection", features });
+            const dynamic = ["warnings", "waves", "currents"].includes(
+              layer.id,
+            );
+            const previous = visibleData.current.get(layer.id);
+            const unique = new Map<string, (typeof features)[number]>();
+            if (!dynamic) {
+              regions.current.delete(regionKey);
+              regions.current.set(regionKey, {
+                layer: layer.id,
+                value,
+                expires:
+                  value.metadata.cacheExpiresAt ?? Date.now() + MARINE_DAY_MS,
+              });
+              for (const [key, entry] of regions.current)
+                if (entry.expires <= Date.now()) regions.current.delete(key);
+              while (regions.current.size > 48)
+                regions.current.delete(regions.current.keys().next().value!);
+              for (const entry of regions.current.values())
+                if (entry.layer === layer.id)
+                  for (const feature of entry.value.features)
+                    unique.set(
+                      `${feature.properties?.source}:${feature.properties?.id ?? feature.id ?? JSON.stringify(feature.geometry)}`,
+                      feature,
+                    );
+            }
+            for (const feature of features)
+              unique.set(
+                `${feature.properties?.source}:${feature.properties?.id ?? feature.id ?? JSON.stringify(feature.geometry)}`,
+                feature,
+              );
+            // Keep recently loaded neighbouring geometry visible across viewport changes.
+            const display = {
+              ...value,
+              features: [...unique.values()].slice(-12_000),
+            };
+            visibleData.current.set(layer.id, display);
+            if (
+              !previous ||
+              JSON.stringify(previous.features) !==
+                JSON.stringify(display.features)
+            )
+              source?.setData(
+                layer.id === "ports"
+                  ? onshorePortMarkers(map, display)
+                  : display,
+              );
             setStates((current) => ({
               ...current,
               [layer.id]: {
@@ -291,11 +406,40 @@ export default function MarineLayers({
             setStates((current) => ({
               ...current,
               [layer.id]: {
+                ...current[layer.id],
+                loading: false,
                 error: true,
-                metadata: { status: "error", message: "mapData.unavailable" },
+                metadata: {
+                  ...current[layer.id]?.metadata,
+                  status: "error",
+                  message: "mapData.unavailable",
+                },
               },
             }));
-            if (layer.id === "warnings") setWarnings(null);
+            if (layer.id === "warnings") {
+              setWarnings(null);
+              const prior = visibleData.current.get("warnings");
+              if (prior) {
+                const stale = {
+                  ...prior,
+                  features: prior.features
+                    .filter(() => !activeOnly)
+                    .map((feature) => ({
+                      ...feature,
+                      properties: {
+                        ...feature.properties,
+                        active: false,
+                        status: "stale",
+                      },
+                    })),
+                };
+                visibleData.current.set("warnings", stale);
+                source?.setData(stale);
+              }
+              setSelected((current) =>
+                current?.layer === "warnings" ? null : current,
+              );
+            }
           }
         }
       };
@@ -303,8 +447,6 @@ export default function MarineLayers({
     }
     function moved() {
       tooltip.remove();
-      if (definitions.some((layer) => layer.id === "warnings"))
-        setWarnings(null);
       controller?.abort();
       clearTimeout(debounce);
       debounce = setTimeout(() => void load(), 600);
@@ -312,7 +454,7 @@ export default function MarineLayers({
     void load();
     const refresh = setInterval(() => {
       if (document.visibilityState === "visible") void load();
-    }, 5 * 60_000);
+    }, 60_000);
     map.on("moveend", moved);
     map.on("mousemove", hover);
     map.on("click", click);
@@ -325,7 +467,7 @@ export default function MarineLayers({
       map.off("mousemove", hover);
       map.off("click", click);
       tooltip.remove();
-      for (const layer of definitions) removeMarineLayer(map, layer.id);
+      // Sources stay mounted when filters change. Disabled layers are removed above.
     };
   }, [
     map,
@@ -338,11 +480,36 @@ export default function MarineLayers({
     retry,
   ]);
   useEffect(() => {
-    if (!enabled.includes("position-age")) return;
+    if (!enabledKey.split(",").includes("ports")) return;
+    let last = "";
+    const place = () => {
+      const data = visibleData.current.get("ports");
+      const source = map.getSource(sourceId("ports")) as
+        GeoJSONSource | undefined;
+      if (!data || !source) return;
+      const placed = onshorePortMarkers(map, data);
+      const signature = JSON.stringify(
+        placed.features.map((feature) => feature.geometry),
+      );
+      if (signature !== last) {
+        last = signature;
+        source.setData(placed);
+      }
+    };
+    map.on("idle", place);
+    return () => {
+      map.off("idle", place);
+    };
+  }, [map, enabledKey]);
+  useEffect(() => {
+    if (!enabledKey.split(",").includes("position-age")) {
+      removeMarineLayer(map, "position-age");
+      return;
+    }
     const layer = MAP_LAYERS.find(
       (definition) => definition.id === "position-age",
     )!;
-    addMarineLayer(map, layer);
+    if (!map.getSource(sourceId(layer.id))) addMarineLayer(map, layer);
     const aged: FeatureCollection = {
       type: "FeatureCollection",
       features: vessels.features.flatMap((feature) => {
@@ -355,7 +522,6 @@ export default function MarineLayers({
       }),
     };
     (map.getSource(sourceId(layer.id)) as GeoJSONSource).setData(aged);
-    return () => removeMarineLayer(map, layer.id);
   }, [map, enabledKey, vessels]);
   useEffect(() => {
     if (!enabled.includes("density")) return;
@@ -474,7 +640,12 @@ export default function MarineLayers({
   }, [selected, vessels]);
   function statusLabel(id: MapLayerId) {
     const state = states[id];
-    if (state?.loading) return t("Caricamento…");
+    if (state?.loading)
+      return t(
+        state.count
+          ? "Dati precedenti conservati durante il caricamento."
+          : "Caricamento…",
+      );
     if (state?.metadata?.message) return t(state.metadata.message);
     if (state?.error) return t("mapData.unavailable");
     return t("{count} elementi nella vista", {
@@ -495,6 +666,15 @@ export default function MarineLayers({
     return (
       <>
         <p>{t(MAP_LAYERS.find((layer) => layer.id === id)!.description)}</p>
+        <p>
+          {t(
+            id === "warnings"
+              ? "Aggiornamento ogni 30 minuti."
+              : id === "waves" || id === "currents"
+                ? "Previsioni aggiornate ogni 15 minuti."
+                : "Dati cartografici riutilizzati fino a 24 ore per area.",
+          )}
+        </p>
         {metadata?.minZoom && (
           <p>
             {t("Ingrandisci almeno a zoom {zoom}.", { zoom: metadata.minZoom })}
@@ -851,7 +1031,7 @@ export default function MarineLayers({
       )}
       {selected && definition && (
         <aside
-          className="marine-feature-panel"
+          className={`marine-feature-panel${selected.layer === "ports" ? " marine-port-panel" : ""}`}
           aria-label={t("Dettaglio cartografico")}
         >
           <button
@@ -873,6 +1053,10 @@ export default function MarineLayers({
               {text(properties.description)}
             </p>
           )}
+          {selected.layer === "ports" &&
+            properties?.source === "NGA World Port Index" && (
+              <PortTraffic portId={text(properties.id)} />
+            )}
           <dl>
             {[
               ["Tipo", properties?.kind],
@@ -1017,6 +1201,13 @@ export default function MarineLayers({
               )}
             </p>
           )}
+          {selected.layer === "ports" && properties?.displayPlacement && (
+            <p className="marine-panel-note">
+              {t(
+                "Ancora sulla terraferma vicina; il tratto collega le coordinate originali NGA.",
+              )}
+            </p>
+          )}
           {properties?.locationRole === "last_reported_vessel_position" && (
             <p className="notice">
               {t(
@@ -1032,7 +1223,7 @@ export default function MarineLayers({
                 )}
               </p>
             )}
-          {nearVessels && (
+          {nearVessels && selected.layer !== "ports" && (
             <div className="marine-observed-stops">
               <h3>{t("Osservazioni AIS entro 5 km")}</h3>
               <p>

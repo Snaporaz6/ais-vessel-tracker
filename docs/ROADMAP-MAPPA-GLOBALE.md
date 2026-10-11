@@ -141,3 +141,15 @@ Dettagli tecnici e fonti effettivamente integrate:
 | Pericoli e interdizioni                        | [NAVAREA](https://iho.int/navigation-warnings-on-the-web), Capitanerie e autorità competenti                                                                                                                                                                                            | Avvisi in vigore, revoche, coordinate, accessibilità dei dati e frequenza di aggiornamento         |
 
 La tabella conserva la ricerca iniziale; i documenti tecnici sopra distinguono le fonti effettivamente integrate da quelle ancora candidate. Le coperture e le date dichiarate si riferiscono ai singoli prodotti, non alla completezza mondiale.
+
+## Aggiornamento 11 ottobre — stili, stabilità e porti
+
+Implementati Dark/Light/ECDIS ispirato, fasce panoramiche di profondità GEBCO,
+cache per area fino a 24 ore e warning a 30 minuti, livelli persistenti durante
+lo zoom e porti con simboli ad ancora. Scheda con attese dichiarate AIS, inizio/
+fine delle soste rilevate e presenze nelle vicinanze, solo nel Mediterraneo.
+
+Gli orari ufficiali dei porti, occupazione reale delle banchine, storico dell'ultimo
+porto attribuito ufficialmente, GT/DWT/anno di costruzione e una raccolta automatica
+completa degli incidenti restano aperti. Metodi e limiti:
+[MAP-STYLES-PORT-TRAFFIC.md](MAP-STYLES-PORT-TRAFFIC.md).

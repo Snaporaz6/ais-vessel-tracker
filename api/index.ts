@@ -28,6 +28,7 @@ import {
   SOURCE_STALE_MS,
 } from "../shared/config.js";
 import { AppError, ValidationError, NotFoundError } from "../shared/errors.js";
+import { portTraffic } from "./services/port-traffic.js";
 import { gzipSync } from "node:zlib";
 const asyncRoute =
   (fn: (req: Request, res: Response) => Promise<unknown>) =>
@@ -308,6 +309,27 @@ export function createApp(c: Context, limited = true) {
   app.get(
     "/api/vessel/:mmsi/portcalls",
     asyncRoute(async (req, res) => res.json(await c.repo.stops(mmsiOf(req)))),
+  );
+  const trafficCache = new Map<
+    string,
+    { at: number; value: Awaited<ReturnType<typeof portTraffic>> }
+  >();
+  app.get(
+    "/api/port-traffic/:id",
+    asyncRoute(async (req, res) => {
+      const id = String(req.params.id);
+      if (!/^\d{1,6}$/.test(id))
+        throw new ValidationError("Identificativo porto non valido");
+      res.set("Cache-Control", "no-store");
+      const cached = trafficCache.get(id);
+      if (cached && Date.now() - cached.at < 60_000)
+        return res.json(cached.value);
+      const value = await portTraffic(c, id);
+      if (trafficCache.size >= 32)
+        trafficCache.delete(trafficCache.keys().next().value!);
+      trafficCache.set(id, { at: Date.now(), value });
+      res.set("Cache-Control", "no-store").json(value);
+    }),
   );
   app.get(
     "/api/port/:name",
