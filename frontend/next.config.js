@@ -4,4 +4,8 @@ module.exports = {
   reactStrictMode: true,
   turbopack: { root: path.resolve(__dirname, "..") },
   outputFileTracingRoot: path.resolve(__dirname, ".."),
+  outputFileTracingIncludes: {
+    "/api/map-data": ["./public/marine-data/*.json"],
+    "/api/maritime-warnings": ["./public/warnings/*.json"],
+  },
 };

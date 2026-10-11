@@ -1,3 +1,4 @@
+import { mapMessages, mapMessageAliases } from "./i18n-map";
 export const LOCALES = ["en", "it", "fr", "de"] as const;
 export type Locale = (typeof LOCALES)[number];
 export const LANGUAGE_COOKIE = "ais-language";
@@ -16,6 +17,7 @@ export const INTL_LOCALES: Record<Locale, string> = {
 
 // Italian source text and reviewed English, French and German translations.
 export const messages = {
+  ...mapMessages,
   Fondali: ["Seabed", "Fonds marins", "Meeresboden"],
   "Profondità in metri": [
     "Depth in metres",
@@ -642,6 +644,7 @@ export function translate(
   key: string,
   params: Params = {},
 ): string {
+  key = mapMessageAliases[key] ?? key;
   const entry = Object.prototype.hasOwnProperty.call(messages, key)
     ? messages[key as MessageKey]
     : undefined;
