@@ -53,6 +53,19 @@ export default function Home() {
   );
   const currentTrackInfo =
     trackInfo?.mmsi === track && trackInfo.days === days ? trackInfo : null;
+  const selectVessel = useCallback((mmsi: string | null, focus: boolean) => {
+    setFocusMap(focus);
+    setSelected(mmsi);
+    // Save the selected vessel on the map's history entry before opening a detail page.
+    const url = new URL(window.location.href);
+    if (mmsi) url.searchParams.set("vessel", mmsi);
+    else url.searchParams.delete("vessel");
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+  }, []);
   const hideTrack = useCallback(() => {
     setTrack(null);
     setTrackInfo(null);
@@ -106,19 +119,29 @@ export default function Home() {
     [focusMap],
   );
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search),
-      v = q.get("vessel"),
-      t = q.get("track");
-    if (v && /^[1-9]\d{8}$/.test(v)) setSelected(v);
-    if (t && /^[1-9]\d{8}$/.test(t)) setTrack(t);
+    const restoreSelection = () => {
+      const q = new URLSearchParams(window.location.search),
+        v = q.get("vessel"),
+        trackMmsi = q.get("track");
+      setFocusMap(true);
+      setSelected(v && /^[1-9]\d{8}$/.test(v) ? v : null);
+      setTrack(trackMmsi && /^[1-9]\d{8}$/.test(trackMmsi) ? trackMmsi : null);
+    };
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) restoreSelection();
+    };
+    restoreSelection();
+    window.addEventListener("popstate", restoreSelection);
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      window.removeEventListener("popstate", restoreSelection);
+      window.removeEventListener("pageshow", onPageShow);
+    };
   }, []);
   return (
     <main className="map-screen">
       <Map
-        onVesselClick={(mmsi) => {
-          setFocusMap(false);
-          setSelected(mmsi);
-        }}
+        onVesselClick={(mmsi) => selectVessel(mmsi, false)}
         trackMmsi={track}
         trackDays={days}
         visibleTypes={types}
@@ -133,12 +156,7 @@ export default function Home() {
         <strong>AIS Vessel Tracker</strong>
         <span>{t("Mediterraneo · beta")}</span>
       </div>
-      <SearchBar
-        onSelect={(v) => {
-          setFocusMap(true);
-          setSelected(v.mmsi);
-        }}
-      />
+      <SearchBar onSelect={(v) => selectVessel(v.mmsi, true)} />
       <VesselFilter
         visibleTypes={types}
         onFilterChange={setTypes}
@@ -183,7 +201,7 @@ export default function Home() {
       {selected && (
         <VesselDrawer
           mmsi={selected}
-          onClose={() => setSelected(null)}
+          onClose={() => selectVessel(null, false)}
           onShowTrack={toggleTrack}
           trackVisible={track === selected}
           onPosition={onPosition}

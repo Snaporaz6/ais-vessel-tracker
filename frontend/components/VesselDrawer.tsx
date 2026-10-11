@@ -86,7 +86,6 @@ export default function VesselDrawer({
       >
         ×
       </button>
-      {children}
       {error ? (
         <p role="alert">{errorText(error)}</p>
       ) : vessel ? (
@@ -96,6 +95,7 @@ export default function VesselDrawer({
           stopsError={stopsError}
           onShowTrack={toggleTrack}
           trackVisible={trackVisible}
+          trackPanel={children}
         />
       ) : (
         <p role="status">{t("Caricamento scheda…")}</p>

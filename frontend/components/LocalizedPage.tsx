@@ -2,10 +2,17 @@
 import Link from "next/link";
 import { useLanguage } from "./LanguageProvider";
 
-export function BackToMap({ short = false }: { short?: boolean }) {
+export function BackToMap({
+  short = false,
+  mmsi,
+}: {
+  short?: boolean;
+  mmsi?: string;
+}) {
   const { t } = useLanguage();
+  const href = mmsi && /^[1-9]\d{8}$/.test(mmsi) ? `/?vessel=${mmsi}` : "/";
   return (
-    <Link href="/">{t(short ? "← Mappa" : "← Mappa del Mediterraneo")}</Link>
+    <Link href={href}>{t(short ? "← Mappa" : "← Mappa del Mediterraneo")}</Link>
   );
 }
 export function PageError({ message }: { message: string }) {

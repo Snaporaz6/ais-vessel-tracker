@@ -474,6 +474,9 @@ dd {
   font-size: 12px;
   line-height: 1.5;
 }
+.actions + .track-summary {
+  margin-top: 16px;
+}
 .track-summary h2 {
   margin: 0 0 8px;
   font-size: 16px;

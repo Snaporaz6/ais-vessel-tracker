@@ -20,7 +20,7 @@ export default async function VesselPage({
   ]);
   return (
     <main className="detail-page">
-      <BackToMap />
+      <BackToMap mmsi={mmsi} />
       {v.status === "fulfilled" ? (
         <VesselView
           vessel={v.value}
