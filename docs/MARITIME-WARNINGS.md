@@ -7,7 +7,7 @@
 - **NGA SMAPS:** liste attuali `NAVAREA IV`, `NAVAREA XII`, `HYDROLANT`, `HYDROPAC`, `HYDROARC`. I messaggi comprendono pericoli, incidenti, chiusure di porti, esercitazioni, mine e altri avvisi. Non sono una raccolta completa di tutti gli avvisi costieri del globo. La prima acquisizione del 10 ottobre 2026 comprende 423 messaggi originali.
 - **US MARAD:** tabella ufficiale degli avvisi attivi, con inizio, fine, cancellazioni e link. Riferita principalmente alla navigazione commerciale statunitense. Avvisi regionali rappresentati da un punto indicativo nella regione: **il punto non indica un attacco e non delimita un'area ufficiale**.
 - **UKMTO:** estratto fattuale datato verificato l'11 ottobre 2026, con 12 rapporti recenti (23 settembre–5 ottobre, più un rapporto tardivo relativo al 16 settembre) senza coordinate precise e il rapporto storico di dirottamento `045-26`. Solo quest'ultimo contiene una posizione numerica esplicita: `0856N 05032E`, la **ultima posizione riferita della nave dopo il dirottamento**, non il luogo iniziale dell'attacco. Compare nel filtro 365 giorni. I rapporti non localizzati restano in `metadata.unmappedReports`, filtrati per periodo/tipo e con link ufficiale; non ricevono punti indicativi o aree di rischio.
-- Filtri geografici, tipo, periodo; cache applicativa di 10 minuti, CDN di 5 minuti; richieste upstream limitate a host fissi, 8 secondi, 2 MB ciascuna. Nessun proxy arbitrario, credenziale o servizio a pagamento.
+- Filtri geografici, tipo, periodo; cache applicativa/browser/CDN allineate a blocchi UTC di 30 minuti; richieste upstream limitate a host fissi, 8 secondi, 2 MB ciascuna. Nessun proxy arbitrario, credenziale o servizio a pagamento.
 
 ## Attendibilità e geometria
 
@@ -60,3 +60,5 @@ Mancano una raccolta completa di incidenti/attacchi mondiali, tutte le ordinanze
 ## Contratto di traduzione
 
 I metadati usano chiavi stabili: `warnings.coverage`, `warnings.partial`, `warnings.unavailable`, `warnings.ngaCoverage`, `warnings.ngaLive`, `warnings.ngaSnapshot`, `warnings.maradCoverage`, `warnings.maradLive`, `warnings.maradSnapshot`, `warnings.ukmtoCoverage`, `warnings.ukmtoSnapshot`. Titoli, fatti e dichiarazioni obbligatorie delle autorità restano nel testo originale, senza reinterpretazione della classificazione.
+
+Aggiornamento 11 ottobre: il frontend carica gli avvisi senza un nuovo bbox a ogni zoom e riutilizza la risposta fino alla scadenza di 30 minuti. In caso di guasto, i precedenti avvisi conservati diventano non verificati e non alimentano un giudizio di avviso attivo. UKMTO mantiene lo snapshot dichiarato; questa cache non aggiunge un feed live UKMTO.

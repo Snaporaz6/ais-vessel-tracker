@@ -21,7 +21,7 @@ completezza dei dati nel mondo.
 - Le richieste accettano soltanto livelli e provider prefissati, coordinate valide,
   zoom 0–22. Un bbox con ovest maggiore di est attraversa l'antimeridiano ed è
   suddiviso in due interrogazioni.
-- I dettagli di porti/rade/segnalamenti richiedono zoom 9 e un'area piccola. Cavi,
+- I porti NGA restano disponibili da zoom 2, con dettagli da zoom 6. Rade e segnalamenti richiedono zoom 9 e un'area piccola. Cavi,
   condotte, impianti, siti sommersi e aree protette richiedono zoom 6; relitti zoom 7.
 - Ogni risposta remota è limitata a 5 MiB; le interrogazioni vettoriali richiedono
   al massimo 1.501 elementi e la risposta combinata ne conserva al massimo 1.500,
@@ -54,7 +54,7 @@ completezza dei dati nel mondo.
   sconosciuto non attestano un'assenza o una disponibilità operativa in tempo reale.
 - La data di aggiornamento dei singoli porti non è pubblicata nell'export:
   `updatedAt: null`. Il recupero è indicato separatamente.
-- A zoom 9 OpenStreetMap aggiunge geometrie e piccoli approdi del riquadro.
+- Il catalogo NGA rimane stabile a tutti gli zoom; non viene più sostituito o integrato da richieste Overpass dei porti durante lo zoom. Le rade e i segnalamenti conservano i propri livelli separati.
 - A piccola scala, o su un riquadro molto esteso, l'API conserva tutti i porti ma
   invia i soli attributi principali. Da zoom 6 su riquadri locali sono disponibili
   gli attributi completi di servizi, profondità e caratteristiche.
@@ -207,3 +207,7 @@ python3 scripts/import-marine-data.py --genoa
 Non occorrono nuove dipendenze. L'importatore usa la libreria standard Python,
 timeout, limiti di byte, cache temporanea delle pagine sorgente e controlli di
 completezza. Un'importazione fallita conserva lo snapshot precedente.
+
+## Cache e schede portuali — aggiornamento 11 ottobre
+
+Riuso per area fino alla fine del giorno UTC (massimo 24 ore), IndexedDB limitato a 48 voci/24 MiB, provider con cache Next.js e chiave giornaliera; risposte parziali ritentate dopo 15 minuti. La nuova area consultata richiede il primo caricamento; non è un download completo giornaliero del globo. Le geometrie restano montate durante lo zoom e i guasti. Attese AIS, soste e presenze vicino al porto sono descritte in [MAP-STYLES-PORT-TRAFFIC.md](MAP-STYLES-PORT-TRAFFIC.md).
