@@ -9,7 +9,11 @@ Aggiornamento: 11 ottobre 2026. Frontend soltanto; acquisizione e archivio AIS M
 - Cursore proporzionale al tempo fra prima e ultima osservazione, con data e ora UTC; tasti osservazione precedente/successiva, Riproduci/Pausa e Ultima posizione. Nessuna riproduzione automatica all'apertura.
 - Riproduzione accelerata: circa 30 secondi per la finestra disponibile, aggiornamento ogni 125 ms. Può saltare fix intermedi nello scorrimento accelerato; i tasti precedente/successivo consentono di ispezionare le singole osservazioni.
 - «Centra» porta la mappa alla posizione mostrata mantenendo lo zoom. Lo scorrimento temporale, da solo, non sposta la camera.
-- Il controllo è nella scheda della nave; chiudendola rimane disponibile come pannello sulla mappa. Spostando il controllo viene fermata la riproduzione, conservando il tempo selezionato. Quattro lingue e temi Dark/Light/ECDIS.
+- Copertura e cursore si aprono subito sotto i pulsanti «Mostra/Nascondi traccia» e «Scheda completa», nella scheda della nave; chiudendola il cursore rimane disponibile come pannello sulla mappa. Spostando il controllo viene fermata la riproduzione, conservando il tempo selezionato. Quattro lingue e temi Dark/Light/ECDIS.
+
+## Ritorno alla mappa
+
+Il collegamento «Mappa del Mediterraneo» della pagina completa contiene l'MMSI della nave: riapre la sua scheda e centra la mappa sull'ultima posizione disponibile. Anche la selezione sulla mappa viene conservata nel parametro `vessel` dell'URL, per ritrovarla usando Indietro del browser. Il ripristino gestisce anche la cache di navigazione del browser. Chiudere la scheda rimuove `vessel`, senza nascondere una traccia ancora attiva. Il normale clic su una nave mantiene centro e zoom; soltanto ricerca, collegamenti diretti e ritorno alla mappa la localizzano.
 
 ## Posizioni e vuoti
 

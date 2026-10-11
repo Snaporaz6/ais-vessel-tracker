@@ -121,3 +121,10 @@ Il nuovo elenco delle funzionalità richieste e proposte è in [ROADMAP-MAPPA-GL
 - Selezione di osservazioni ricevute, senza interpolazione; dentro i vuoti il cursore nave scompare e viene segnalata l'assenza di dati. Aggiornamenti live/storico preservati, ora storica stabile, reset su cambio nave/periodo e pausa quando la scheda browser è nascosta. Nessuna modifica al backend o alla copertura AIS.
 - Dettagli in [TRACK-PLAYBACK.md](TRACK-PLAYBACK.md). Typecheck, lint e build frontend riusciti localmente; nessun nuovo test aggiunto o eseguito manualmente. PR [#12](https://github.com/Snaporaz6/ais-vessel-tracker/pull/12) integrato; [CI preesistente](https://github.com/Snaporaz6/ais-vessel-tracker/actions/runs/38147651228) riuscita, compresi browser, carico e audit. Rilascio frontend avviato su `codex/mediterranean-beta`; backend invariato.
 - Pubblicato su Vercel in produzione: **READY/success**, commit `e099944`, deployment `6997049318`, **11 ottobre 2026, 14:37:34 UTC**. Codice del PR verificato: `a6ed685`; nessuna nuova distribuzione Railway necessaria. Non è stata eseguita una nuova prova browser manuale del cursore: i controlli browser citati sono quelli della CI preesistente.
+
+## Pannello traccia e ritorno alla nave — 11 ottobre 2026
+
+- Copertura e cursore della traccia spostati subito sotto i pulsanti «Mostra/Nascondi traccia» e «Scheda completa», prima del controllo sanzioni.
+- Il ritorno dalla pagina completa alla mappa contiene l'MMSI della nave e apre la sua scheda centrando l'ultima posizione disponibile. Selezione e chiusura della scheda aggiornano `vessel` nell'URL; Indietro del browser ripristina la nave selezionata, anche con cache di navigazione.
+- Il normale clic sulle navi conserva centro e zoom. Preferenza del tema e disattivazione della traccia conservate. Nessuna modifica a dati AIS, backend o dipendenze. Dettagli in [TRACK-PLAYBACK.md](TRACK-PLAYBACK.md).
+- Typecheck, lint e build frontend riusciti localmente; nessun nuovo test aggiunto o eseguito manualmente. Pubblicazione in corso tramite la pipeline preesistente.

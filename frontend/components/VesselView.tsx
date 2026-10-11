@@ -1,5 +1,5 @@
 "use client";
-import { memo } from "react";
+import { memo, type ReactNode } from "react";
 import { useLanguage } from "./LanguageProvider";
 import type { VesselDetail, PortCall } from "../../shared/types";
 import AnomalyBadge from "./AnomalyBadge";
@@ -11,12 +11,14 @@ function VesselView({
   onShowTrack,
   stopsError,
   trackVisible = false,
+  trackPanel,
 }: {
   vessel: VesselDetail;
   stops: PortCall[];
   onShowTrack?: () => void;
   stopsError?: string;
   trackVisible?: boolean;
+  trackPanel?: ReactNode;
 }) {
   const { t, date, value, duration, shipNames, errorText } = useLanguage();
   const p = v.last_position,
@@ -105,6 +107,7 @@ function VesselView({
           {t("Scheda completa")}
         </a>
       </div>
+      {trackPanel}
       <section>
         <h2>{t("Controllo sanzioni")}</h2>
         {v.sanctions.map((s, i) => (
