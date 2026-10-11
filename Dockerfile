@@ -2,15 +2,14 @@ FROM node:24-bookworm-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
-COPY tsconfig.json ./
+COPY tsconfig.json tsconfig.server.json ./
 COPY shared ./shared
 COPY api ./api
 COPY ingestor ./ingestor
 COPY server ./server
 COPY storage ./storage
 COPY scripts ./scripts
-COPY tests ./tests
-RUN npm run build
+RUN npm run build:server
 RUN npm prune --omit=dev
 
 FROM node:24-bookworm-slim

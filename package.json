@@ -26,7 +26,8 @@
     "sync:sanctions:prod": "node dist/scripts/sync-sanctions.js",
     "monitor:beta:prod": "node dist/scripts/monitor-beta.js",
     "preflight:prod": "node dist/scripts/preflight.js",
-    "lint": "eslint . --ext .ts,.tsx"
+    "lint": "eslint . --ext .ts,.tsx",
+    "build:server": "tsc -p tsconfig.server.json"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1146.0",

@@ -48,3 +48,7 @@ Endpoint backend `/api/port-traffic/:id` con ID validato contro il catalogo NGA 
 - Fuori Mediterraneo la scheda dichiara l'assenza di copertura AIS della demo e offre le informazioni cartografiche/servizi NGA.
 
 Fonti e licenze: [NGA World Port Index](https://msi.nga.mil/Publications/WPI), [GEBCO/GMT](https://www.generic-mapping-tools.org/remote-datasets/earth-gebco.html), [Next.js fetch cache](https://nextjs.org/docs/app/api-reference/functions/fetch). Il diagramma nautico allegato è un riferimento visivo; non viene ripubblicata cartografia C-MAP.
+
+## Compilazione container backend
+
+Railway non segue automaticamente i push: la produzione usa upload CLI espliciti. Il build Docker usa `tsconfig.server.json` e `npm run build:server`, escludendo i test frontend dal container; `npm run build` e la CI continuano a compilare/controllare i test nell'ambiente completo. Questo corregge il riferimento del test foto a un modulo frontend non copiato nella vecchia immagine.

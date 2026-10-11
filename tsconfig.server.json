@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "shared/**/*.ts",
+    "ingestor/**/*.ts",
+    "api/**/*.ts",
+    "scripts/**/*.ts",
+    "server/**/*.ts",
+    "storage/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist", "frontend", "tests"]
+}
