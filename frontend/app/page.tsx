@@ -8,6 +8,7 @@ import VesselFilter from "../components/VesselFilter";
 import TrackSummary from "../components/TrackSummary";
 import type { TrackDisplayInfo } from "../lib/track-display";
 import VesselDrawer from "../components/VesselDrawer";
+import TrackTimeline from "../components/TrackTimeline";
 const Map = dynamic(() => import("../components/Map"), {
   ssr: false,
   loading: MapLoading,
@@ -31,13 +32,72 @@ export default function Home() {
   const [selected, setSelected] = useState<string | null>(null),
     [track, setTrack] = useState<string | null>(null),
     [days, setDays] = useState(7),
+    [cursor, setCursor] = useState<{ key: string; at: number | null }>({
+      key: "",
+      at: null,
+    }),
     [trackInfo, setTrackInfo] = useState<TrackDisplayInfo | null>(null),
     [showGapLinks, setShowGapLinks] = useState(false),
     [types, setTypes] = useState(new Set(ALL)),
     [counts, setCounts] = useState<Record<string, number>>({}),
     [globe, setGlobe] = useState(false),
     [focusMap, setFocusMap] = useState(true),
-    [center, setCenter] = useState<VesselPosition | null>(null);
+    [center, setCenter] = useState<
+      (VesselPosition & { preserveZoom?: boolean }) | null
+    >(null);
+  const trackKey = `${track}:${days}`;
+  const playbackAt = cursor.key === trackKey ? cursor.at : null;
+  const onPlayback = useCallback(
+    (at: number | null) => setCursor({ key: trackKey, at }),
+    [trackKey],
+  );
+  const currentTrackInfo =
+    trackInfo?.mmsi === track && trackInfo.days === days ? trackInfo : null;
+  const hideTrack = useCallback(() => {
+    setTrack(null);
+    setTrackInfo(null);
+    setCursor({ key: "", at: null });
+    // Direct links should also reflect that playback has been dismissed.
+    const url = new URL(window.location.href);
+    url.searchParams.delete("track");
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+  }, []);
+  const toggleTrack = useCallback(
+    (mmsi: string) => {
+      if (track === mmsi) {
+        hideTrack();
+        return;
+      }
+      setCursor({ key: "", at: null });
+      setTrackInfo(null);
+      setTrack(mmsi);
+      const url = new URL(window.location.href);
+      url.searchParams.set("track", mmsi);
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${url.pathname}${url.search}${url.hash}`,
+      );
+    },
+    [track, hideTrack],
+  );
+  const timeline =
+    currentTrackInfo &&
+    !currentTrackInfo.loading &&
+    !currentTrackInfo.error &&
+    currentTrackInfo.positions.length > 0 ? (
+      <TrackTimeline
+        key={trackKey}
+        points={currentTrackInfo.positions}
+        at={playbackAt}
+        onChange={onPlayback}
+        onLocate={(position) => setCenter({ ...position, preserveZoom: true })}
+      />
+    ) : null;
   const onPosition = useCallback(
     (p: VesselPosition | null) => {
       // Search and direct links locate vessels; map clicks keep the current view.
@@ -67,6 +127,7 @@ export default function Home() {
         center={center}
         showGapLinks={showGapLinks}
         onTrackInfo={setTrackInfo}
+        playbackAt={playbackAt}
       />
       <div className="brand">
         <strong>AIS Vessel Tracker</strong>
@@ -96,7 +157,11 @@ export default function Home() {
           <select
             id="track-days"
             value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
+            onChange={(e) => {
+              setCursor({ key: "", at: null });
+              setTrackInfo(null);
+              setDays(Number(e.target.value));
+            }}
           >
             {[1, 7, 30, 90].map((d) => (
               <option key={d} value={d}>
@@ -104,31 +169,33 @@ export default function Home() {
               </option>
             ))}
           </select>
-          <button
-            onClick={() => setTrack(null)}
-            aria-label={t("Nascondi traccia")}
-          >
+          <button onClick={hideTrack} aria-label={t("Nascondi traccia")}>
             ×
           </button>
+        </div>
+      )}
+      {track && track !== selected && timeline && (
+        <div className="track-timeline-floating">
+          <p className="small muted">MMSI {track}</p>
+          {timeline}
         </div>
       )}
       {selected && (
         <VesselDrawer
           mmsi={selected}
           onClose={() => setSelected(null)}
-          onShowTrack={setTrack}
+          onShowTrack={toggleTrack}
+          trackVisible={track === selected}
           onPosition={onPosition}
         >
           {track === selected && (
             <TrackSummary
-              info={
-                trackInfo?.mmsi === track && trackInfo.days === days
-                  ? trackInfo
-                  : null
-              }
+              info={currentTrackInfo}
               showLinks={showGapLinks}
               onShowLinks={setShowGapLinks}
-            />
+            >
+              {timeline}
+            </TrackSummary>
           )}
         </VesselDrawer>
       )}

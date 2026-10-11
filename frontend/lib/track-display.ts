@@ -12,16 +12,20 @@ export type TrackDisplayInfo = {
   firstAt: string | null;
   lastAt: string | null;
   gaps: TrackGap[];
+  positions: VesselPosition[];
 };
 
 /** Draw received observations, including isolated fixes, without filling gaps. */
 export function trackGeometry(points: VesselPosition[]): FeatureCollection {
   const features: FeatureCollection["features"] = [];
-  const markers = new Map<string, { point: VesselPosition; color: string }>();
-  const mark = (point: VesselPosition, color: string) =>
-    markers.set(point.timestamp, { point, color });
+  const markers = new Map<
+    string,
+    { point: VesselPosition; color: string; kind: string }
+  >();
+  const mark = (point: VesselPosition, color: string, kind: string) =>
+    markers.set(point.timestamp, { point, color, kind });
   for (const segment of splitTrack(points)) {
-    if (segment.length === 1) mark(segment[0], "#60a5fa");
+    if (segment.length === 1) mark(segment[0], "#60a5fa", "isolated");
     else if (segment.length > 1)
       features.push({
         type: "Feature",
@@ -36,8 +40,8 @@ export function trackGeometry(points: VesselPosition[]): FeatureCollection {
     const next = points[i];
     if (!next.gap_before) continue;
     const previous = points[i - 1];
-    mark(previous, "#f59e0b");
-    mark(next, "#f59e0b");
+    mark(previous, "#f59e0b", "gap-boundary");
+    mark(next, "#f59e0b", "gap-boundary");
     // A separate, opt-in layer is a straight reference link, not an observed route.
     features.push({
       type: "Feature",
@@ -52,13 +56,13 @@ export function trackGeometry(points: VesselPosition[]): FeatureCollection {
     });
   }
   if (points.length) {
-    mark(points[0], "#22c55e");
-    mark(points.at(-1)!, "#f59e0b");
+    mark(points[0], "#22c55e", "start");
+    mark(points.at(-1)!, "#f59e0b", "latest");
   }
-  for (const { point, color } of markers.values())
+  for (const { point, color, kind } of markers.values())
     features.push({
       type: "Feature",
-      properties: { color },
+      properties: { color, kind },
       geometry: { type: "Point", coordinates: [point.lon, point.lat] },
     });
   return { type: "FeatureCollection", features };

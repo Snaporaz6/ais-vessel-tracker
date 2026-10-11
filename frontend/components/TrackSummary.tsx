@@ -1,15 +1,18 @@
 "use client";
 import { useLanguage } from "./LanguageProvider";
-import type { TrackDisplayInfo } from "../lib/track-display";
+import type { TrackDisplayInfo, TrackGap } from "../lib/track-display";
+import { memo, type ReactNode } from "react";
 
 export default function TrackSummary({
   info,
   showLinks,
   onShowLinks,
+  children,
 }: {
   info: TrackDisplayInfo | null;
   showLinks: boolean;
   onShowLinks: (show: boolean) => void;
+  children?: ReactNode;
 }) {
   const { t, date, numbers, errorText } = useLanguage();
   return (
@@ -26,6 +29,7 @@ export default function TrackSummary({
         <p>{t("Nessuna osservazione nella finestra scelta.")}</p>
       ) : (
         <>
+          {children}
           <p className="track-coverage-count">
             {t("{count} punti", { count: numbers(info.count) })} ·{" "}
             {t("{count} interruzioni", { count: numbers(info.gaps.length) })}
@@ -49,7 +53,7 @@ export default function TrackSummary({
             <>
               <p>
                 {t(
-                  "La linea si interrompe dove mancano osservazioni AIS. I punti arancioni segnano i limiti dei vuoti.",
+                  "La linea si interrompe dove mancano osservazioni AIS. Le croci arancioni segnano i limiti dei vuoti.",
                 )}
               </p>
               <label className="track-gap-toggle">
@@ -67,26 +71,7 @@ export default function TrackSummary({
               </p>
               <details>
                 <summary>{t("Dettaglio delle interruzioni")}</summary>
-                <ol className="track-gap-list">
-                  {info.gaps.map((gap) => {
-                    const minutes = Math.round(
-                      (Date.parse(gap.to) - Date.parse(gap.from)) / 60000,
-                    );
-                    return (
-                      <li key={`${gap.from}:${gap.to}`}>
-                        <strong>
-                          {t("{hours} h {minutes} min", {
-                            hours: Math.floor(minutes / 60),
-                            minutes: minutes % 60,
-                          })}
-                        </strong>
-                        <span>
-                          {date(gap.from)} → {date(gap.to)}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ol>
+                <GapList gaps={info.gaps} />
               </details>
             </>
           ) : (
@@ -101,3 +86,29 @@ export default function TrackSummary({
     </section>
   );
 }
+
+const GapList = memo(function GapList({ gaps }: { gaps: TrackGap[] }) {
+  const { t, date } = useLanguage();
+  return (
+    <ol className="track-gap-list">
+      {gaps.map((gap) => {
+        const minutes = Math.round(
+          (Date.parse(gap.to) - Date.parse(gap.from)) / 60000,
+        );
+        return (
+          <li key={`${gap.from}:${gap.to}`}>
+            <strong>
+              {t("{hours} h {minutes} min", {
+                hours: Math.floor(minutes / 60),
+                minutes: minutes % 60,
+              })}
+            </strong>
+            <span>
+              {date(gap.from)} → {date(gap.to)}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+});
