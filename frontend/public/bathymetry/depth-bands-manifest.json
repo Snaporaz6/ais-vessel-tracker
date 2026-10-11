@@ -1,0 +1,34 @@
+{
+  "source": "GEBCO 2025 / GMT 6 arc-minute derivative",
+  "doi": "https://doi.org/10.5285/37c52e96-24ea-67ce-e063-7086abc05f29",
+  "sourceSha256": "8c6ffff1dd70f6bb6bfb7876a4d4ce2b71abd2a888fc1dfb47cac2be0edfe03d",
+  "importedAt": "2026-10-11T11:40:36.808083+00:00",
+  "bandsMetres": [
+    [
+      0,
+      200
+    ],
+    [
+      200,
+      1000
+    ],
+    [
+      1000,
+      4000
+    ],
+    [
+      4000,
+      12000
+    ]
+  ],
+  "bytes": 7999771,
+  "gridSpacingDegrees": 0.1,
+  "maxZoom": 5,
+  "displayMaxZoom": 7,
+  "notForNavigation": true,
+  "limitations": [
+    "Generalized overview; coastal boundaries differ from the base map",
+    "No measured safe depths, berth depth or certified ENC content",
+    "Hidden at detailed coastal zoom levels"
+  ]
+}

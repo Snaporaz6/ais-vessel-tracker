@@ -761,3 +761,212 @@ dd {
 .marine-warning-legend {
   line-height: 1.8;
 }
+
+:root[data-map-theme="light"],
+:root[data-map-theme="ecdis"] {
+  --bg-primary: #f1f3f5;
+  --bg-secondary: #fff;
+  --bg-card: #e8edf1;
+  --text-primary: #243541;
+  --text-secondary: #596d7c;
+  --accent: #17679c;
+  --accent-hover: #13527b;
+  --border: #bdc9d1;
+}
+:root[data-map-theme="ecdis"] {
+  --bg-primary: #f0eddc;
+  --bg-card: #eee9d3;
+  --border: #c5bd96;
+}
+.map-style-selector {
+  position: absolute;
+  left: 64px;
+  top: 166px;
+  z-index: 18;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  font-size: 12px;
+}
+.map-style-selector select {
+  padding: 3px 6px;
+  max-width: 145px;
+}
+:root:not([data-map-theme="dark"])[data-map-theme]
+  :is(
+    .marine-layer-panel,
+    .marine-feature-panel,
+    .marine-layers-toggle,
+    .map-status,
+    .track-control,
+    .language-switch,
+    .vessel-filter,
+    .search-results
+  ) {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+:root:not([data-map-theme="dark"])[data-map-theme] button:hover {
+  background: #d7e4ee;
+  color: #243541;
+}
+:root:not([data-map-theme="dark"])[data-map-theme] .marine-layer-swatch {
+  box-shadow: 0 0 0 1px #526676;
+}
+@media (max-width: 600px) {
+  .map-style-selector {
+    top: 166px;
+  }
+}
+.marine-port-panel {
+  width: min(660px, calc(100vw - 346px));
+}
+.port-traffic {
+  margin: 14px 0 20px;
+  border-block: 1px solid var(--border);
+  padding-block: 14px;
+}
+.port-traffic h3 {
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+.port-traffic-note {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin: 8px 0;
+}
+.port-traffic-filters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin: 14px 0;
+}
+.port-traffic-filters input,
+.port-traffic-filters select {
+  width: 100%;
+  min-width: 0;
+  padding: 7px;
+  font-size: 12px;
+}
+.port-traffic-filters > input {
+  grid-column: 1 / -1;
+}
+.port-traffic-filters label {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.port-length-range {
+  display: inline-flex;
+  gap: 7px;
+  width: 170px;
+  margin-left: 8px;
+}
+.port-traffic-tabs {
+  display: flex;
+  gap: 3px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 5px;
+}
+.port-traffic-tabs button {
+  white-space: nowrap;
+  font-size: 12px;
+  padding: 7px 9px;
+}
+.port-traffic-tabs button[aria-selected="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.port-traffic-tabs span {
+  font-variant-numeric: tabular-nums;
+  margin-left: 4px;
+}
+.port-traffic-table {
+  overflow-x: auto;
+  max-height: 340px;
+  margin: 10px 0;
+}
+.port-traffic-table table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 11px;
+}
+.port-traffic-table caption {
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 0;
+}
+.port-traffic-table th,
+.port-traffic-table td {
+  padding: 9px 7px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.port-traffic-table th {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.port-traffic-table small {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+.port-traffic-empty {
+  font-size: 12px;
+  padding: 12px 0;
+}
+.port-services {
+  font-size: 12px;
+}
+.port-services dl {
+  margin-top: 12px;
+}
+@media (max-width: 900px) {
+  .marine-port-panel {
+    width: 100%;
+  }
+}
+:root:not([data-map-theme="dark"])[data-map-theme]
+  :is(
+    .map-toolbar,
+    .filter-panel,
+    .map-footer,
+    .track-controls,
+    .marine-track-alerts
+  ) {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+:root:not([data-map-theme="dark"])[data-map-theme]
+  :is(
+    .marine-layer-panel legend,
+    .marine-warning-options,
+    .marine-forecast-time,
+    .marine-layer-info a,
+    .marine-layers-toggle > span,
+    .eyebrow,
+    .data-grid dd,
+    .track-summary
+  ) {
+  color: var(--accent);
+}
+:root:not([data-map-theme="dark"])[data-map-theme] .notice {
+  color: #864b09;
+  background: #fff1cc;
+}
+
+:root:not([data-map-theme="dark"])[data-map-theme] .brand {
+  background: var(--bg-secondary);
+}
+:root:not([data-map-theme="dark"])[data-map-theme] .map-status strong {
+  color: var(--accent);
+}

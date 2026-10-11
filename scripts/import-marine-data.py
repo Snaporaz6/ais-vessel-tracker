@@ -226,6 +226,11 @@ def import_ports(url):
         "status": "ready", "message": "mapData.available", "sourceFeatureCount": len(features)}})
 
 
+    # Keep frontend and backend NGA IDs/coordinates in the same release.
+    catalog_path = ROOT / "shared" / "ports-catalog.json"
+    rows = [{"id": str(f["properties"]["id"]), "name": f["properties"]["name"], "unlocode": f["properties"].get("unlocode"), "country": f["properties"].get("wpi_cc"), "lat": f["geometry"]["coordinates"][1], "lon": f["geometry"]["coordinates"][0]} for f in features]
+    catalog_path.write_text(json.dumps(rows, separators=(",", ":"), ensure_ascii=False) + "\n", encoding="utf-8")
+
 def import_genoa():
     query = '[out:json][timeout:12];nwr["seamark:type"~"^(anchorage|anchor_berth)$"](44.1,8.4,44.6,9.2);out geom 100;'
     request = urllib.request.Request("https://overpass-api.de/api/interpreter",

@@ -52,6 +52,7 @@ export interface Repository {
   anomalies(mmsi: string): Promise<AnomalyEvent[]>;
   stops(mmsi?: string): Promise<PortCall[]>;
   nearbyStops(lat: number, lon: number): Promise<PortCall[]>;
+  portAreaStops(lat: number, lon: number, radius: number): Promise<PortCall[]>;
   replaceSanctions(
     source: Source,
     rows: SanctionRecord[],
@@ -221,6 +222,27 @@ export class PostgresRepository implements Repository {
       if (rows.length < 500) return out;
     }
   }
+  async portAreaStops(
+    lat: number,
+    lon: number,
+    radius: number,
+  ): Promise<PortCall[]> {
+    const latSpan = radius / 110000,
+      lonSpan = latSpan / Math.cos((lat * Math.PI) / 180);
+    const cutoff = new Date(Date.now() - 48 * 3600_000).toISOString();
+    return checked(
+      await this.client
+        .from("detected_stops")
+        .select("*")
+        .gte("port_lat", lat - latSpan)
+        .lte("port_lat", lat + latSpan)
+        .gte("port_lon", lon - lonSpan)
+        .lte("port_lon", lon + lonSpan)
+        .or(`arrived_at.gte.${cutoff},departed_at.gte.${cutoff}`)
+        .order("arrived_at", { ascending: false })
+        .limit(201),
+    ) as PortCall[];
+  }
   async nearbyStops(lat: number, lon: number): Promise<PortCall[]> {
     return checked(
       await this.client.rpc("nearby_stops_beta", {
@@ -341,6 +363,24 @@ export class MemoryRepository implements Repository {
     return (await this.all<PortCall>("detected_stops"))
       .filter((x) => !mmsi || x.mmsi === mmsi)
       .sort((a, b) => b.arrived_at.localeCompare(a.arrived_at));
+  }
+  async portAreaStops(
+    lat: number,
+    lon: number,
+    radius: number,
+  ): Promise<PortCall[]> {
+    const cutoff = Date.now() - 48 * 3600_000;
+    return (await this.stops())
+      .filter(
+        (stop) =>
+          (Date.parse(stop.arrived_at) >= cutoff ||
+            (stop.departed_at && Date.parse(stop.departed_at) >= cutoff)) &&
+          getDistance(
+            { latitude: lat, longitude: lon },
+            { latitude: stop.port_lat, longitude: stop.port_lon },
+          ) <= radius,
+      )
+      .slice(0, 201);
   }
   async nearbyStops(lat: number, lon: number) {
     const cutoff = new Date(Date.now() - 90 * 86400_000).toISOString();

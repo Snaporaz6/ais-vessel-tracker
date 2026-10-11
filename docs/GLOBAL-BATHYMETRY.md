@@ -70,3 +70,13 @@ setGlobalBathymetryVisibility(map, bathymetryEnabled);
 // Rimozione prima di eliminare/ripristinare uno stile:
 removeGlobalBathymetry(map);
 ```
+
+### Fasce di colore dello stile ECDIS ispirato — 11 ottobre
+
+Lo stesso grid GEBCO/GMT produce quattro fasce di profondità con
+`scripts/import-bathymetry-bands.py --grid /percorso/earth_gebco_06m_g.grd`.
+Le tessere statiche `depth-bands` e il manifest corrispondente descrivono fonte,
+checksum, intervalli e generalizzazione. Dati visibili soltanto nelle panoramiche
+(zoom <7); le isobate EMODnet esistenti mantengono il dettaglio mediterraneo.
+La costa generalizzata può differire dalla base cartografica. Non sono ENC,
+soundings portuali misurati o profondità sicure certificate.
