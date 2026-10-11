@@ -129,3 +129,10 @@ Il nuovo elenco delle funzionalità richieste e proposte è in [ROADMAP-MAPPA-GL
 - Il normale clic sulle navi conserva centro e zoom. Preferenza del tema e disattivazione della traccia conservate. Nessuna modifica a dati AIS, backend o dipendenze. Dettagli in [TRACK-PLAYBACK.md](TRACK-PLAYBACK.md).
 - Typecheck, lint e build frontend riusciti localmente; nessun nuovo test aggiunto o eseguito manualmente. PR [#13](https://github.com/Snaporaz6/ais-vessel-tracker/pull/13) integrato; [CI preesistente](https://github.com/Snaporaz6/ais-vessel-tracker/actions/runs/38150644368) riuscita sul codice `56e41f4`, compresi browser, carico e audit. Rilascio frontend avviato sul ramo `codex/mediterranean-beta`; backend invariato.
 - Pubblicato su Vercel in produzione: **READY/success**, commit `5184772`, deployment `6997580444`, **11 ottobre 2026, 15:21:30 UTC**. Nessuna nuova verifica browser manuale del ritorno alla nave; le prove browser indicate sono quelle della pipeline CI preesistente.
+
+## Interfaccia mobile — 12 ottobre 2026
+
+- Hamburger per lingua, tema, livelli, filtri, proiezione, zoom e stato dati; sulla mappa rimane la ricerca. Un solo pannello in basso, al massimo il 46% dello schermo, anche in orizzontale.
+- Scheda nave compatta con azioni subito visibili e foto espandibile. Timeline separata, riducibile e riapribile; pulsanti «Nave» e «Traccia». Menu, schede portuali e filtri si alternano senza sovrapporsi. Testi brevi, fonti e limiti nei dettagli.
+- Migliorati ricerca touch/tastiera, chiusura dei risultati, focus e dimensioni dei controlli. Tema, ritorno alla nave, dati, cache e acquisizione AIS conservati. Desktop mantenuto. [Dettagli e prove](MOBILE-MAP.md).
+- Typecheck, lint, 59 test automatici e build frontend riusciti localmente. Otto nuovi scenari mobile riusciti su 360×740, 390×844 e 844×390; controllate visivamente le schermate di scheda e timeline. Aggiornate le prove preesistenti per i pannelli e i ruoli accessibili; regressione completa e CI in corso. Le prove usano Chromium con emulazione touch e dati locali controllati, non dispositivi fisici o fonti marine esterne.

@@ -1,0 +1,555 @@
+/* Shared filter styles: the same controls keep their state in both layouts. */
+[hidden] {
+  display: none !important;
+}
+.vessel-filter-toggle {
+  position: absolute;
+  top: 116px;
+  left: 16px;
+  z-index: 18;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.map-setting-label {
+  display: none;
+}
+.vessel-filter-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  font-size: 10px;
+  display: grid;
+  place-items: center;
+}
+.vessel-filter-panel {
+  position: absolute;
+  top: 116px;
+  left: 62px;
+  z-index: 22;
+  width: 220px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  box-shadow: 0 8px 24px #0003;
+}
+.vessel-filter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+.vessel-filter-close {
+  display: grid;
+  place-items: center;
+  padding: 5px;
+}
+.vessel-filter-actions {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+}
+.vessel-filter-actions button {
+  flex: 1;
+  font-size: 12px;
+}
+.vessel-filter-list {
+  display: grid;
+}
+.vessel-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 5px;
+  cursor: pointer;
+}
+.vessel-filter-row input {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  flex: 0 0 auto;
+}
+.vessel-filter-color {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+.vessel-filter-label {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.vessel-filter-row.is-selected .vessel-filter-label {
+  color: var(--text-primary);
+}
+.vessel-filter-count {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.vessel-filter-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.mobile-menu-toggle,
+.mobile-map-menu,
+.mobile-map-dock,
+.mobile-track-sheet {
+  display: none;
+}
+.track-coverage-details > summary {
+  display: none;
+}
+.track-coverage-details {
+  margin-top: 0 !important;
+}
+.search-results [aria-selected="true"] {
+  background: var(--bg-card);
+}
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+input:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (max-width: 900px) {
+  .map-screen {
+    --sheet-limit: 46dvh;
+  }
+  .map-screen .brand,
+  .map-screen > .globe-toggle,
+  .map-screen .map-style-selector:not(.mobile-map-settings .map-style-selector),
+  .map-screen > .vessel-filter-toggle,
+  .map-screen .marine-layers-control > .marine-layers-toggle,
+  .map-screen .marine-track-alerts,
+  .map-screen .maplibregl-ctrl-top-right .maplibregl-ctrl-group,
+  body:has(.map-screen) > .language-switch {
+    display: none;
+  }
+  .map-screen .search-panel {
+    top: max(12px, env(safe-area-inset-top));
+    left: 12px;
+    right: 66px;
+    transform: none;
+    width: auto;
+    z-index: 40;
+  }
+  .search-panel input {
+    height: 44px;
+    padding: 10px 12px;
+    font-size: 16px;
+  }
+  .search-results {
+    max-height: min(38dvh, 320px);
+    overscroll-behavior: contain;
+  }
+  .search-results button {
+    min-height: 48px;
+  }
+  .mobile-menu-toggle {
+    display: grid;
+    place-items: center;
+    position: absolute;
+    top: max(12px, env(safe-area-inset-top));
+    right: 12px;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    z-index: 41;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+  }
+  .map-screen
+    :is(
+      .vessel-drawer,
+      .mobile-track-sheet,
+      .marine-feature-panel,
+      .marine-layer-panel,
+      .vessel-filter-panel,
+      .map-status,
+      .mobile-map-menu
+    ) {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    transform: none;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    max-width: none;
+    max-height: var(--sheet-limit);
+    margin: 0;
+    padding: 0 16px max(16px, env(safe-area-inset-bottom));
+    border: 1px solid var(--border);
+    border-bottom: 0;
+    border-radius: 16px 16px 0 0;
+    z-index: 35;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    box-shadow: 0 -4px 20px #0002;
+    overflow: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
+  .map-screen :is(.mobile-map-menu, .mobile-track-sheet) {
+    display: block;
+  }
+  .mobile-sheet-heading,
+  .marine-panel-heading,
+  .vessel-filter-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 54px;
+    margin: 0 -16px;
+    padding: 5px 12px 5px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+  }
+  .mobile-sheet-heading h2,
+  .marine-panel-heading strong,
+  .vessel-filter-header strong {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mobile-sheet-heading h2 span {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-weight: 400;
+  }
+  .mobile-sheet-heading button,
+  .marine-panel-heading button,
+  .vessel-filter-close {
+    flex: 0 0 auto;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 6px 10px;
+    font-size: 18px;
+    background: transparent;
+  }
+  .mobile-sheet-heading button:not([aria-label]) {
+    font-size: 13px;
+  }
+  .mobile-map-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .mobile-map-settings
+    :is(
+      .map-style-selector,
+      .language-switch,
+      .marine-layers-toggle,
+      .vessel-filter-toggle,
+      .globe-toggle,
+      .map-status-toggle,
+      .map-menu-navigation
+    ) {
+    position: static;
+    inset: auto;
+    transform: none;
+    width: 100%;
+    height: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 52px;
+    margin: 0;
+    padding: 6px 2px;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-primary);
+    font-size: 14px;
+  }
+  .mobile-map-settings :is(.map-style-selector, .language-switch) {
+    order: 1;
+  }
+  .mobile-map-settings :is(.marine-layers-toggle, .vessel-filter-toggle) {
+    order: 2;
+    justify-content: flex-start;
+  }
+  .mobile-map-settings .globe-toggle {
+    order: 3;
+  }
+  .mobile-map-settings .map-menu-navigation {
+    order: 4;
+  }
+  .mobile-map-settings .map-status-toggle {
+    order: 5;
+  }
+  .mobile-map-settings .map-setting-label {
+    display: inline;
+  }
+  .mobile-map-settings .vessel-filter-badge {
+    position: static;
+    margin-left: auto;
+  }
+  .mobile-map-settings .marine-layers-toggle > span {
+    margin-left: auto;
+  }
+  .mobile-map-settings .language-switch select {
+    flex: 1;
+    width: auto;
+    max-width: none;
+  }
+  .mobile-map-settings select {
+    font-size: 16px;
+    min-height: 44px;
+    padding: 8px;
+  }
+  .mobile-map-settings .language-switch button {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 12px;
+  }
+  .map-menu-navigation > span {
+    flex: 1;
+  }
+  .map-menu-navigation button {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 6px;
+  }
+  .map-screen .map-status {
+    pointer-events: auto;
+    gap: 7px;
+    font-size: 12px;
+  }
+  .map-status > span {
+    line-height: 1.45;
+  }
+  .map-status > strong {
+    margin-top: 8px;
+    font-size: 13px;
+  }
+  .mobile-source-badge {
+    position: absolute;
+    bottom: max(30px, env(safe-area-inset-bottom));
+    right: 12px;
+    z-index: 12;
+    max-width: 150px;
+    padding: 4px 7px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 10px;
+    pointer-events: none;
+  }
+  .mobile-map-dock {
+    display: flex;
+    position: absolute;
+    bottom: max(30px, env(safe-area-inset-bottom));
+    left: 12px;
+    gap: 8px;
+    z-index: 25;
+  }
+  .mobile-map-dock button {
+    min-height: 44px;
+    padding: 8px 16px;
+    background: var(--bg-secondary);
+  }
+  .vessel-drawer .eyebrow {
+    margin: 12px 0 4px;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .vessel-drawer .muted {
+    margin: 4px 0 8px;
+    font-size: 12px;
+  }
+  .vessel-drawer .actions {
+    margin: 10px 0 14px;
+  }
+  .vessel-drawer .actions :is(button, a) {
+    flex: 1;
+    min-height: 44px;
+    text-align: center;
+    padding: 10px 8px;
+    font-size: 13px;
+  }
+  .vessel-drawer section {
+    margin: 16px 0;
+  }
+  .vessel-drawer h2:not(.vessel-sheet-heading h2) {
+    font-size: 14px;
+    margin: 10px 0;
+  }
+  .vessel-drawer .data-grid {
+    margin: 8px 0;
+    gap: 7px 14px;
+  }
+  .vessel-mobile-photo {
+    padding: 12px 0;
+    border-top: 1px solid var(--border);
+  }
+  .vessel-mobile-photo summary {
+    cursor: pointer;
+    font-size: 13px;
+    min-height: 44px;
+  }
+  .vessel-mobile-photo .vessel-photo {
+    margin: 8px 0 0;
+  }
+  .vessel-filter-panel .vessel-filter-row {
+    min-height: 44px;
+  }
+  .vessel-filter-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 12px;
+  }
+  .vessel-filter-actions button {
+    min-height: 44px;
+  }
+  .marine-layer-panel fieldset {
+    margin-top: 12px;
+  }
+  .marine-layer-row {
+    min-height: 44px;
+    font-size: 13px;
+  }
+  .marine-layer-info summary {
+    min-height: 44px;
+  }
+  .marine-layer-panel select {
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .marine-feature-panel {
+    padding-top: 12px !important;
+  }
+  .marine-feature-panel > .close {
+    min-width: 44px;
+    min-height: 44px;
+    top: 8px;
+    right: 10px;
+  }
+  .marine-feature-panel h2 {
+    padding-right: 15px;
+  }
+  .mobile-track-period {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 0 0;
+    font-size: 12px;
+  }
+  .mobile-track-period select {
+    min-height: 44px;
+    font-size: 16px;
+    padding: 6px;
+  }
+  .mobile-track-period button {
+    margin-left: auto;
+    min-height: 44px;
+    padding: 8px;
+    font-size: 12px;
+  }
+  .mobile-track-sheet .track-summary {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+  }
+  .mobile-track-sheet .track-timeline {
+    margin: 10px 0 8px;
+    padding-bottom: 0;
+    border: 0;
+  }
+  .mobile-track-sheet .track-timeline-heading {
+    flex-direction: row;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+  }
+  .mobile-track-sheet .track-timeline-heading strong {
+    font-size: 12px;
+  }
+  .mobile-track-sheet .track-timeline input[type="range"] {
+    height: 44px;
+    margin: 6px 0 0;
+  }
+  .mobile-track-sheet .track-timeline-bounds {
+    display: none;
+  }
+  .mobile-track-sheet .track-timeline-actions {
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 5px;
+  }
+  .mobile-track-sheet .track-timeline-actions button {
+    min-height: 44px;
+    padding: 6px 8px;
+  }
+  .mobile-track-sheet .track-locate {
+    float: none;
+    margin: 0;
+    min-height: 44px;
+    padding: 6px 8px;
+  }
+  .mobile-track-sheet .track-timeline-fix {
+    display: none;
+  }
+  .mobile-track-sheet .track-coverage-details {
+    border-top: 1px solid var(--border);
+    padding-top: 6px;
+  }
+  .mobile-track-sheet .track-coverage-details > summary {
+    display: block;
+    font-size: 11px;
+    min-height: 44px;
+  }
+  .map-screen .maplibregl-ctrl-attrib {
+    font-size: 9px;
+  }
+  .map-screen .maplibregl-ctrl-attrib-button {
+    width: 28px;
+    height: 28px;
+  }
+  .map-screen .maplibregl-ctrl-bottom-right {
+    z-index: 10;
+  }
+}
+@media (max-width: 900px) and (orientation: landscape) {
+  .map-screen {
+    --sheet-limit: 46dvh;
+  }
+  .mobile-track-sheet .track-timeline input[type="range"] {
+    margin: 2px 0;
+    height: 44px;
+  }
+  .mobile-track-sheet .track-coverage-details {
+    display: none;
+  }
+}

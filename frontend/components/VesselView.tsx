@@ -12,6 +12,7 @@ function VesselView({
   stopsError,
   trackVisible = false,
   trackPanel,
+  compact = false,
 }: {
   vessel: VesselDetail;
   stops: PortCall[];
@@ -19,27 +20,48 @@ function VesselView({
   stopsError?: string;
   trackVisible?: boolean;
   trackPanel?: ReactNode;
+  compact?: boolean;
 }) {
   const { t, date, value, duration, shipNames, errorText } = useLanguage();
   const p = v.last_position,
     check = v.sanctions_check;
+  const photo = (
+    <VesselPhoto
+      key={v.mmsi}
+      mmsi={v.mmsi}
+      imo={v.imo}
+      vesselName={v.name}
+      shipType={v.ship_type}
+      height={180}
+    />
+  );
+  const actions = (
+    <div className="actions">
+      {onShowTrack ? (
+        <button onClick={onShowTrack} aria-pressed={trackVisible}>
+          {t(trackVisible ? "Nascondi traccia" : "Mostra traccia")}
+        </button>
+      ) : (
+        <a className="button" href={`/?vessel=${v.mmsi}&track=${v.mmsi}`}>
+          {t("Mostra sulla mappa")}
+        </a>
+      )}
+      <a className="button" href={`/vessel/${v.mmsi}`}>
+        {t("Scheda completa")}
+      </a>
+    </div>
+  );
   return (
     <>
-      <VesselPhoto
-        key={v.mmsi}
-        mmsi={v.mmsi}
-        imo={v.imo}
-        vesselName={v.name}
-        shipType={v.ship_type}
-        height={180}
-      />
+      {!compact && photo}
       <p className="eyebrow">
         {shipNames[v.ship_type]} · {v.flag || t("Bandiera non disponibile")}
       </p>
-      <h1>{v.name}</h1>
+      <h1 className={compact ? "sr-only" : undefined}>{v.name}</h1>
       <p className="muted">
         MMSI {v.mmsi} · IMO {v.imo ?? t("non disponibile")}
       </p>
+      {compact && actions}
       {v.data_status === "partial" && (
         <p className="notice" role="alert">
           {t(
@@ -93,21 +115,14 @@ function VesselView({
           )}
         </p>
       </section>
-      <div className="actions">
-        {onShowTrack ? (
-          <button onClick={onShowTrack} aria-pressed={trackVisible}>
-            {t(trackVisible ? "Nascondi traccia" : "Mostra traccia")}
-          </button>
-        ) : (
-          <a className="button" href={`/?vessel=${v.mmsi}&track=${v.mmsi}`}>
-            {t("Mostra sulla mappa")}
-          </a>
-        )}
-        <a className="button" href={`/vessel/${v.mmsi}`}>
-          {t("Scheda completa")}
-        </a>
-      </div>
+      {!compact && actions}
       {trackPanel}
+      {compact && (
+        <details className="vessel-mobile-photo">
+          <summary>{t("Foto della nave")}</summary>
+          {photo}
+        </details>
+      )}
       <section>
         <h2>{t("Controllo sanzioni")}</h2>
         {v.sanctions.map((s, i) => (

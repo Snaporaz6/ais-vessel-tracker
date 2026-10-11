@@ -4,6 +4,7 @@ import { translate } from "../lib/i18n";
 import LanguageProvider from "../components/LanguageProvider";
 import LanguageSelector from "../components/LanguageSelector";
 import ThemeProvider from "../components/ThemeProvider";
+import MapUIProvider from "../components/MapUIProvider";
 import { cookies } from "next/headers";
 import {
   isMapTheme,
@@ -11,6 +12,7 @@ import {
   themeBootstrap,
 } from "../lib/theme-preference";
 import "./globals.css";
+import "./mobile-map.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { locale } = await requestLanguage();
@@ -38,8 +40,10 @@ export default async function RootLayout({
       <body>
         <LanguageProvider initial={initial}>
           <ThemeProvider initial={theme}>
-            <LanguageSelector />
-            {children}
+            <MapUIProvider>
+              <LanguageSelector />
+              {children}
+            </MapUIProvider>
           </ThemeProvider>
         </LanguageProvider>
       </body>

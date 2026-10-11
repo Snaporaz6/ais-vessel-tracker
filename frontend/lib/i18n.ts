@@ -18,6 +18,102 @@ export const INTL_LOCALES: Record<Locale, string> = {
 // Italian source text and reviewed English, French and German translations.
 export const messages = {
   ...mapMessages,
+  "Risultati ricerca": [
+    "Search results",
+    "Résultats de recherche",
+    "Suchergebnisse",
+  ],
+  "{count} interruzione": [
+    "{count} gap",
+    "{count} interruption",
+    "{count} Lücke",
+  ],
+  "Menu mappa": ["Map menu", "Menu carte", "Kartenmenü"],
+  "Chiudi menu": ["Close menu", "Fermer le menu", "Menü schließen"],
+  Mappa: ["Map", "Carte", "Karte"],
+  Nave: ["Vessel", "Navire", "Schiff"],
+  Traccia: ["Track", "Trace", "Spur"],
+  Ultima: ["Latest", "Dernière", "Aktuell"],
+  "Riduci traccia": ["Collapse track", "Réduire la trace", "Spur einklappen"],
+  "Riduci scheda": ["Collapse vessel", "Réduire la fiche", "Schiff einklappen"],
+  "Pannelli mappa": ["Map panels", "Panneaux de carte", "Kartenfelder"],
+  "Foto della nave": ["Vessel photo", "Photo du navire", "Schiffsfoto"],
+  "Stato dati": ["Data status", "État des données", "Datenstatus"],
+  "Chiudi stato dati": [
+    "Close data status",
+    "Fermer l’état des données",
+    "Datenstatus schließen",
+  ],
+  "Zoom mappa": ["Map zoom", "Zoom carte", "Kartenzoom"],
+  "AIS nel Mediterraneo": [
+    "AIS in the Mediterranean",
+    "AIS en Méditerranée",
+    "AIS im Mittelmeer",
+  ],
+  "Dati non aggiornati": [
+    "Data not up to date",
+    "Données non actualisées",
+    "Daten nicht aktuell",
+  ],
+  Proiezione: ["Projection", "Projection", "Projektion"],
+  "Dati in aggiornamento…": [
+    "Updating data…",
+    "Actualisation…",
+    "Daten werden aktualisiert…",
+  ],
+  "Copertura e limiti": [
+    "Coverage and limits",
+    "Couverture et limites",
+    "Abdeckung und Grenzen",
+  ],
+  "Avvisi della tratta": [
+    "Track warnings",
+    "Avis sur la trace",
+    "Warnungen zur Spur",
+  ],
+  "Avvisi non disponibili.": [
+    "Warnings unavailable.",
+    "Avis indisponibles.",
+    "Warnungen nicht verfügbar.",
+  ],
+  "{count} avvisi attivi sulla traccia.": [
+    "{count} active warnings on this track.",
+    "{count} avis actifs sur cette trace.",
+    "{count} aktive Warnungen auf dieser Spur.",
+  ],
+  "Nessun avviso attivo rilevato. Copertura parziale.": [
+    "No active warning detected. Partial coverage.",
+    "Aucun avis actif détecté. Couverture partielle.",
+    "Keine aktive Warnung erkannt. Teilweise Abdeckung.",
+  ],
+  "Solo segmenti osservati nella vista corrente. Copertura parziale; i vuoti AIS non sono valutati.":
+    [
+      "Observed segments in the current view only. Partial coverage; AIS gaps are not assessed.",
+      "Segments observés dans la vue actuelle uniquement. Couverture partielle ; les lacunes AIS ne sont pas évaluées.",
+      "Nur beobachtete Abschnitte in der aktuellen Ansicht. Teilweise Abdeckung; AIS-Lücken werden nicht bewertet.",
+    ],
+  Periodo: ["Period", "Période", "Zeitraum"],
+  "Solo avvisi attivi": [
+    "Active warnings only",
+    "Avis actifs uniquement",
+    "Nur aktive Warnungen",
+  ],
+  "Limiti e legenda": [
+    "Limits and legend",
+    "Limites et légende",
+    "Grenzen und Legende",
+  ],
+  Previsione: ["Forecast", "Prévision", "Vorhersage"],
+  "Zoom minimo: {zoom}": [
+    "Minimum zoom: {zoom}",
+    "Zoom minimal : {zoom}",
+    "Mindestzoom: {zoom}",
+  ],
+  "{count} elementi · copertura parziale": [
+    "{count} features · partial coverage",
+    "{count} éléments · couverture partielle",
+    "{count} Objekte · teilweise Abdeckung",
+  ],
   Centra: ["Center", "Centrer", "Zentrieren"],
   "Centra sulla posizione mostrata": [
     "Center on the displayed position",

@@ -1,5 +1,6 @@
 "use client";
 import { useLanguage } from "./LanguageProvider";
+import { MapSetting, useMapUI } from "./MapUIProvider";
 
 import { useState } from "react";
 import type { ShipType } from "../../shared/types";
@@ -33,6 +34,15 @@ export default function VesselFilter({
 }: VesselFilterProps) {
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
+  const { isMobile, panel, openPanel, closePanel } = useMapUI();
+  const expanded = isMobile ? panel === "filters" : open;
+  const close = () => (isMobile ? closePanel() : setOpen(false));
+  const toggle = () => {
+    if (isMobile) {
+      if (expanded) closePanel();
+      else openPanel("filters");
+    } else setOpen((previous) => !previous);
+  };
 
   const allSelected = visibleTypes.size === ALL_TYPES.size;
   const noneSelected = visibleTypes.size === 0;
@@ -52,264 +62,101 @@ export default function VesselFilter({
 
   return (
     <>
-      {/* Bottone toggle — sempre visibile */}
-      <button
-        onClick={() => setOpen((prev) => !prev)}
-        style={toggleButtonStyle}
-        title={t("Filtra tipologie navi")}
-        aria-label={t("Filtra tipologie navi")}
-      >
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+      <MapSetting>
+        <button
+          type="button"
+          onClick={toggle}
+          className="vessel-filter-toggle"
+          title={t("Filtra tipologie navi")}
+          aria-label={t("Filtra tipologie navi")}
+          aria-expanded={expanded}
+          aria-controls="vessel-filters"
         >
-          <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-        </svg>
-        {!allSelected && !noneSelected && (
-          <span style={badgeStyle}>{visibleTypes.size}</span>
-        )}
-      </button>
-
-      {/* Pannello filtri — a scomparsa */}
-      {open && (
-        <div style={panelStyle}>
-          <div style={headerStyle}>
-            <span style={{ fontWeight: 700, fontSize: 13, color: "#f3f4f6" }}>
-              {t("Filtra navi")}
-            </span>
+          <svg
+            aria-hidden="true"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+          </svg>
+          <span className="map-setting-label">{t("Filtra navi")}</span>
+          {!allSelected && !noneSelected && (
+            <span className="vessel-filter-badge">{visibleTypes.size}</span>
+          )}
+        </button>
+      </MapSetting>
+      {expanded && (
+        <section
+          className="vessel-filter-panel"
+          id="vessel-filters"
+          aria-label={t("Filtra navi")}
+        >
+          <div className="vessel-filter-header">
+            <strong>{t("Filtra navi")}</strong>
             <button
-              onClick={() => setOpen(false)}
-              style={closeButtonStyle}
+              type="button"
+              onClick={close}
+              className="vessel-filter-close"
               aria-label={t("Chiudi filtri")}
             >
               <svg
-                width="14"
-                height="14"
+                aria-hidden="true"
+                width="18"
+                height="18"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2.5"
                 strokeLinecap="round"
               >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
+                <path d="m18 6-12 12M6 6l12 12" />
               </svg>
             </button>
           </div>
-
-          {/* Azioni rapide */}
-          <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-            <button
-              onClick={selectAll}
-              disabled={allSelected}
-              style={quickActionStyle(allSelected)}
-            >
+          <div className="vessel-filter-actions">
+            <button type="button" onClick={selectAll} disabled={allSelected}>
               {t("Tutti")}
             </button>
-            <button
-              onClick={deselectAll}
-              disabled={noneSelected}
-              style={quickActionStyle(noneSelected)}
-            >
+            <button type="button" onClick={deselectAll} disabled={noneSelected}>
               {t("Nessuno")}
             </button>
           </div>
-
-          {/* Checkbox per ogni tipo */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <div className="vessel-filter-list">
             {VESSEL_TYPE_CONFIG.map(({ type, label, color }) => {
               const checked = visibleTypes.has(type);
               const count = typeCounts?.[type] ?? 0;
-
               return (
-                <label key={type} style={checkboxRowStyle(checked)}>
+                <label
+                  key={type}
+                  className={`vessel-filter-row${checked ? " is-selected" : ""}`}
+                >
                   <input
                     type="checkbox"
                     checked={checked}
                     onChange={() => toggleType(type)}
-                    style={{ width: 16, height: 16, accentColor: color }}
+                    style={{ accentColor: color }}
                   />
-                  {/* Checkbox custom */}
                   <span
                     aria-hidden="true"
-                    style={{
-                      ...checkboxStyle(checked, color),
-                      display: "none",
-                    }}
-                  >
-                    {checked && (
-                      <svg
-                        width="10"
-                        height="10"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#fff"
-                        strokeWidth="3.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    )}
-                  </span>
-
-                  {/* Indicatore colore */}
-                  <span
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: "50%",
-                      background: color,
-                      flexShrink: 0,
-                      boxShadow: `0 0 4px ${color}60`,
-                    }}
+                    className="vessel-filter-color"
+                    style={{ backgroundColor: color }}
                   />
-
-                  <span
-                    style={{
-                      flex: 1,
-                      fontSize: 12,
-                      color: checked ? "#e5e7eb" : "#6b7280",
-                    }}
-                  >
-                    {t(label)}
-                  </span>
-
+                  <span className="vessel-filter-label">{t(label)}</span>
                   {count > 0 && (
-                    <span
-                      style={{
-                        fontSize: 10,
-                        color: "#6b7280",
-                        fontVariantNumeric: "tabular-nums",
-                      }}
-                    >
-                      {count}
-                    </span>
+                    <span className="vessel-filter-count">{count}</span>
                   )}
                 </label>
               );
             })}
           </div>
-        </div>
+        </section>
       )}
     </>
   );
-}
-
-// ─── Stili ──────────────────────────────────────────────────────────────────────
-
-const toggleButtonStyle: React.CSSProperties = {
-  position: "absolute",
-  top: 116,
-  left: 16,
-  zIndex: 1000,
-  width: 38,
-  height: 38,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  background: "rgba(17, 24, 39, 0.92)",
-  backdropFilter: "blur(4px)",
-  border: "1px solid #374151",
-  borderRadius: 8,
-  color: "#d1d5db",
-  cursor: "pointer",
-  padding: 0,
-};
-
-const badgeStyle: React.CSSProperties = {
-  position: "absolute",
-  top: -4,
-  right: -4,
-  width: 16,
-  height: 16,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  background: "#3b82f6",
-  borderRadius: "50%",
-  fontSize: 9,
-  fontWeight: 700,
-  color: "#fff",
-};
-
-const panelStyle: React.CSSProperties = {
-  position: "absolute",
-  top: 116,
-  left: 62,
-  zIndex: 1000,
-  width: 200,
-  background: "rgba(17, 24, 39, 0.95)",
-  backdropFilter: "blur(8px)",
-  border: "1px solid #374151",
-  borderRadius: 10,
-  padding: "10px 12px",
-  boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-};
-
-const headerStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  marginBottom: 10,
-  paddingBottom: 8,
-  borderBottom: "1px solid #374151",
-};
-
-const closeButtonStyle: React.CSSProperties = {
-  background: "none",
-  border: "none",
-  color: "#6b7280",
-  cursor: "pointer",
-  padding: 2,
-  display: "flex",
-  alignItems: "center",
-};
-
-function quickActionStyle(disabled: boolean): React.CSSProperties {
-  return {
-    flex: 1,
-    padding: "4px 8px",
-    fontSize: 11,
-    fontWeight: 600,
-    color: disabled ? "#4b5563" : "#d1d5db",
-    background: disabled ? "transparent" : "#1f2937",
-    border: `1px solid ${disabled ? "#374151" : "#4b5563"}`,
-    borderRadius: 5,
-    cursor: disabled ? "default" : "pointer",
-  };
-}
-
-function checkboxRowStyle(checked: boolean): React.CSSProperties {
-  return {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    padding: "5px 6px",
-    borderRadius: 6,
-    cursor: "pointer",
-    transition: "background 0.15s",
-    background: checked ? "rgba(255,255,255,0.03)" : "transparent",
-  };
-}
-
-function checkboxStyle(checked: boolean, color: string): React.CSSProperties {
-  return {
-    width: 16,
-    height: 16,
-    borderRadius: 4,
-    border: `1.5px solid ${checked ? color : "#4b5563"}`,
-    background: checked ? color : "transparent",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-    transition: "all 0.15s",
-  };
 }

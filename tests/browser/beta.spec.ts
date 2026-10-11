@@ -1,9 +1,21 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import type { LiveMapResponse } from "../../shared/types";
+
+async function openDataStatus(page: Page, mobile: boolean) {
+  if (!mobile) return;
+  await page.getByRole("button", { name: "Menu mappa", exact: true }).click();
+  await page.getByRole("button", { name: /^Stato dati/ }).click();
+}
+
+async function closeDataStatus(page: Page, mobile: boolean) {
+  if (mobile)
+    await page.getByRole("button", { name: "Chiudi stato dati" }).click();
+}
 
 test("i punti AIS sono disegnati e selezionabili attraverso il worker cartografico", async ({
   page,
-}) => {
+}, info) => {
+  const mobile = info.project.name === "telefono";
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
@@ -66,7 +78,9 @@ test("i punti AIS sono disegnati e selezionabili attraverso il worker cartografi
     }),
   );
   await page.goto("/");
+  await openDataStatus(page, mobile);
   await expect(page.locator(".map-status")).toContainText("1 navi nell’area");
+  await closeDataStatus(page, mobile);
   const canvas = page.locator("canvas.maplibregl-canvas");
   const bounds = await canvas.boundingBox();
   expect(bounds).not.toBeNull();
@@ -84,7 +98,8 @@ test("i punti AIS sono disegnati e selezionabili attraverso il worker cartografi
 
 test("una traccia al limite con molte interruzioni mantiene la mappa utilizzabile e segnala il limite", async ({
   page,
-}) => {
+}, info) => {
+  const mobile = info.project.name === "telefono";
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   const lastAt = Date.now() - 3600_000;
@@ -110,14 +125,17 @@ test("una traccia al limite con molte interruzioni mantiene la mappa utilizzabil
     }),
   );
   await page.goto("/");
+  await openDataStatus(page, mobile);
   await expect(page.getByText("DEMO · dati interamente fittizi")).toBeVisible({
     timeout: 20_000,
   });
+  await closeDataStatus(page, mobile);
   await page.getByLabel("Cerca una nave").fill("900000001");
-  await page.getByRole("button", { name: /Aurora.*nave dimostrativa/ }).click();
+  await page.getByRole("option", { name: /Aurora.*nave dimostrativa/ }).click();
   await page
     .getByRole("button", { name: "Mostra traccia", exact: true })
     .click();
+  await openDataStatus(page, mobile);
   await expect(page.locator(".map-status")).toContainText(
     "Scegli una finestra più breve.",
   );
@@ -127,15 +145,18 @@ test("una traccia al limite con molte interruzioni mantiene la mappa utilizzabil
 test("mappa → ricerca → scheda → storico → località funziona e dichiara demo/controlli mancanti", async ({
   page,
 }, info) => {
+  const mobile = info.project.name === "telefono";
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
+  await openDataStatus(page, mobile);
   await expect(page.getByText("DEMO · dati interamente fittizi")).toBeVisible({
     timeout: 20_000,
   });
+  await closeDataStatus(page, mobile);
   await expect(page.locator("canvas.maplibregl-canvas")).toBeVisible();
   await page.getByLabel("Cerca una nave").fill("900000001");
-  await page.getByRole("button", { name: /Aurora.*nave dimostrativa/ }).click();
+  await page.getByRole("option", { name: /Aurora.*nave dimostrativa/ }).click();
   await expect(page.locator(".vessel-drawer h1")).toContainText("Aurora");
   await expect(
     page.getByText(
@@ -146,8 +167,17 @@ test("mappa → ricerca → scheda → storico → località funziona e dichiara
     .getByRole("button", { name: "Mostra traccia", exact: true })
     .click();
   await page.getByLabel("Storico", { exact: true }).selectOption("90");
-  await expect(page.locator(".map-status")).toContainText("punti");
-  await page.getByRole("button", { name: "Chiudi scheda" }).click();
+  if (mobile) {
+    await expect(page.locator(".mobile-track-sheet")).toContainText("punti");
+    await page.getByRole("button", { name: "Riduci traccia" }).click();
+    await page
+      .locator(".mobile-map-dock")
+      .getByRole("button", { name: "Traccia", exact: true })
+      .click();
+  } else {
+    await expect(page.locator(".map-status")).toContainText("punti");
+    await page.getByRole("button", { name: "Chiudi scheda" }).click();
+  }
   await expect(page.getByLabel("Storico", { exact: true })).toHaveValue("90");
   await page.screenshot({
     path: `test-results/${info.project.name}-mappa.png`,
@@ -187,10 +217,10 @@ test("ricerca fallita resta un errore esplicito e un nome AIS non diventa HTML",
     });
   });
   await page.goto("/");
-  await page.getByLabel("Cerca una nave").fill("test");
-  await expect(page.getByRole("status")).toContainText(
-    "Ricerca temporaneamente non disponibile.",
-  );
+  await page.getByRole("combobox", { name: "Cerca una nave" }).fill("test");
+  await expect(
+    page.locator(".search-results").getByRole("status"),
+  ).toContainText("Ricerca temporaneamente non disponibile.");
   await page.unroute("**/api/search?*");
   await page.route("**/api/search?*", async (route) =>
     route.fulfill({
@@ -205,7 +235,7 @@ test("ricerca fallita resta un errore esplicito e un nome AIS non diventa HTML",
       ]),
     }),
   );
-  await page.getByLabel("Cerca una nave").fill("test2");
-  await expect(page.getByRole("button", { name: /<img src=x/ })).toBeVisible();
+  await page.getByRole("combobox", { name: "Cerca una nave" }).fill("test2");
+  await expect(page.getByRole("option", { name: /<img src=x/ })).toBeVisible();
   expect(await page.locator(".search-results img").count()).toBe(0);
 });

@@ -14,7 +14,8 @@ const png = Buffer.from(
 
 test("the photograph decodes with attribution in the drawer and full page; changing ships clears it", async ({
   page,
-}) => {
+}, info) => {
+  const mobile = info.project.name === "telefono";
   const detail = await (
     await page.request.get("http://localhost:3001/api/vessel/900000001")
   ).json();
@@ -36,7 +37,8 @@ test("the photograph decodes with attribution in the drawer and full page; chang
   });
   await page.goto("/");
   await page.getByLabel("Cerca una nave").fill("900000001");
-  await page.getByRole("button", { name: /Aurora.*nave dimostrativa/ }).click();
+  await page.getByRole("option", { name: /Aurora.*nave dimostrativa/ }).click();
+  if (mobile) await page.locator(".vessel-mobile-photo summary").click();
   const image = page.locator(".vessel-photo img");
   await expect(
     page.getByRole("link", { name: "Foto: Fotografo della prova" }),
@@ -49,6 +51,7 @@ test("the photograph decodes with attribution in the drawer and full page; chang
   await expect(page.getByRole("link", { name: "CC BY-SA 4.0" })).toBeVisible();
   await page.getByLabel("Cerca una nave").fill("900000002");
   await page.locator(".search-results button").first().click();
+  if (mobile) await page.locator(".vessel-mobile-photo summary").click();
   await expect(
     page.getByText("Nessuna foto disponibile nelle fonti libere."),
   ).toBeVisible();

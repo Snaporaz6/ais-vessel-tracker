@@ -9,6 +9,7 @@ import {
 } from "maplibre-gl";
 import type { Feature, FeatureCollection, Geometry } from "geojson";
 import { useLanguage } from "./LanguageProvider";
+import { MapSetting, useMapUI } from "./MapUIProvider";
 import {
   MAP_LAYERS,
   LAYER_GROUPS,
@@ -79,7 +80,9 @@ export default function MarineLayers({
   observedTrack,
 }: Props) {
   const { t, date, numbers } = useLanguage();
-  const [open, setOpen] = useState(false);
+  const { isMobile, panel, openPanel, closePanel } = useMapUI();
+  const [desktopOpen, setDesktopOpen] = useState(false);
+  const open = isMobile ? panel === "layers" : desktopOpen;
   const [enabled, setEnabled] = useState<MapLayerId[]>(["warnings"]);
   const [hydrated, setHydrated] = useState(false);
   const [states, setStates] = useState<Partial<Record<MapLayerId, LayerState>>>(
@@ -108,6 +111,9 @@ export default function MarineLayers({
   );
   const visibleData = useRef(new Map<MapLayerId, MarineCollection>());
   const enabledKey = enabled.slice().sort().join(",");
+  useEffect(() => {
+    if (isMobile && panel === "feature" && !selected) closePanel();
+  }, [isMobile, panel, selected, closePanel]);
   useEffect(() => {
     try {
       const saved: unknown = JSON.parse(
@@ -223,6 +229,7 @@ export default function MarineLayers({
       if (definition) {
         tooltip.remove();
         setSelected({ layer: definition.id, feature: featureDetails(feature) });
+        openPanel("feature");
       }
     }
     async function load() {
@@ -478,6 +485,7 @@ export default function MarineLayers({
     activeOnly,
     forecastHours,
     retry,
+    openPanel,
   ]);
   useEffect(() => {
     if (!enabledKey.split(",").includes("ports")) return;
@@ -606,6 +614,14 @@ export default function MarineLayers({
     return [...matches];
   }, [warnings, observedTrack]);
   const properties = selected?.feature.properties;
+  const trackAlertMessage =
+    !warnings || warnings.metadata.status === "unavailable"
+      ? t("Avvisi non disponibili.")
+      : trackAlerts.length
+        ? t("{count} avvisi attivi sulla traccia.", {
+            count: numbers(trackAlerts.length),
+          })
+        : t("Nessun avviso attivo rilevato. Copertura parziale.");
   const definition = MAP_LAYERS.find((layer) => layer.id === selected?.layer);
   const featureSource =
     safeLink(properties?.sourceUrl) ??
@@ -641,13 +657,18 @@ export default function MarineLayers({
   function statusLabel(id: MapLayerId) {
     const state = states[id];
     if (state?.loading)
-      return t(
-        state.count
-          ? "Dati precedenti conservati durante il caricamento."
-          : "Caricamento…",
-      );
-    if (state?.metadata?.message) return t(state.metadata.message);
+      return t(state.count ? "Dati in aggiornamento…" : "Caricamento…");
     if (state?.error) return t("mapData.unavailable");
+    if (state?.metadata?.status === "zoom-required")
+      return t("Zoom minimo: {zoom}", {
+        zoom:
+          state.metadata.minZoom ??
+          MAP_LAYERS.find((layer) => layer.id === id)!.minZoom,
+      });
+    if (state?.metadata?.status === "partial")
+      return t("{count} elementi · copertura parziale", {
+        count: numbers(state.count ?? 0),
+      });
     return t("{count} elementi nella vista", {
       count: numbers(state?.count ?? 0),
     });
@@ -666,6 +687,7 @@ export default function MarineLayers({
     return (
       <>
         <p>{t(MAP_LAYERS.find((layer) => layer.id === id)!.description)}</p>
+        {metadata?.message && <p>{t(metadata.message)}</p>}
         <p>
           {t(
             id === "warnings"
@@ -788,42 +810,55 @@ export default function MarineLayers({
   return (
     <>
       <div className="marine-layers-control">
-        <button
-          className="marine-layers-toggle"
-          aria-expanded={open}
-          aria-controls="marine-layer-panel"
-          onClick={() => setOpen((value) => !value)}
-        >
-          <svg
-            width="19"
-            height="19"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            aria-hidden="true"
+        <MapSetting>
+          <button
+            className="marine-layers-toggle"
+            aria-expanded={open}
+            aria-controls="marine-layer-panel"
+            onClick={() => {
+              if (isMobile) {
+                if (open) closePanel();
+                else openPanel("layers");
+              } else setDesktopOpen((value) => !value);
+            }}
           >
-            <path d="m3 7 9-4 9 4-9 4-9-4Zm0 5 9 4 9-4M3 17l9 4 9-4" />
-          </svg>
-          {t("Livelli mappa")}{" "}
-          <span>{numbers(enabled.length + (bathymetry ? 1 : 0))}</span>
-        </button>
+            <svg
+              width="19"
+              height="19"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              aria-hidden="true"
+            >
+              <path d="m3 7 9-4 9 4-9 4-9-4Zm0 5 9 4 9-4M3 17l9 4 9-4" />
+            </svg>
+            {t("Livelli mappa")}{" "}
+            <span>{numbers(enabled.length + (bathymetry ? 1 : 0))}</span>
+          </button>
+        </MapSetting>
         {open && (
           <div id="marine-layer-panel" className="marine-layer-panel">
             <div className="marine-panel-heading">
               <strong>{t("Mappa globale")}</strong>
               <button
                 aria-label={t("Chiudi livelli")}
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  if (isMobile) closePanel();
+                  else setDesktopOpen(false);
+                }}
               >
                 ×
               </button>
             </div>
-            <p className="marine-panel-note">
-              {t(
-                "AIS della demo nel Mediterraneo. Gli altri livelli dipendono dalla copertura delle fonti.",
-              )}
-            </p>
+            <details className="marine-layer-info">
+              <summary>{t("Copertura e limiti")}</summary>
+              <p className="marine-panel-note">
+                {t(
+                  "AIS della demo nel Mediterraneo. Gli altri livelli dipendono dalla copertura delle fonti.",
+                )}
+              </p>
+            </details>
             <label className="marine-layer-row">
               <input
                 type="checkbox"
@@ -900,8 +935,19 @@ export default function MarineLayers({
             ))}
             {enabled.includes("warnings") && (
               <div className="marine-warning-options">
+                {observedTrack.length > 0 && (
+                  <details className="marine-layer-info marine-route-assessment">
+                    <summary>{t("Avvisi della tratta")}</summary>
+                    <p role="status">{trackAlertMessage}</p>
+                    <p>
+                      {t(
+                        "Solo segmenti osservati nella vista corrente. Copertura parziale; i vuoti AIS non sono valutati.",
+                      )}
+                    </p>
+                  </details>
+                )}
                 <label>
-                  {t("Periodo degli eventi")}
+                  {t("Periodo")}
                   <select
                     value={days}
                     onChange={(event) => setDays(Number(event.target.value))}
@@ -914,7 +960,7 @@ export default function MarineLayers({
                   </select>
                 </label>
                 <label>
-                  {t("Tipo di warning")}
+                  {t("Tipo")}
                   <select
                     value={warningType}
                     onChange={(event) => setWarningType(event.target.value)}
@@ -939,20 +985,23 @@ export default function MarineLayers({
                     checked={activeOnly}
                     onChange={(event) => setActiveOnly(event.target.checked)}
                   />
-                  {t("Solo avvisi attivi verificati")}
+                  {t("Solo avvisi attivi")}
                 </label>
-                <p>
-                  {t(
-                    "Dati insufficienti per un rating globale. Gli avvisi attivi hanno precedenza sugli eventi storici.",
-                  )}
-                </p>
-                <p className="marine-warning-legend">
-                  <span style={{ color: "#e0a267" }}>●</span>{" "}
-                  {t("Avviso attivo verificato")} ·{" "}
-                  <span style={{ color: "#a7b5c3" }}>●</span>{" "}
-                  {t("Storico o stato non verificato")} · ○{" "}
-                  {t("Indicatore regionale approssimativo")}
-                </p>
+                <details className="marine-layer-info">
+                  <summary>{t("Limiti e legenda")}</summary>
+                  <p>
+                    {t(
+                      "Dati insufficienti per un rating globale. Gli avvisi attivi hanno precedenza sugli eventi storici.",
+                    )}
+                  </p>
+                  <p className="marine-warning-legend">
+                    <span style={{ color: "#e0a267" }}>●</span>{" "}
+                    {t("Avviso attivo verificato")} ·{" "}
+                    <span style={{ color: "#a7b5c3" }}>●</span>{" "}
+                    {t("Storico o stato non verificato")} · ○{" "}
+                    {t("Indicatore regionale approssimativo")}
+                  </p>
+                </details>
                 {!!warnings?.metadata.unmappedCount && (
                   <p>
                     {t("{count} segnalazioni senza coordinate utilizzabili.", {
@@ -997,7 +1046,7 @@ export default function MarineLayers({
             )}
             {(enabled.includes("waves") || enabled.includes("currents")) && (
               <label className="marine-forecast-time">
-                {t("Orizzonte della previsione")}
+                {t("Previsione")}
                 <select
                   value={forecastHours}
                   onChange={(event) =>
@@ -1017,19 +1066,10 @@ export default function MarineLayers({
       </div>
       {enabled.includes("warnings") && observedTrack.length > 0 && (
         <div className="marine-track-alerts" role="status">
-          {!warnings || warnings.metadata.status === "unavailable"
-            ? t("Avvisi della tratta non disponibili o in caricamento.")
-            : trackAlerts.length
-              ? t(
-                  "{count} avvisi attivi intersecano i segmenti osservati nella vista corrente.",
-                  { count: numbers(trackAlerts.length) },
-                )
-              : t(
-                  "Nessuna intersezione rilevata nella vista corrente. La copertura degli avvisi è parziale.",
-                )}
+          {trackAlertMessage}
         </div>
       )}
-      {selected && definition && (
+      {selected && definition && (!isMobile || panel === "feature") && (
         <aside
           className={`marine-feature-panel${selected.layer === "ports" ? " marine-port-panel" : ""}`}
           aria-label={t("Dettaglio cartografico")}
@@ -1037,7 +1077,10 @@ export default function MarineLayers({
           <button
             className="close"
             aria-label={t("Chiudi scheda")}
-            onClick={() => setSelected(null)}
+            onClick={() => {
+              setSelected(null);
+              if (isMobile) closePanel();
+            }}
           >
             ×
           </button>
