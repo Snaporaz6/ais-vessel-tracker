@@ -2,7 +2,7 @@
   "name": "ais-tracker",
   "version": "0.1.0",
   "private": true,
-  "description": "AIS Vessel Tracker — free alternative to MarineTraffic",
+  "description": "AIS Vessel Tracker \u2014 free alternative to MarineTraffic",
   "scripts": {
     "dev:server": "tsx watch server/index.ts",
     "start": "node dist/server/index.js",
@@ -27,7 +27,10 @@
     "monitor:beta:prod": "node dist/scripts/monitor-beta.js",
     "preflight:prod": "node dist/scripts/preflight.js",
     "lint": "eslint . --ext .ts,.tsx",
-    "build:server": "tsc -p tsconfig.server.json"
+    "build:server": "tsc -p tsconfig.server.json",
+    "archive:legacy": "tsx scripts/archive-legacy.ts",
+    "retire:legacy": "tsx scripts/retire-legacy.ts",
+    "compact:metadata": "tsx scripts/compact-metadata.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1146.0",

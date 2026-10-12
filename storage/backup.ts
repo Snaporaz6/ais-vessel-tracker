@@ -2,11 +2,16 @@ import { gzipSync, gunzipSync } from "node:zlib";
 import { createHash } from "node:crypto";
 import { TABLES, type Repository, type Snapshot } from "./repository.js";
 import { checksum, type ObjectStore } from "./object-store.js";
+import { CompactRepository } from "./compact-repository.js";
 import { atomicWrite, readJSON } from "./durable.js";
+import { canonicalTimestamp } from "../shared/timestamps.js";
+import { decodeGroup, rowKey, type MetadataGroup } from "./metadata-groups.js";
 export interface Backup {
-  version: 1;
+  version: 1 | 2;
   created_at: string;
   snapshot: Snapshot;
+  /** v2 may retain verified compressed groups; v1 and expanded v2 remain readable. */
+  metadata_groups?: MetadataGroup[];
 }
 export interface RestoreOptions {
   sessionPath: string;
@@ -46,6 +51,7 @@ function restoreRows(table: (typeof TABLES)[number], rows: unknown[]) {
 }
 
 function canonical(value: unknown): unknown {
+  if (typeof value === "string") return canonicalTimestamp(value);
   if (Array.isArray(value)) return value.map(canonical);
   if (value && typeof value === "object")
     return Object.fromEntries(
@@ -75,12 +81,21 @@ function remainingRows(expected: unknown[], existing: unknown[]) {
   return [...fingerprints.values()].flat();
 }
 export async function backup(repo: Repository, objects: ObjectStore) {
-  const snapshot = {} as Snapshot;
-  for (const table of TABLES) (snapshot as any)[table] = await repo.all(table);
+  const representation =
+    repo instanceof CompactRepository
+      ? await repo.backupRepresentation()
+      : null;
+  const snapshot = representation?.snapshot ?? ({} as Snapshot);
+  if (!representation)
+    for (const table of TABLES)
+      (snapshot as any)[table] = await repo.all(table);
   const value: Backup = {
-      version: 1,
+      version: repo instanceof CompactRepository ? 2 : 1,
       created_at: new Date().toISOString(),
       snapshot,
+      ...(representation
+        ? { metadata_groups: representation.metadata_groups }
+        : {}),
     },
     data = gzipSync(JSON.stringify(value)),
     sha = checksum(data),
@@ -95,14 +110,42 @@ export async function backup(repo: Repository, objects: ObjectStore) {
     created_at: value.created_at,
   };
 }
-export function decodeBackup(data: Buffer, expected: string): Backup {
+export function decodeBackup(
+  data: Buffer,
+  expected: string,
+  expandGroups = true,
+): Backup {
   if (checksum(data) !== expected) throw new Error("BACKUP_CHECKSUM_MISMATCH");
   const value = JSON.parse(gunzipSync(data).toString()) as Backup;
   if (
-    value.version !== 1 ||
+    ![1, 2].includes(value.version) ||
     TABLES.some((t) => !Array.isArray(value.snapshot[t]))
   )
     throw new Error("BACKUP_INVALID");
+  if (value.metadata_groups !== undefined) {
+    if (value.version !== 2 || !Array.isArray(value.metadata_groups))
+      throw new Error("BACKUP_INVALID");
+    const keys = new Set<string>();
+    for (const group of value.metadata_groups) {
+      const key = group.kind + ":" + group.mmsi + ":" + group.month;
+      if (keys.has(key)) throw new Error("BACKUP_INVALID");
+      keys.add(key);
+      decodeGroup(group);
+    }
+    if (expandGroups) {
+      for (const kind of ["track_archives", "detected_stops"] as const) {
+        const rows = new Map<string, any>();
+        for (const group of value.metadata_groups.filter(
+          (g) => g.kind === kind,
+        ))
+          for (const row of decodeGroup(group))
+            rows.set(rowKey(kind, row), row);
+        for (const row of value.snapshot[kind])
+          rows.set(rowKey(kind, row), row);
+        (value.snapshot as any)[kind] = [...rows.values()];
+      }
+    }
+  }
   return value;
 }
 export async function restore(
@@ -114,9 +157,20 @@ export async function restore(
 ) {
   const value = decodeBackup(data, sha);
   // Validate every referenced track and the empty target before the first database write.
-  for (const e of value.snapshot.track_archives)
-    if (checksum(await objects.get(e.object_key)) !== e.checksum)
-      throw new Error("BACKUP_TRACK_MISSING");
+  for (
+    let offset = 0;
+    offset < value.snapshot.track_archives.length;
+    offset += 8
+  ) {
+    const results = await Promise.allSettled(
+      value.snapshot.track_archives.slice(offset, offset + 8).map(async (e) => {
+        if (checksum(await objects.get(e.object_key)) !== e.checksum)
+          throw new Error("BACKUP_TRACK_MISSING");
+      }),
+    );
+    const failed = results.find((r) => r.status === "rejected");
+    if (failed?.status === "rejected") throw failed.reason;
+  }
   const session = options
     ? readJSON<RestoreSession | null>(options.sessionPath, null)
     : null;
@@ -195,8 +249,12 @@ export async function retainedBackupReferences(
       value = decodeBackup(
         data,
         obj.key.match(/([a-f0-9]{64})\.json\.gz$/)?.[1] ?? "",
+        false,
       );
     for (const e of value.snapshot.track_archives) refs.add(e.object_key);
+    for (const group of value.metadata_groups ?? [])
+      if (group.kind === "track_archives")
+        for (const e of decodeGroup(group)) refs.add(e.object_key);
   }
   return refs;
 }

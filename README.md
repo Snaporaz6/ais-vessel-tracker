@@ -49,6 +49,8 @@ flowchart LR
 
 Nessun Redis, TimescaleDB o collegamento pubblico al database. Supabase conserva gli indici; le posizioni vengono archiviate nel bucket privato. Railway deve avere **una sola replica** e il volume montato su `/data`.
 
+La revisione backend in corso è descritta in [BACKEND-STORAGE-RELEASE.md](docs/BACKEND-STORAGE-RELEASE.md): archivio legacy separato, gruppi compressi dei metadati e manutenzione riprendibile. Il documento distingue codice preparato, prove e operazioni effettivamente distribuite.
+
 ## Storico e attendibilità
 
 | Età           | Campionamento ordinario |
