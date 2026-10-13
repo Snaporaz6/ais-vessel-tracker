@@ -99,3 +99,31 @@ lettura comparata, backup e ripristino prima della migrazione di produzione.
 Per ripetere le misure usare `scripts/database-storage-audit.sql`: transazione
 di sola lettura, timeout delle istruzioni 15 secondi e dei lock 2 secondi.
 La query non applica VACUUM FULL, REINDEX, cancellazioni o modifiche allo schema.
+
+## Prova fisica del 13 ottobre — nuovo formato
+
+Prova completata in tabelle isolate di `ais-beta-staging`, con conteggi verificati:
+
+| Componente | Byte totali, inclusi indici |
+|---|---:|
+| Gruppi catalogo/soste/anomalie | 305.692.672 |
+| Catalogo recente | 44.810.240 |
+| Soste recenti e aperte | 48.783.360 |
+| Anomalie recenti | 8.142.848 |
+| Anagrafica, 116.084 navi | 29.835.264 |
+| Revisioni per tutte le navi | 11.902.976 |
+| Totale relazioni misurate | 449.167.360 |
+| Sistema, sanzioni, importazioni e legacy vuoto: margine | 15.728.640 |
+| Proiezione completa | **464.896.000 (443,36 MiB)** |
+
+Lo scenario ripete le osservazioni della settimana su 90 giorni, sostituendo il
+35% della flotta attiva ogni settimana (circa 925 nuove navi/giorno) e introducendo
+hash, UUID e nomi distinti per evitare una compressione artificiosa. Le anomalie
+usano le 3.152 osservazioni delle ultime 24 ore; le soste aperte non vengono
+replicate. Conservate 2.465.811 righe storiche in 231.872 gruppi, oltre ai dati recenti.
+
+La soglia di 450 MiB è rispettata in questo scenario, con circa **6,64 MiB** di
+margine. Non è una garanzia per tassi di crescita differenti. La qualificazione
+resta aperta: misurare crescita, traffico Supabase, memoria durante i backup e
+costo totale prima di dichiarare sostenibile la beta. Il vecchio formato
+proiettato oltre 1 GB resta documentato come confronto storico.

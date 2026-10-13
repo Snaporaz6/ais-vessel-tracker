@@ -162,4 +162,22 @@ BEGIN
 END; $$;
 REVOKE ALL ON FUNCTION finish_restore_beta() FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION finish_restore_beta() TO service_role;
+-- Bounded compressed pages reduce remote round trips without large responses.
+CREATE OR REPLACE FUNCTION metadata_groups_page_beta(group_kind TEXT,vessel_mmsi TEXT DEFAULT NULL,from_month DATE DEFAULT NULL,after_mmsi TEXT DEFAULT NULL,after_month DATE DEFAULT NULL)
+RETURNS SETOF metadata_groups LANGUAGE sql STABLE SET search_path=public,pg_temp AS $$
+ WITH page AS (
+  SELECT mmsi,month,octet_length(payload) AS bytes FROM metadata_groups
+  WHERE kind=group_kind AND (vessel_mmsi IS NULL OR mmsi=vessel_mmsi)
+   AND (from_month IS NULL OR month>=from_month)
+   AND (after_mmsi IS NULL OR (mmsi,month)>(after_mmsi,after_month))
+  ORDER BY mmsi,month LIMIT 250
+ ), bounded AS (
+  SELECT *,sum(bytes) OVER (ORDER BY mmsi,month) AS total_bytes,row_number() OVER (ORDER BY mmsi,month) AS ordinal FROM page
+ ) SELECT g.* FROM bounded b JOIN metadata_groups g USING(mmsi,month)
+ WHERE g.kind=group_kind AND (b.total_bytes<=1048576 OR b.ordinal=1)
+ ORDER BY g.mmsi,g.month;
+$$;
+REVOKE ALL ON FUNCTION metadata_groups_page_beta(TEXT,TEXT,DATE,TEXT,DATE) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION metadata_groups_page_beta(TEXT,TEXT,DATE,TEXT,DATE) TO service_role;
+NOTIFY pgrst,'reload schema';
 COMMIT;

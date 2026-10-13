@@ -220,6 +220,39 @@ test("metadata transaction rejects stale rows/revisions, is repeatable, and pres
       "INSERT INTO anomaly_events(id,mmsi,type) VALUES (500,$1,'dark_activity')",
       [stop.mmsi],
     );
+    assert.equal(
+      (
+        await db.query(
+          "SELECT * FROM metadata_groups_page_beta('anomaly_events')",
+        )
+      ).rows.length,
+      1,
+    );
+    assert.equal(
+      (
+        await db.query(
+          "SELECT * FROM metadata_groups_page_beta('anomaly_events',NULL,NULL,'900000001','2026-03-01')",
+        )
+      ).rows.length,
+      0,
+    );
+    await db.query(
+      "INSERT INTO metadata_groups(kind,mmsi,month,version,payload,checksum,row_count,first_at,last_at) VALUES ('anomaly_events','900000000','2026-03-01',1,convert_to(repeat('x',1100000),'UTF8'),repeat('a',64),1,'2026-03-01','2026-03-02')",
+    );
+    const bounded = (
+      await db.query<any>(
+        "SELECT mmsi FROM metadata_groups_page_beta('anomaly_events')",
+      )
+    ).rows;
+    assert.deepEqual(bounded, [{ mmsi: "900000000" }]);
+    assert.equal(
+      (
+        await db.query(
+          "SELECT * FROM metadata_groups_page_beta('anomaly_events',NULL,NULL,'900000000','2026-03-01')",
+        )
+      ).rows.length,
+      1,
+    );
     await db.exec("SET ROLE service_role;");
     assert.equal(
       (

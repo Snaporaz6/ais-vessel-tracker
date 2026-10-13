@@ -167,3 +167,27 @@ Il nuovo elenco delle funzionalità richieste e proposte è in [ROADMAP-MAPPA-GL
 - Typecheck, lint, 59 test automatici e build frontend riusciti localmente. Otto nuovi scenari mobile riusciti su 360×740, 390×844 e 844×390; controllate visivamente le schermate di scheda e timeline. Suite browser completa: **22 prove riuscite** (15 telefono, 7 desktop), otto esclusioni intenzionali dei casi soltanto mobile nel progetto desktop. Le prove usano Chromium con emulazione touch e dati locali controllati, non dispositivi fisici o fonti marine esterne.
 - PR [#14](https://github.com/Snaporaz6/ais-vessel-tracker/pull/14) integrato; [CI](https://github.com/Snaporaz6/ais-vessel-tracker/actions/runs/38180799354) riuscita sul codice `558869f`, compresi browser, carico e audit. Rilascio frontend avviato sul ramo di produzione `codex/mediterranean-beta`; backend invariato.
 - Pubblicato su Vercel in produzione: **READY/success**, commit `b83667e`, deployment `7002818608`, **11 ottobre 2026, 22:37:07 UTC** (12 ottobre in Italia). Nessuna nuova distribuzione Railway necessaria.
+
+## Backend: archivio separato e capacità — 13 ottobre 2026
+
+Le 596.609 posizioni di marzo sono conservate nel prefisso privato `legacy/`,
+con copia locale e ripristino completo verificato. La produzione è stata svuotata
+solo dopo il confronto PostgreSQL integrale: recuperati 161.513.472 byte,
+mantenendo schema e vincoli. Live, acquisizione e tracce 1/7/30/90 giorni operativi.
+
+La migrazione 004 finale è verificata nello staging: catalogo, soste e anomalie
+vecchie sono comprimibili per nave/mese, senza cambiare i contratti pubblici.
+Backup v2 e ripristino completo preservano anche gli IDs interni; il riallineamento
+delle sequenze usa i permessi USAGE già presenti. 73 test passano, TypeScript e
+build backend riusciti. PR [#15](https://github.com/Snaporaz6/ais-vessel-tracker/pull/15).
+
+La prova PostgreSQL su 90 giorni include 2.465.811 righe storiche, dati recenti,
+116.084 anagrafiche e tutti gli indici: **443,36 MiB**, con circa 6,64 MiB sotto
+la soglia concordata. È uno scenario di crescita, non una garanzia per tassi
+diversi. Dettagli in [DATABASE-CAPACITY.md](DATABASE-CAPACITY.md). Le tabelle
+di benchmark sono state svuotate dopo la verifica; staging circa 22,6 MB.
+
+Distribuzione e nuovo carico remoto ancora da completare. La qualificazione
+resta aperta per nuova settimana sulla versione finale, manutenzioni reali,
+traffico Supabase, memoria dei backup e costo complessivo entro 25 €/mese.
+Nessun aumento automatico di piano o modifica al frontend.

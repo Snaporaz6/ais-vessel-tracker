@@ -59,7 +59,9 @@ Ogni aggiornamento verifica checksum, versione precedente e righe sorgenti,
 poi salva il gruppo e rimuove le righe originali nella stessa transazione.
 Le letture uniscono entrambe le rappresentazioni e danno precedenza alla riga
 recente; una revisione rileva migrazioni concorrenti. Le revisioni per nave
-isolano le schede dalle migrazioni delle altre navi. Le query per località
+isolano le schede dalle migrazioni delle altre navi. Una RPC di sola lettura
+pagina fino a 250 gruppi e 1 MiB compresso (un singolo gruppo più grande
+rimane leggibile), evitando risposte senza limite e migliaia di piccoli round trip. Le query per località
 selezionano prima i gruppi tramite indice geografico e ordine temporale.
 
 La scadenza elimina soltanto i dati realmente fuori dai 90 giorni; può riscrivere
@@ -104,8 +106,10 @@ errori e p95 560 ms. Le prove non certificano il carico remoto finale.
 
 ## Verifiche ancora necessarie
 
-Prova fisica della capacità, migrazione 004 e
-compattazione in produzione, carico
+La prova fisica completa in staging proietta 443,36 MiB a 90 giorni
+([misure e assunzioni](DATABASE-CAPACITY.md)); i dati del benchmark sono stati
+ rimossi e il database staging è tornato a circa 22,6 MB.
+Restano migrazione 004 e compattazione in produzione, carico
 remoto di 20 client, distribuzione del monitor e nuova settimana sulla versione
 finale. Conservare tutti i rapporti precedenti. I risultati gzip da soli non
 certificano né lo spazio fisico a 90 giorni né il costo mensile entro 25 €.

@@ -77,22 +77,22 @@ export class CompactRepository extends PostgresRepository {
   ): AsyncGenerator<MetadataGroup> {
     let cursor: MetadataGroup | undefined;
     for (;;) {
-      let q = this.client
-        .from("metadata_groups")
-        .select("*")
-        .eq("kind", kind)
-        .order("mmsi")
-        .order("month")
-        .limit(25);
-      if (mmsi) q = q.eq("mmsi", mmsi);
-      if (fromMonth) q = q.gte("month", fromMonth);
-      if (cursor)
-        q = q.or(
-          `mmsi.gt.${cursor.mmsi},and(mmsi.eq.${cursor.mmsi},month.gt.${cursor.month})`,
-        );
-      const page = checked(await q) as MetadataGroup[];
+      const page = checked(
+        await this.client.rpc(
+          "metadata_groups_page_beta",
+          {
+            group_kind: kind,
+            ...(mmsi ? { vessel_mmsi: mmsi } : {}),
+            ...(fromMonth ? { from_month: fromMonth } : {}),
+            ...(cursor
+              ? { after_mmsi: cursor.mmsi, after_month: cursor.month }
+              : {}),
+          },
+          { get: true },
+        ),
+      ) as MetadataGroup[];
+      if (!page.length) return;
       for (const g of page) yield g;
-      if (page.length < 25) return;
       cursor = page.at(-1);
     }
   }
