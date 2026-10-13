@@ -1,7 +1,12 @@
 import { gzipSync, gunzipSync } from "node:zlib";
 import { isDeepStrictEqual } from "node:util";
 import { checksum } from "./object-store.js";
-export type GroupKind = "track_archives" | "detected_stops";
+export type GroupKind = "track_archives" | "detected_stops" | "anomaly_events";
+export const GROUP_KINDS = [
+  "track_archives",
+  "detected_stops",
+  "anomaly_events",
+] as const;
 export type MetadataRow = Record<string, any>;
 export interface MetadataGroup {
   kind: GroupKind;
@@ -22,11 +27,21 @@ export interface MetadataGroup {
   max_lon: number | null;
 }
 export function rowKey(kind: GroupKind, row: MetadataRow) {
-  return kind === "track_archives" ? row.mmsi + ":" + row.day : String(row.id);
+  return kind === "track_archives"
+    ? row.mmsi + ":" + row.day
+    : kind === "anomaly_events"
+      ? String(row.event_key ?? row.id)
+      : String(row.id);
 }
 export function rowMonth(kind: GroupKind, row: MetadataRow) {
   return (
-    new Date(kind === "track_archives" ? row.day : row.arrived_at)
+    new Date(
+      kind === "track_archives"
+        ? row.day
+        : kind === "anomaly_events"
+          ? row.detected_at
+          : row.arrived_at,
+    )
       .toISOString()
       .slice(0, 7) + "-01"
   );
@@ -39,6 +54,7 @@ export function decodeGroup(g: MetadataGroup): MetadataRow[] {
     gunzipSync(bytes, { maxOutputLength: 8 * 1024 * 1024 }).toString(),
   );
   if (
+    !GROUP_KINDS.includes(g.kind) ||
     g.version !== 1 ||
     data.version !== 1 ||
     !Array.isArray(data.rows) ||
@@ -72,11 +88,13 @@ export function encodeGroup(
     .flatMap((r) =>
       kind === "track_archives"
         ? [r.first_at, r.last_at]
-        : [
-            r.arrived_at,
-            r.last_seen_at ?? r.arrived_at,
-            r.departed_at ?? r.arrived_at,
-          ],
+        : kind === "anomaly_events"
+          ? [r.detected_at]
+          : [
+              r.arrived_at,
+              r.last_seen_at ?? r.arrived_at,
+              r.departed_at ?? r.arrived_at,
+            ],
     )
     .map((s) => new Date(s).toISOString())
     .sort();

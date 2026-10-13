@@ -1,9 +1,10 @@
 import { isDeepStrictEqual } from "node:util";
 import { getDistance } from "geolib";
 import { PostgresRepository, type Table } from "./repository.js";
-import type { ArchiveEntry, PortCall } from "../shared/types.js";
+import type { ArchiveEntry, PortCall, AnomalyEvent } from "../shared/types.js";
 import {
   decodeGroup,
+  GROUP_KINDS,
   encodeGroup,
   rowKey,
   rowMonth,
@@ -42,7 +43,7 @@ export class CompactRepository extends PostgresRepository {
         } else (snapshot as any)[table] = await super.all(table);
       }
       const groups: MetadataGroup[] = [];
-      for (const kind of ["track_archives", "detected_stops"] as const)
+      for (const kind of GROUP_KINDS)
         for await (const group of this.groups(kind)) {
           decodeGroup(group);
           groups.push(group);
@@ -184,11 +185,30 @@ export class CompactRepository extends PostgresRepository {
   override async stops(mmsi?: string) {
     return this.consistentRead(() => this.readStops(mmsi), mmsi);
   }
+  override async anomalies(mmsi: string): Promise<AnomalyEvent[]> {
+    return this.consistentRead(async () => {
+      const rows = new Map<string, MetadataRow>();
+      for await (const g of this.groups("anomaly_events", mmsi))
+        for (const r of decodeGroup(g))
+          if (Date.parse(r.detected_at) >= Date.now() - 90 * 86400000)
+            rows.set(rowKey("anomaly_events", r), r);
+      for (const r of await super.anomalies(mmsi)) rows.set(String(r.id), r);
+      return [...rows.values()]
+        .sort((a, b) => Date.parse(b.detected_at) - Date.parse(a.detected_at))
+        .slice(0, 100)
+        .map((r) => ({
+          ...r,
+          id: r.event_key ?? String(r.id),
+        })) as AnomalyEvent[];
+    }, mmsi);
+  }
   override async nearbyStops(lat: number, lon: number) {
     return this.consistentRead(() => this.readNearbyStops(lat, lon));
   }
   override async all<T>(table: Table): Promise<T[]> {
-    return table === "track_archives" || table === "detected_stops"
+    return table === "track_archives" ||
+      table === "detected_stops" ||
+      table === "anomaly_events"
       ? this.consistentRead(() => this.readAll<T>(table))
       : super.all<T>(table);
   }
@@ -209,11 +229,11 @@ export class CompactRepository extends PostgresRepository {
       return rows;
     }
     const hot = await super.all<T>(table);
-    if (table !== "detected_stops") return hot;
+    if (table !== "detected_stops" && table !== "anomaly_events") return hot;
     const out = new Map<string, T>();
-    for await (const g of this.groups("detected_stops"))
-      for (const row of decodeGroup(g)) out.set(String(row.id), row as T);
-    for (const row of hot) out.set(String((row as MetadataRow).id), row);
+    for await (const g of this.groups(table))
+      for (const row of decodeGroup(g)) out.set(rowKey(table, row), row as T);
+    for (const row of hot) out.set(rowKey(table, row as MetadataRow), row);
     return [...out.values()];
   }
   private async readStops(mmsi?: string) {
@@ -321,18 +341,20 @@ export class CompactRepository extends PostgresRepository {
     const deadline = Date.now() + maxMs,
       cutoff = new Date(now - 7 * 86400000).toISOString();
     let moved = 0;
-    for (const kind of ["track_archives", "detected_stops"] as const) {
+    for (const kind of GROUP_KINDS) {
       for (;;) {
         if (Date.now() > deadline) return { complete: false, moved };
         let q = this.client.from(kind).select("*").order("mmsi").limit(500);
         q =
           kind === "track_archives"
             ? q.lt("day", cutoff.slice(0, 10)).order("day")
-            : q
-                .lt("arrived_at", cutoff)
-                .lt("departed_at", cutoff)
-                .lt("last_seen_at", cutoff)
-                .order("arrived_at");
+            : kind === "anomaly_events"
+              ? q.lt("detected_at", cutoff).order("id")
+              : q
+                  .lt("arrived_at", cutoff)
+                  .lt("departed_at", cutoff)
+                  .lt("last_seen_at", cutoff)
+                  .order("arrived_at");
         const hot = checked(await q) as MetadataRow[];
         if (!hot.length) break;
         const batches = new Map<string, MetadataRow[]>();
@@ -394,18 +416,20 @@ export class CompactRepository extends PostgresRepository {
   }
   override async prune(before: string) {
     await super.prune(before);
-    for (const kind of ["track_archives", "detected_stops"] as const)
+    for (const kind of GROUP_KINDS)
       for await (const g of this.groups(kind)) {
         const original = decodeGroup(g),
           rows = original.filter((r) =>
             kind === "track_archives"
               ? Date.parse(r.last_at) >= Date.parse(before)
-              : !r.departed_at ||
-                Math.max(
-                  Date.parse(r.arrived_at),
-                  Date.parse(r.departed_at),
-                  Date.parse(r.last_seen_at ?? r.arrived_at),
-                ) >= Date.parse(before),
+              : kind === "anomaly_events"
+                ? Date.parse(r.detected_at) >= Date.parse(before)
+                : !r.departed_at ||
+                  Math.max(
+                    Date.parse(r.arrived_at),
+                    Date.parse(r.departed_at),
+                    Date.parse(r.last_seen_at ?? r.arrived_at),
+                  ) >= Date.parse(before),
           );
         if (
           rows.length !== original.length &&

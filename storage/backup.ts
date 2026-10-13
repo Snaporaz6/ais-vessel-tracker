@@ -5,7 +5,12 @@ import { checksum, type ObjectStore } from "./object-store.js";
 import { CompactRepository } from "./compact-repository.js";
 import { atomicWrite, readJSON } from "./durable.js";
 import { canonicalTimestamp } from "../shared/timestamps.js";
-import { decodeGroup, rowKey, type MetadataGroup } from "./metadata-groups.js";
+import {
+  decodeGroup,
+  rowKey,
+  GROUP_KINDS,
+  type MetadataGroup,
+} from "./metadata-groups.js";
 export interface Backup {
   version: 1 | 2;
   created_at: string;
@@ -27,7 +32,12 @@ interface RestoreSession {
   verified_tables: string[];
 }
 
-function restoreRows(table: (typeof TABLES)[number], rows: unknown[]) {
+function restoreRows(
+  table: (typeof TABLES)[number],
+  rows: unknown[],
+  preserveIDs = false,
+) {
+  if (preserveIDs) return rows;
   if (table === "anomaly_events")
     return rows.map((record) => {
       const { id, ...r } = record as Record<string, unknown>;
@@ -133,7 +143,7 @@ export function decodeBackup(
       decodeGroup(group);
     }
     if (expandGroups) {
-      for (const kind of ["track_archives", "detected_stops"] as const) {
+      for (const kind of GROUP_KINDS) {
         const rows = new Map<string, any>();
         for (const group of value.metadata_groups.filter(
           (g) => g.kind === kind,
@@ -184,7 +194,10 @@ export async function restore(
   )
     throw new Error("RESTORE_SESSION_MISMATCH");
   const expected = Object.fromEntries(
-    TABLES.map((table) => [table, restoreRows(table, value.snapshot[table])]),
+    TABLES.map((table) => [
+      table,
+      restoreRows(table, value.snapshot[table], value.version === 2),
+    ]),
   ) as Record<(typeof TABLES)[number], unknown[]>;
   // Before any write, a new destination must be empty. A resumed destination
   // may contain only exact rows from this backup, never unrelated/newer data.
@@ -195,7 +208,7 @@ export async function restore(
     if (session) {
       const remaining = remainingRows(
         expected[table],
-        restoreRows(table, existing),
+        restoreRows(table, existing, value.version === 2),
       );
       if (session.phase === "complete" && remaining.length)
         throw new Error("RESTORE_TARGET_CONTENT_MISMATCH");
@@ -217,20 +230,23 @@ export async function restore(
   for (const table of TABLES) {
     const missing = remainingRows(
       expected[table],
-      restoreRows(table, await repo.all(table)),
+      restoreRows(table, await repo.all(table), value.version === 2),
     );
     // Reconcile committed rows after an ambiguous request failure. In particular,
     // sanctions have database-generated serial IDs and cannot be blindly replayed.
     await repo.upsert(table, missing);
     if (
-      remainingRows(expected[table], restoreRows(table, await repo.all(table)))
-        .length
+      remainingRows(
+        expected[table],
+        restoreRows(table, await repo.all(table), value.version === 2),
+      ).length
     )
       throw new Error("RESTORE_COUNT_MISMATCH");
     if (!state.verified_tables.includes(table))
       state.verified_tables.push(table);
     saveSession();
   }
+  if (value.version === 2) await repo.finishRestore?.();
   state.phase = "complete";
   saveSession();
   return value;

@@ -46,6 +46,7 @@ export interface StorageMetrics {
   last_observation_at: string | null;
 }
 export interface Repository {
+  finishRestore?(): Promise<void>;
   all<T>(table: Table): Promise<T[]>;
   iterateArchives(): AsyncIterable<ArchiveEntry>;
   upsert(table: Table, rows: unknown[]): Promise<void>;
@@ -77,6 +78,9 @@ const CONFLICT: Record<Table, string> = {
   import_states: "source",
 };
 export class PostgresRepository implements Repository {
+  async finishRestore() {
+    checked(await this.client.rpc("finish_restore_beta"));
+  }
   readonly client: SupabaseClient;
   constructor(url: string, key: string) {
     this.client = createClient(url, key, {

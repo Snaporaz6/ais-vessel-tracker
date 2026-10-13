@@ -17,8 +17,9 @@ Non considerare conclusa la qualificazione della beta.
   alle 19:47:42 UTC la transazione protetta ha svuotato soltanto la tabella legacy,
   mantenendo schema e vincoli. Spazio recuperato: 161.513.472 byte.
   `/ready`, live e tracce 1/7/30/90 giorni restano 200; database circa 118,6 MB.
-- Backup pre-migrazione di produzione verificato: 12.916.264 byte,
-  `backups/2026-10-12T23-23-13-395Z-4146ff2816048e059fa7f5f76076cd6a496ac8d6843e22cd32a8db0a502de706.json.gz`.
+- Backup pre-migrazione di produzione verificato: 14.636.141 byte,
+  `backups/2026-10-13T19-17-35-758Z-c0fa4a1037fbf6f20751c370abeaa6cc0aeb538e2e07c4c7a04bb1b179196c08.json.gz`.
+  Anche i rapporti e backup precedenti rimangono conservati.
 - La migrazione 004 è stata applicata nello staging; la sua ultima revisione
   è stata allineata e verificata il 13 ottobre. La produzione ha ricevuto 005; 004 resta da applicare dopo la prova fisica.
 - Il confronto delle 669 tracce dello staging dopo compattazione è riuscito.
@@ -49,7 +50,8 @@ attesi includono già gli indici del legacy; non contarli due volte.
 
 `METADATA_COMPACTION=true` abilita il lettore condiviso hot/cold. Negli indici
 ordinari rimangono sette giorni di catalogo, tutte le soste aperte e le soste
-recentemente concluse/osservate. `metadata_groups` raggruppa le righe vecchie per
+recentemente concluse/osservate, e sette giorni di anomalie. Gli eventi più vecchi
+restano consultabili fino a 90 giorni con il loro `event_key` originale. `metadata_groups` raggruppa le righe vecchie per
 nave e mese UTC, preservandone integralmente il JSON in gzip versionato e verificato.
 Le tracce rimangono nei rispettivi oggetti giornalieri del bucket.
 
@@ -68,7 +70,11 @@ I backup v2 conservano le righe recenti e i gruppi compressi verificati, evitand
 che il backup ordinario espanda tutto lo storico in memoria. Il lettore accetta
 anche i primi backup v2 con righe già decompattate. Il ripristino ricostruisce le tabelle ordinarie su una destinazione
 isolata, verifica righe e tracce e permette poi una nuova compattazione. Il lettore
-continua ad accettare v1. **Disabilitare il flag dopo aver compattato non è un
+continua ad accettare v1. I ripristini v2 conservano anche gli identificativi
+seriali originali e riallineano le sequenze per gli inserimenti successivi.
+La prova del 13 ottobre comprende anomalie hot/cold, tutti i campi e IDs,
+669 oggetti riletti dal bucket e ripristino PostgreSQL completo.
+**Disabilitare il flag dopo aver compattato non è un
 rollback valido:** usare una versione compatibile o il ripristino isolato verificato.
 
 ## Manutenzione e diagnosi

@@ -168,6 +168,68 @@ test("metadata transaction rejects stale rows/revisions, is repeatable, and pres
       ).rows[0].checksum,
       g.checksum,
     );
+    const anomaly = {
+      id: 1234,
+      event_key: "00000000-0000-4000-8000-000000001234",
+      mmsi: stop.mmsi,
+      type: "dark_activity",
+      detected_at: "2026-03-04T12:00:00.123456Z",
+      details: { gap_hours: 9 },
+      lat: 38,
+      lon: 15,
+    };
+    await db.query(
+      "INSERT INTO anomaly_events SELECT * FROM jsonb_populate_recordset(NULL::anomaly_events,$1::jsonb)",
+      [JSON.stringify([anomaly])],
+    );
+    const packedAnomaly = encodeGroup(
+      "anomaly_events",
+      stop.mmsi,
+      "2026-03-01",
+      [anomaly],
+    );
+    assert.deepEqual(decodeGroup(packedAnomaly), [anomaly]);
+    const moveAnomaly = async (rows: unknown[]) =>
+      (
+        await db.query<any>(
+          "SELECT apply_metadata_group_beta($1::jsonb,NULL,$2::jsonb) AS ok",
+          [
+            JSON.stringify({
+              ...packedAnomaly,
+              payload_hex: packedAnomaly.payload.slice(2),
+            }),
+            JSON.stringify(rows),
+          ],
+        )
+      ).rows[0].ok;
+    assert.equal(
+      await moveAnomaly([{ ...anomaly, details: { gap_hours: 10 } }]),
+      false,
+    );
+    assert.equal(
+      (await db.query("SELECT * FROM anomaly_events")).rows.length,
+      1,
+    );
+    assert.equal(await moveAnomaly([anomaly]), true);
+    assert.equal(
+      (await db.query("SELECT * FROM anomaly_events")).rows.length,
+      0,
+    );
+    assert.equal(await moveAnomaly([anomaly]), false);
+    await db.query(
+      "INSERT INTO anomaly_events(id,mmsi,type) VALUES (500,$1,'dark_activity')",
+      [stop.mmsi],
+    );
+    await db.query("SELECT finish_restore_beta()");
+    assert.equal(
+      (
+        await db.query<any>(
+          "INSERT INTO anomaly_events(mmsi,type) VALUES ($1,'dark_activity') RETURNING id",
+          [stop.mmsi],
+        )
+      ).rows[0].id,
+      501,
+    );
     await db.exec("SET ROLE anon;");
     await assert.rejects(db.query("SELECT * FROM metadata_groups"));
     await assert.rejects(
@@ -241,4 +303,54 @@ test("partial-month retention preserves cutoff endpoints, recent endings and ope
     ended,
   ]);
   assert.deepEqual(decodeGroup(groups.get("detected_stops2026-03-01")), [open]);
+});
+
+test("anomaly reads merge recent and compressed events with stable public IDs and explicit corruption errors", async () => {
+  const { CompactRepository } =
+    await import("../storage/compact-repository.js");
+  const { rowMonth } = await import("../storage/metadata-groups.js");
+  const mmsi = stop.mmsi;
+  const events = Array.from({ length: 110 }, (_, i) => ({
+    id: i + 1,
+    event_key: `event-${i}`,
+    mmsi,
+    type: "dark_activity",
+    detected_at: new Date(Date.now() - (10 + i / 10) * 86400000).toISOString(),
+    details: { gap_hours: 9, uncertainty: true },
+  }));
+  const groups = new Map<string, any>();
+  for (const e of events) {
+    const month = rowMonth("anomaly_events", e);
+    const rows = groups.get(month) ?? [];
+    rows.push(e);
+    groups.set(month, rows);
+  }
+  const packed = [...groups].map(([month, rows]) =>
+    encodeGroup("anomaly_events", mmsi, month, rows),
+  );
+  const recent = {
+    ...events[0],
+    detected_at: new Date().toISOString(),
+    details: { gap_hours: 12 },
+  };
+  const repo = new CompactRepository("https://example.test", "test-only");
+  const query: any = {
+    select: () => query,
+    eq: () => query,
+    order: () => query,
+    limit: async () => ({ data: [recent], error: null }),
+  };
+  Object.defineProperty(repo, "client", {
+    value: { rpc: async () => ({ data: 0, error: null }), from: () => query },
+  });
+  repo.groups = async function* () {
+    yield* packed;
+  };
+  const actual = await repo.anomalies(mmsi);
+  assert.equal(actual.length, 100);
+  assert.equal(actual[0].id, recent.event_key);
+  assert.deepEqual(actual[0].details, recent.details);
+  assert.equal(new Set(actual.map((e) => e.id)).size, 100);
+  packed[0].payload = "\\x00";
+  await assert.rejects(repo.anomalies(mmsi), /CHECKSUM/);
 });

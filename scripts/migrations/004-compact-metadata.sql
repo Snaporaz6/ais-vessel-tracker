@@ -1,7 +1,7 @@
 -- Additive migration. Apply only after a verified backup.
 BEGIN;
 CREATE TABLE IF NOT EXISTS metadata_groups (
- kind TEXT NOT NULL CHECK(kind IN ('track_archives','detected_stops')),
+ kind TEXT NOT NULL CHECK(kind IN ('track_archives','detected_stops','anomaly_events')),
  mmsi VARCHAR(9) NOT NULL, month DATE NOT NULL,
  version INTEGER NOT NULL CHECK(version=1), payload BYTEA NOT NULL,
  checksum TEXT NOT NULL CHECK(checksum ~ '^[a-f0-9]{64}$'),
@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS metadata_groups (
  PRIMARY KEY(kind,mmsi,month), CHECK(first_at<=last_at),
  CHECK(octet_length(payload)<=4194304), CHECK(extract(day FROM month)=1)
 );
+ALTER TABLE metadata_groups DROP CONSTRAINT IF EXISTS metadata_groups_kind_check;
+ALTER TABLE metadata_groups ADD CONSTRAINT metadata_groups_kind_check CHECK(kind IN ('track_archives','detected_stops','anomaly_events'));
 ALTER TABLE metadata_groups ADD COLUMN IF NOT EXISTS archive_sizes JSONB NOT NULL DEFAULT '{}'::jsonb;
 CREATE INDEX IF NOT EXISTS metadata_groups_period_idx ON metadata_groups(kind,month);
 CREATE INDEX IF NOT EXISTS metadata_groups_area_idx ON metadata_groups USING gist(area) WHERE kind='detected_stops';
@@ -40,7 +42,7 @@ CREATE OR REPLACE FUNCTION apply_metadata_group_beta(g JSONB, previous_checksum 
 RETURNS BOOLEAN LANGUAGE plpgsql SET search_path=public,pg_temp AS $$
 DECLARE old_hash TEXT; matches INTEGER; expected INTEGER; body BYTEA;
 BEGIN
- IF g->>'kind' NOT IN ('track_archives','detected_stops') OR g->>'mmsi' !~ '^[1-9][0-9]{8}$' OR jsonb_typeof(expected_rows)<>'array' THEN RAISE EXCEPTION 'METADATA_GROUP_INVALID'; END IF;
+ IF g->>'kind' NOT IN ('track_archives','detected_stops','anomaly_events') OR g->>'mmsi' !~ '^[1-9][0-9]{8}$' OR jsonb_typeof(expected_rows)<>'array' THEN RAISE EXCEPTION 'METADATA_GROUP_INVALID'; END IF;
  PERFORM pg_advisory_xact_lock(hashtext((g->>'kind')||':'||(g->>'mmsi')||':'||(g->>'month')));
  SELECT checksum INTO old_hash FROM metadata_groups WHERE kind=g->>'kind' AND mmsi=g->>'mmsi' AND month=(g->>'month')::date FOR UPDATE;
  IF old_hash IS DISTINCT FROM previous_checksum THEN RETURN false; END IF;
@@ -48,6 +50,9 @@ BEGIN
  IF g->>'kind'='track_archives' THEN
   PERFORM 1 FROM track_archives t JOIN jsonb_populate_recordset(NULL::track_archives,expected_rows) x USING(mmsi,day) FOR UPDATE OF t;
   SELECT count(*) INTO matches FROM track_archives t JOIN jsonb_populate_recordset(NULL::track_archives,expected_rows) x USING(mmsi,day) WHERE t IS NOT DISTINCT FROM x;
+ ELSIF g->>'kind'='anomaly_events' THEN
+  PERFORM 1 FROM anomaly_events t JOIN jsonb_populate_recordset(NULL::anomaly_events,expected_rows) x USING(id) FOR UPDATE OF t;
+  SELECT count(*) INTO matches FROM anomaly_events t JOIN jsonb_populate_recordset(NULL::anomaly_events,expected_rows) x USING(id) WHERE t IS NOT DISTINCT FROM x;
  ELSE
   PERFORM 1 FROM detected_stops t JOIN jsonb_populate_recordset(NULL::detected_stops,expected_rows) x USING(id) FOR UPDATE OF t;
   SELECT count(*) INTO matches FROM detected_stops t JOIN jsonb_populate_recordset(NULL::detected_stops,expected_rows) x USING(id) WHERE t IS NOT DISTINCT FROM x;
@@ -64,6 +69,8 @@ BEGIN
   ON CONFLICT(kind,mmsi,month) DO UPDATE SET payload=EXCLUDED.payload,checksum=EXCLUDED.checksum,row_count=EXCLUDED.row_count,archive_bytes=EXCLUDED.archive_bytes,archive_sizes=EXCLUDED.archive_sizes,first_at=EXCLUDED.first_at,last_at=EXCLUDED.last_at,max_arrived_at=EXCLUDED.max_arrived_at,min_lat=EXCLUDED.min_lat,max_lat=EXCLUDED.max_lat,min_lon=EXCLUDED.min_lon,max_lon=EXCLUDED.max_lon;
   IF g->>'kind'='track_archives' THEN
    DELETE FROM track_archives t USING jsonb_populate_recordset(NULL::track_archives,expected_rows) x WHERE t.mmsi=x.mmsi AND t.day=x.day;
+  ELSIF g->>'kind'='anomaly_events' THEN
+   DELETE FROM anomaly_events t USING jsonb_populate_recordset(NULL::anomaly_events,expected_rows) x WHERE t.id=x.id;
   ELSE
    DELETE FROM detected_stops t USING jsonb_populate_recordset(NULL::detected_stops,expected_rows) x WHERE t.id=x.id;
   END IF;
@@ -138,4 +145,17 @@ RETURNS SETOF detected_stops LANGUAGE sql STABLE SET search_path=public,pg_temp 
 $$;
 REVOKE ALL ON FUNCTION prune_metadata_beta(TIMESTAMPTZ),nearby_stops_beta(DOUBLE PRECISION,DOUBLE PRECISION,INTEGER) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION prune_metadata_beta(TIMESTAMPTZ),nearby_stops_beta(DOUBLE PRECISION,DOUBLE PRECISION,INTEGER) TO service_role;
+-- Preserve original serial IDs in v2 restores and advance their next values.
+-- Invoker rights: existing backend sequence privileges are required, never bypassed.
+CREATE OR REPLACE FUNCTION finish_restore_beta() RETURNS VOID LANGUAGE plpgsql SET search_path=public,pg_temp AS $$
+DECLARE table_name TEXT; sequence_name TEXT; maximum BIGINT;
+BEGIN
+ FOREACH table_name IN ARRAY ARRAY['anomaly_events','sanctions'] LOOP
+  sequence_name := pg_get_serial_sequence(table_name,'id');
+  EXECUTE format('SELECT max(id) FROM %I',table_name) INTO maximum;
+  IF sequence_name IS NOT NULL THEN PERFORM setval(sequence_name::regclass,greatest(coalesce(maximum,1),1),maximum IS NOT NULL); END IF;
+ END LOOP;
+END; $$;
+REVOKE ALL ON FUNCTION finish_restore_beta() FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION finish_restore_beta() TO service_role;
 COMMIT;
