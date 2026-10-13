@@ -245,7 +245,8 @@ rimangono invariati, inclusa la distinzione dei dati mancanti e dei guasti.
    fasi, durate, checkpoint e recupero dei lavori incompleti, senza rifare backup riusciti.
 2. Misurare crescita delle singole tabelle, spazio completo del bucket, memoria
    durante i backup e traffico Supabase/Railway. Il margine fisico dello scenario
-   a 90 giorni è stretto: ricontrollare la proiezione con le osservazioni nuove.
+   a 90 giorni è stretto: ricontrollare la proiezione con le osservazioni nuove
+   e il picco dei dati recenti prima della compattazione giornaliera.
 3. Verificare spesa totale, imposte, staging e monitor inclusi, entro 25 €/mese;
    configurare limiti/avvisi disponibili senza attivare automaticamente piani pagati.
 4. Completare sette giorni sulla versione finale: dal 13 ottobre 22:33:31 UTC al

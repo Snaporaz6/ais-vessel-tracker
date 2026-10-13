@@ -139,3 +139,10 @@ sono presenti anche versioni precedenti e oggetti tutelati dai backup. Non
 classificarli come eliminabili senza verificare i riferimenti e la retention.
 La scansione paginata durante l'acquisizione non è uno snapshot atomico.
 La misura di spazio non certifica traffico, costi né durata della pulizia.
+
+
+La misura dei dati recenti usa una finestra di sette giorni. Poiché la compattazione
+è giornaliera, verificare anche il picco immediatamente prima della manutenzione:
+le righe appena oltre sette giorni possono restare ordinarie fino al ciclo seguente.
+Il margine di 6,64 MiB non certifica questo picco; la capacità finale rimane da
+qualificare con le misure del ciclo reale ed eventualmente una compattazione più frequente.
