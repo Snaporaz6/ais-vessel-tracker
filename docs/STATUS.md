@@ -4,7 +4,7 @@ La [beta Mediterraneo](https://ais-vessel-tracker.vercel.app) è online senza ac
 
 ## Backend: distribuzione e verifiche del 14 ottobre
 
-Il backend `aab43a4` è distribuito su Railway dal 13 ottobre alle 22:02 UTC
+Il backend finale `c7c2a34` è distribuito su Railway dal 13 ottobre alle 22:30 UTC
 (14 ottobre in Italia), con una replica e `METADATA_COMPACTION=true`.
 Migrazioni additive 004/005 applicate in produzione; `/ready` operativo,
 acquisizione AIS fresca, scritture persistenti senza coda crescente nelle prime
@@ -27,16 +27,19 @@ mantengono i contratti esistenti. PR [#15](https://github.com/Snaporaz6/ais-vess
   p95 9.048 ms; una successiva diagnosi dà 20 JSON validi in circa due secondi.
   Il test europeo verifica la soglia da quel punto di misura, senza certificare
   tutte le connessioni degli utenti.
-- Compattazione iniziale in produzione fermata dal confronto protetto, prima di
-  spostare dati: la serializzazione REST arrotonda alcuni DOUBLE PRECISION.
-  La lettura SQL a precisione completa è in prova finale di produzione; la protezione
-  da modifiche concorrenti non viene indebolita.
-- Monitor aggiornato: prima lettura 13 ottobre **22:11:09 UTC**, file separato
-  `beta-monitor-storage-aab43a4-2026-10-14.jsonl`. Rapporti precedenti conservati.
-  Costi verificati ancora assenti; la finestra deve ripartire dopo ogni ulteriore
-  modifica del backend.
+- Compattazione produttiva verificata il 13 ottobre **22:27:16 UTC**: 1.725 soste
+  e 26 anomalie in 1.495 gruppi, tutti i campi e IDs confrontati; secondo
+  tentativo senza nuove righe spostate. La lettura privata SQL a precisione
+  completa risolve l'arrotondamento REST senza allentare i confronti atomici.
+  Migrazione 006 applicata, 75 test e [CI](https://github.com/Snaporaz6/ais-vessel-tracker/actions/runs/38477499418)
+  riusciti per `c7c2a34`; distribuzione e controllo operativo riusciti.
+- Monitor finale: prima lettura 13 ottobre **22:33:31 UTC**, file separato
+  `beta-monitor-storage-c7c2a34-2026-10-14.jsonl`. Rapporti precedenti conservati.
+  Carico finale europeo: 300/300 risposte valide, zero errori, **p95 221,80 ms**,
+  massimo 254,38 ms. Costi verificati ancora assenti; la finestra deve ripartire
+  dopo ogni ulteriore modifica del backend.
 
-La qualificazione rimane aperta: compattazione effettiva in produzione,
+La qualificazione rimane aperta:
 manutenzioni complete, memoria/traffico, spazio dell'intero bucket, costo totale
 entro 25 €/mese e sette giorni sulla versione finale. Database nelle prime letture
 circa 119,8 MB; memoria RSS circa 350–416 MB. Questi campioni non sono proiezioni
@@ -199,8 +202,8 @@ diversi. Dettagli in [DATABASE-CAPACITY.md](DATABASE-CAPACITY.md). Le tabelle
 di benchmark sono state svuotate dopo la verifica; staging circa 22,6 MB.
 
 Distribuzione `aab43a4` completata e carico europeo riuscito (p95 260,96 ms).
-Compattazione produttiva ancora da completare: letture REST arrotondate bloccano
-il confronto protetto; correzione della precisione verificata nello staging. La qualificazione
+Compattazione produttiva completata dopo la correzione della precisione: 1.725
+soste e 26 anomalie preservate, secondo tentativo idempotente. La qualificazione
 resta aperta per nuova settimana sulla versione finale, manutenzioni reali,
 traffico Supabase, memoria dei backup e costo complessivo entro 25 €/mese.
 Nessun aumento automatico di piano o modifica al frontend.
@@ -210,3 +213,41 @@ controllato, mantenendo 673 gruppi compressi e tutti i campi/IDs. Ripreso da una
 sessione parziale dopo un errore temporaneo del database. Database finale
 22.599.347 byte: il recupero compatto non richiede di espandere lo storico nel
 database gratuito. La ricostruzione delle righe in PostgreSQL locale resta verificata.
+
+
+### Spazio completo del bucket — 14 ottobre
+
+Scansione di tutti i prefissi, 380 pagine, terminata il 13 ottobre alle 22:28 UTC:
+379.763 oggetti e **755.092.042 byte** complessivi. Tracce: 628.664.312 byte;
+15 backup: 116.527.494 byte; archivio protetto `legacy/`: 9.900.236 byte.
+Il catalogo attivo da solo misura circa 116 MB e non rappresenta l'intero bucket:
+sono presenti anche versioni precedenti e oggetti tutelati dai backup. Non
+classificarli come eliminabili senza verificare i riferimenti e la retention.
+La scansione paginata durante l'acquisizione non è uno snapshot atomico.
+La misura di spazio non certifica traffico, costi né durata della pulizia.
+
+
+Controllo dopo il riavvio finale, 13 ottobre 22:32 UTC: `/ready`, live e tracce
+1/7/30/90 giorni restituiscono 200, versione `c7c2a34`. Database 121.138.323 byte,
+RSS 304.087.040 byte, 13 scritture in attesa con età massima 325 ms;
+nessun errore archivio/manutenzione segnalato. Il primo flush dopo il riavvio
+non era ancora completato: il suo tempo resta da misurare.
+
+
+API sul dato compattato: confronto integrale della sosta campione nella scheda
+nave riuscito; pagina della località 200 con sei visite. I contratti pubblici
+rimangono invariati, inclusa la distinzione dei dati mancanti e dei guasti.
+
+
+## Prossime verifiche backend
+
+1. Misurare il completamento del primo flush e della manutenzione delle 03:30 UTC:
+   fasi, durate, checkpoint e recupero dei lavori incompleti, senza rifare backup riusciti.
+2. Misurare crescita delle singole tabelle, spazio completo del bucket, memoria
+   durante i backup e traffico Supabase/Railway. Il margine fisico dello scenario
+   a 90 giorni è stretto: ricontrollare la proiezione con le osservazioni nuove.
+3. Verificare spesa totale, imposte, staging e monitor inclusi, entro 25 €/mese;
+   configurare limiti/avvisi disponibili senza attivare automaticamente piani pagati.
+4. Completare sette giorni sulla versione finale: dal 13 ottobre 22:33:31 UTC al
+   20 ottobre alla stessa ora (21 ottobre 00:33 in Italia), se non cambia il backend.
+   La data è il termine minimo della finestra, non una qualificazione automatica.

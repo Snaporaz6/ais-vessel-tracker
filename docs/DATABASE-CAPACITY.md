@@ -127,3 +127,15 @@ margine. Non è una garanzia per tassi di crescita differenti. La qualificazione
 resta aperta: misurare crescita, traffico Supabase, memoria durante i backup e
 costo totale prima di dichiarare sostenibile la beta. Il vecchio formato
 proiettato oltre 1 GB resta documentato come confronto storico.
+
+
+### Spazio completo del bucket — 14 ottobre
+
+Scansione di tutti i prefissi, 380 pagine, terminata il 13 ottobre alle 22:28 UTC:
+379.763 oggetti e **755.092.042 byte** complessivi. Tracce: 628.664.312 byte;
+15 backup: 116.527.494 byte; archivio protetto `legacy/`: 9.900.236 byte.
+Il catalogo attivo da solo misura circa 116 MB e non rappresenta l'intero bucket:
+sono presenti anche versioni precedenti e oggetti tutelati dai backup. Non
+classificarli come eliminabili senza verificare i riferimenti e la retention.
+La scansione paginata durante l'acquisizione non è uno snapshot atomico.
+La misura di spazio non certifica traffico, costi né durata della pulizia.
