@@ -29,15 +29,67 @@ function restoreHeader(g: Partial<MetadataGroup>) {
   );
 }
 export class CompactRepository extends PostgresRepository {
+  async hotPage<T>(
+    table: Table,
+    cursor?: Record<string, any>,
+    cutoff?: string,
+    upper?: string,
+  ): Promise<T[]> {
+    const key =
+      table === "track_archives"
+        ? "day"
+        : table === "vessels"
+          ? "mmsi"
+          : table === "import_states"
+            ? "source"
+            : "id";
+    return checked(
+      await this.client.rpc(
+        "metadata_hot_page_beta",
+        {
+          table_name: table,
+          ...(cursor
+            ? {
+                after_key: String(cursor[key]),
+                ...(table === "track_archives"
+                  ? { after_mmsi: cursor.mmsi }
+                  : {}),
+              }
+            : {}),
+          ...(cutoff ? { cold_before: cutoff } : {}),
+          ...(upper ? { upper_key: upper } : {}),
+        },
+        { get: true },
+      ),
+    ) as T[];
+  }
   async restoreHotRows<T>(table: Table): Promise<T[]> {
-    // PostgresRepository.all delegates track reads virtually; bypass that union
-    // while reconciling the raw part of a compressed restore.
-    if (table === "track_archives") {
-      const rows: T[] = [];
-      for await (const row of super.iterateArchives()) rows.push(row as T);
-      return rows;
+    const rows: T[] = [];
+    const key =
+      table === "vessels"
+        ? "mmsi"
+        : table === "import_states"
+          ? "source"
+          : "id";
+    let upper: string | undefined;
+    if (table !== "track_archives") {
+      const bounds = checked(
+        await this.client
+          .from(table)
+          .select(key)
+          .order(key, { ascending: false })
+          .limit(1),
+      ) as Record<string, any>[];
+      if (!bounds.length) return rows;
+      upper = String(bounds[0][key]);
     }
-    return super.all<T>(table);
+    let cursor: Record<string, any> | undefined;
+    for (;;) {
+      const page = await this.hotPage<T>(table, cursor, undefined, upper);
+      rows.push(...page);
+      if (page.length < 500) return rows;
+      cursor = page.at(-1) as Record<string, any>;
+    }
   }
   private async restoreHeaders() {
     const rows = new Map<string, Partial<MetadataGroup>>();
@@ -136,11 +188,7 @@ export class CompactRepository extends PostgresRepository {
         "sanctions",
         "import_states",
       ] as const) {
-        if (table === "track_archives") {
-          snapshot.track_archives = [];
-          for await (const row of super.iterateArchives())
-            snapshot.track_archives.push(row);
-        } else (snapshot as any)[table] = await super.all(table);
+        (snapshot as any)[table] = await this.restoreHotRows(table);
       }
       const groups: MetadataGroup[] = [];
       for (const kind of GROUP_KINDS)
@@ -444,18 +492,7 @@ export class CompactRepository extends PostgresRepository {
     for (const kind of GROUP_KINDS) {
       for (;;) {
         if (Date.now() > deadline) return { complete: false, moved };
-        let q = this.client.from(kind).select("*").order("mmsi").limit(500);
-        q =
-          kind === "track_archives"
-            ? q.lt("day", cutoff.slice(0, 10)).order("day")
-            : kind === "anomaly_events"
-              ? q.lt("detected_at", cutoff).order("id")
-              : q
-                  .lt("arrived_at", cutoff)
-                  .lt("departed_at", cutoff)
-                  .lt("last_seen_at", cutoff)
-                  .order("arrived_at");
-        const hot = checked(await q) as MetadataRow[];
+        const hot = await this.hotPage<MetadataRow>(kind, undefined, cutoff);
         if (!hot.length) break;
         const batches = new Map<string, MetadataRow[]>();
         for (const r of hot) {

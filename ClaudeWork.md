@@ -296,3 +296,24 @@ aisstream.io (WebSocket)
 - Alert system (email/webhook)
 - ETA prediction basata su rotta storica
 - API pubblica con chiave per monetizzazione
+
+
+## 14 ottobre 2026 — backend, archivio e affidabilità
+
+- Conservate integralmente 596.609 posizioni di marzo in archivio privato `legacy/`
+  e copia locale, download e ripristino PostgreSQL verificati. Recuperati
+  161.513.472 byte dalla tabella operativa senza eliminare schema o vincoli.
+- Metadati vecchi per nave/mese in gzip verificato, dati recenti e soste aperte
+  ordinari; backup v2 e recupero diretto di 673 gruppi nello staging, tutti i
+  campi e IDs conservati. Ripresa reale dopo guasto temporaneo verificata.
+- Capacità fisica PostgreSQL, indici compresi: 443,36 MiB a 90 giorni nello
+  scenario documentato, margine stretto di 6,64 MiB. Benchmark isolato ripulito.
+- `aab43a4` distribuito su backend unico Railway, monitor con file separato;
+  CI e 74 test riusciti. Carico europeo 20 client/300 richieste: zero errori,
+  p95 260,96 ms. Conservata anche la prova fallita dal Mac.
+- Compattazione produttiva fermata prima dello spostamento: REST arrotonda
+  numeri DOUBLE PRECISION e il confronto atomico li rifiuta. Correzione tramite
+  JSON SQL a precisione completa verificata nello staging, senza allentare i confronti.
+- Aperte compattazione produttiva, manutenzioni complete, memoria/traffico,
+  intero bucket, costo verificato entro 25 € e sette giorni sulla versione finale.
+  La settimana riparte dopo l'ultima modifica backend; frontend invariato.

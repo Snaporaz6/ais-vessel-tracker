@@ -1,35 +1,46 @@
-# Stato della beta — 13 ottobre 2026
+# Stato della beta — 14 ottobre 2026
 
 La [beta Mediterraneo](https://ais-vessel-tracker.vercel.app) è online senza account per le verifiche, con dati AIS reali. Il ripristino cloud isolato e la Preview sono stati verificati. La release resta da qualificare: durata della manutenzione aggiornata, sette giorni sulla versione finale, capacità del database a 90 giorni e costo mensile verificato. La [proposta #2](https://github.com/Snaporaz6/ais-vessel-tracker/pull/2) è stata integrata in `main` (`c8d0d13`) e distribuita in produzione. Le misure operative riportate sotto appartengono alle date indicate; non sono nuove misure del 10 ottobre.
 
-## Backend: archivio e compattazione preparati il 13 ottobre
+## Backend: distribuzione e verifiche del 14 ottobre
 
-Il ramo `codex/backend-storage-reliability` contiene le migrazioni additive 004/005,
-metadati compressi per nave/mese, backup v2, pulizia con checkpoint e diagnostica
-aggiornata. **Queste modifiche non sono ancora distribuite in produzione.**
+Il backend `aab43a4` è distribuito su Railway dal 13 ottobre alle 22:02 UTC
+(14 ottobre in Italia), con una replica e `METADATA_COMPACTION=true`.
+Migrazioni additive 004/005 applicate in produzione; `/ready` operativo,
+acquisizione AIS fresca, scritture persistenti senza coda crescente nelle prime
+letture. OFAC e UE risultano aggiornate il 13 ottobre. Frontend e API pubbliche
+mantengono i contratti esistenti. PR [#15](https://github.com/Snaporaz6/ais-vessel-tracker/pull/15).
 
-Tutte le 596.609 posizioni legacy sono conservate nel bucket privato sotto `legacy/`
-e in una copia locale verificata. Il download e il ripristino completo in PostgreSQL
-isolato sono riusciti. Il confronto della fingerprint della sorgente è riuscito e la transazione
-protetta ha svuotato la tabella legacy il 13 ottobre alle 19:47:42 UTC. Schema
-e vincoli restano disponibili; recuperati 161.513.472 byte (circa 161,5 MB).
+- Marzo: tutte le 596.609 posizioni esportate, scaricate e ripristinate integralmente,
+  con schema, manifesto e checksum. Archivio `legacy/` escluso dalle scadenze;
+  tabella operativa svuotata con controlli, recuperati **161.513.472 byte**.
+- Metadati: catalogo, soste e anomalie comprimibili per nave/mese; sette giorni
+  recenti e soste aperte restano ordinari. Backup v2 e ripristino compatto verificati
+  nello staging, inclusi tutti i campi, IDs, 673 gruppi e 669 tracce del bucket.
+  Ripresa riuscita dopo un errore temporaneo durante il recupero.
+- Capacità: prova PostgreSQL completa, indici inclusi, **443,36 MiB a 90 giorni**,
+  con margine di 6,64 MiB nello scenario misurato. Non è una garanzia per tassi
+  di crescita diversi. [Assunzioni e risultati](DATABASE-CAPACITY.md).
+- Verifiche `aab43a4`: 74 test e CI riusciti. Carico europeo indipendente,
+  20 client/300 richieste: zero errori, **p95 260,96 ms**, massimo 304,79 ms.
+  Il test dal Mac è distinto e fallito: 60 richieste incomplete/non decodificabili,
+  p95 9.048 ms; una successiva diagnosi dà 20 JSON validi in circa due secondi.
+  Il test europeo verifica la soglia da quel punto di misura, senza certificare
+  tutte le connessioni degli utenti.
+- Compattazione iniziale in produzione fermata dal confronto protetto, prima di
+  spostare dati: la serializzazione REST arrotonda alcuni DOUBLE PRECISION.
+  La lettura SQL a precisione completa è in prova finale di produzione; la protezione
+  da modifiche concorrenti non viene indebolita.
+- Monitor aggiornato: prima lettura 13 ottobre **22:11:09 UTC**, file separato
+  `beta-monitor-storage-aab43a4-2026-10-14.jsonl`. Rapporti precedenti conservati.
+  Costi verificati ancora assenti; la finestra deve ripartire dopo ogni ulteriore
+  modifica del backend.
 
-Lo staging conserva gli stessi risultati dopo compattazione; il nuovo backup con
-670 gruppi è stato scaricato e ripristinato con verifica completa di righe e delle
-669 tracce. Passano 72 test automatici, TypeScript, lint, build frontend e 22 prove
-browser desktop/telefono. Il carico locale con 20 client e 300 richieste passa con
-p95 560 ms; non sostituisce la prova remota della versione finale.
-
-Il controllo di produzione delle 23:27 UTC del 12 ottobre (01:27 del 13 ottobre in
-Italia) restituisce `/ready` e metriche 200, AIS fresco e tutte le dipendenze sane.
-Lo staging è allineato e il ripristino completo è riuscito. La migrazione 005
-e il recupero dello spazio sono completati in produzione: database circa 118,6 MB,
-`/ready`, live e tracce 1/7/30/90 giorni 200. La migrazione 004 e la distribuzione
-restano in attesa della prova fisica della capacità, in corso su copie isolate.
-L'aggiornamento UE resta aperto: EUR-Lex risponde HTTP 202; lista precedente valida
-conservata, OFAC aggiornato il 13 ottobre. Capacità e costo restano aperti; la nuova settimana inizierà dopo l'ultima
-distribuzione backend. Le date delle vecchie finestre sotto non certificano questa
-release. Procedura e stato dettagliato: [BACKEND-STORAGE-RELEASE.md](BACKEND-STORAGE-RELEASE.md).
+La qualificazione rimane aperta: compattazione effettiva in produzione,
+manutenzioni complete, memoria/traffico, spazio dell'intero bucket, costo totale
+entro 25 €/mese e sette giorni sulla versione finale. Database nelle prime letture
+circa 119,8 MB; memoria RSS circa 350–416 MB. Questi campioni non sono proiezioni
+sufficienti. [Procedura e stato dettagliato](BACKEND-STORAGE-RELEASE.md).
 
 ## Implementazione verificata
 
@@ -187,7 +198,9 @@ la soglia concordata. È uno scenario di crescita, non una garanzia per tassi
 diversi. Dettagli in [DATABASE-CAPACITY.md](DATABASE-CAPACITY.md). Le tabelle
 di benchmark sono state svuotate dopo la verifica; staging circa 22,6 MB.
 
-Distribuzione e nuovo carico remoto ancora da completare. La qualificazione
+Distribuzione `aab43a4` completata e carico europeo riuscito (p95 260,96 ms).
+Compattazione produttiva ancora da completare: letture REST arrotondate bloccano
+il confronto protetto; correzione della precisione verificata nello staging. La qualificazione
 resta aperta per nuova settimana sulla versione finale, manutenzioni reali,
 traffico Supabase, memoria dei backup e costo complessivo entro 25 €/mese.
 Nessun aumento automatico di piano o modifica al frontend.

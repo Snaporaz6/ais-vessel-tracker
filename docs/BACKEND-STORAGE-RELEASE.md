@@ -1,9 +1,8 @@
-# Archivio separato e affidabilità — 13 ottobre 2026
+# Archivio separato e affidabilità — 14 ottobre 2026
 
 ## Stato delle operazioni
 
-Questo documento riguarda il ramo `codex/backend-storage-reliability`. Il codice
-non è ancora distribuito. La produzione conserva le posizioni di marzo nel bucket
+Questo documento riguarda il ramo `codex/backend-storage-reliability`. La versione `aab43a4` è distribuita dal 13 ottobre alle 22:02 UTC. La produzione conserva le posizioni di marzo nel bucket
 privato; la tabella legacy è stata svuotata dopo tutte le verifiche.
 Non considerare conclusa la qualificazione della beta.
 
@@ -21,7 +20,7 @@ Non considerare conclusa la qualificazione della beta.
   `backups/2026-10-13T19-17-35-758Z-c0fa4a1037fbf6f20751c370abeaa6cc0aeb538e2e07c4c7a04bb1b179196c08.json.gz`.
   Anche i rapporti e backup precedenti rimangono conservati.
 - La migrazione 004 è stata applicata nello staging; la sua ultima revisione
-  è stata allineata e verificata il 13 ottobre. La produzione ha ricevuto 005; 004 resta da applicare dopo la prova fisica.
+  è stata allineata e verificata il 13 ottobre. La produzione ha ricevuto 004 e 005 dopo backup e prova fisica.
 - Il confronto delle 669 tracce dello staging dopo compattazione è riuscito.
   Il ripristino completo del primo backup v2 in PostgreSQL isolato è riuscito;
   anche il formato con 670 gruppi compressi è stato scaricato e ripristinato
@@ -107,7 +106,7 @@ alla cieca. I caricamenti ripetono solo lo stesso oggetto con gli stessi byte.
 
 ## Verifiche completate sul codice
 
-72 test automatici, TypeScript, lint e build frontend passano. Le 22 prove browser
+74 test automatici, TypeScript, lint e build frontend passano. Le 22 prove browser
 desktop/telefono passano; otto casi esclusivi per telefono sono intenzionalmente
 saltati sul progetto desktop. Carico locale: 20 client, 300 risposte valide, zero
 errori e p95 560 ms. Le prove non certificano il carico remoto finale.
@@ -117,11 +116,35 @@ errori e p95 560 ms. Le prove non certificano il carico remoto finale.
 La prova fisica completa in staging proietta 443,36 MiB a 90 giorni
 ([misure e assunzioni](DATABASE-CAPACITY.md)); i dati del benchmark sono stati
  rimossi e il database staging è tornato a circa 22,6 MB.
-Restano migrazione 004 e compattazione in produzione, carico
-remoto di 20 client, distribuzione del monitor e nuova settimana sulla versione
-finale. Conservare tutti i rapporti precedenti. I risultati gzip da soli non
+Restano compattazione in produzione e nuova settimana sulla versione finale,
+oltre a misure di manutenzione, memoria, traffico e costi. Il carico remoto dal
+monitor europeo è riuscito: 300 risposte, zero errori, p95 260,96 ms. Il monitor
+aggiornato conserva una nuova finestra dal 13 ottobre alle 22:11 UTC, da riavviare
+dopo l’ultima modifica backend. Conservare tutti i rapporti precedenti. I risultati gzip da soli non
 certificano né lo spazio fisico a 90 giorni né il costo mensile entro 25 €.
 
 Le due funzioni legacy hanno un timeout amministrativo limitato a 60 secondi,
 previsto da Supabase per funzioni REST; i limiti delle API ordinarie rimangono
 invariati. La procedura rifiuta anche relazioni ereditarie e usa `TRUNCATE ONLY`.
+
+## Diagnosi e prosecuzione — 14 ottobre
+
+Il primo tentativo produttivo di compattazione non ha spostato righe: il confronto
+atomico ha rifiutato numeri arrotondati dalla risposta REST. Verifica SQL:
+`44.63731833333333` originale contro `44.6373183333333` REST. La migrazione
+additiva 006 forma il JSON all'interno della funzione con `extra_float_digits=3`,
+prima della serializzazione del gateway. Si applica a letture per compattazione,
+backup e confronto di ripristino, con pagine di 500 righe e accesso solo backend.
+La correzione passa 75 test, compilazione e prova REST nello staging; non dichiarare completata la compattazione produttiva.
+
+La prima prova dal Mac ha dato 240/300 risposte valide, 60 errori e p95 9.048 ms.
+La diagnosi successiva ha ottenuto 20/20 JSON validi in circa due secondi. Il carico
+indipendente in Railway Europa ha dato 300/300 valide, zero errori, p95 260,96 ms.
+Conservare entrambi i rapporti: il punto di misura e la rete influiscono sul risultato.
+
+Backup di produzione più recente verificato prima della distribuzione:
+13 ottobre 21:13:45 UTC, 14.714.330 byte, SHA-256
+`93001d6634aef9d6bd46388739d7be2fc235ec82b1788f06ddd931c42d826af1`.
+Nuovo monitor: `beta-monitor-storage-aab43a4-2026-10-14.jsonl`; versione registrata
+in ogni campione, costo ancora non verificato. Nessuna certificazione della
+settimana o del tetto di spesa nelle sole prime letture.

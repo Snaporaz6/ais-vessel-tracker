@@ -2,7 +2,7 @@
 
 Mappa pubblica senza account, ricerca MMSI/IMO/nome, schede nave, tracce fino a 90 giorni, soste rilevate e controlli OFAC/UE. Lo storico esiste soltanto per le osservazioni effettivamente ricevute; copertura, aggiornamento e interruzioni sono visibili.
 
-**Stato:** [beta online per le verifiche](https://ais-vessel-tracker.vercel.app), con acquisizione AIS reale dal 6 ottobre 2026. Backup e ripristino cloud isolato sono stati provati. La qualificazione della release richiede ancora sette giorni sulla versione finale, tempi della manutenzione aggiornata, capacità del database e previsione di spesa. Misure e criteri aperti sono in [STATUS.md](docs/STATUS.md). I dati dimostrativi sono fittizi e non possono essere utilizzati in produzione.
+**Stato:** [beta online per le verifiche](https://ais-vessel-tracker.vercel.app), con acquisizione AIS reale dal 6 ottobre 2026. Backup e ripristino cloud isolato sono stati provati. La qualificazione della release richiede ancora sette giorni sulla versione finale, tempi della manutenzione aggiornata, compattazione produttiva e previsione di spesa. La prova fisica proietta 443,36 MiB a 90 giorni nello scenario verificato; il backend aggiornato è online e il carico da Railway Europa passa con p95 261 ms. Misure e criteri aperti sono in [STATUS.md](docs/STATUS.md). I dati dimostrativi sono fittizi e non possono essere utilizzati in produzione.
 
 ## Avvio riproducibile
 
