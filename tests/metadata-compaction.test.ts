@@ -237,7 +237,7 @@ test("metadata transaction rejects stale rows/revisions, is repeatable, and pres
       0,
     );
     await db.query(
-      "INSERT INTO metadata_groups(kind,mmsi,month,version,payload,checksum,row_count,first_at,last_at) VALUES ('anomaly_events','900000000','2026-03-01',1,convert_to(repeat('x',1100000),'UTF8'),repeat('a',64),1,'2026-03-01','2026-03-02')",
+      "INSERT INTO metadata_groups(kind,mmsi,month,version,payload,checksum,row_count,first_at,last_at) VALUES ('anomaly_events','900000000','2026-03-01',1,convert_to(repeat('x',1100000),'UTF8'),encode(sha256(convert_to(repeat('x',1100000),'UTF8')),'hex'),1,'2026-03-01','2026-03-02')",
     );
     const bounded = (
       await db.query<any>(

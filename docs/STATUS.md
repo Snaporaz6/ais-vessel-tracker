@@ -178,7 +178,7 @@ mantenendo schema e vincoli. Live, acquisizione e tracce 1/7/30/90 giorni operat
 La migrazione 004 finale è verificata nello staging: catalogo, soste e anomalie
 vecchie sono comprimibili per nave/mese, senza cambiare i contratti pubblici.
 Backup v2 e ripristino completo preservano anche gli IDs interni; il riallineamento
-delle sequenze usa i permessi USAGE già presenti. 73 test passano, TypeScript e
+delle sequenze usa i permessi USAGE già presenti. 74 test passano, TypeScript e
 build backend riusciti. PR [#15](https://github.com/Snaporaz6/ais-vessel-tracker/pull/15).
 
 La prova PostgreSQL su 90 giorni include 2.465.811 righe storiche, dati recenti,
@@ -191,3 +191,9 @@ Distribuzione e nuovo carico remoto ancora da completare. La qualificazione
 resta aperta per nuova settimana sulla versione finale, manutenzioni reali,
 traffico Supabase, memoria dei backup e costo complessivo entro 25 €/mese.
 Nessun aumento automatico di piano o modifica al frontend.
+
+Prova aggiuntiva: recuperato integralmente lo staging via API dopo azzeramento
+controllato, mantenendo 673 gruppi compressi e tutti i campi/IDs. Ripreso da una
+sessione parziale dopo un errore temporaneo del database. Database finale
+22.599.347 byte: il recupero compatto non richiede di espandere lo storico nel
+database gratuito. La ricostruzione delle righe in PostgreSQL locale resta verificata.

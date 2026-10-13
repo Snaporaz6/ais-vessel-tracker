@@ -13,7 +13,107 @@ import {
   type MetadataRow,
 } from "./metadata-groups.js";
 import { checkedDatabase as checked } from "../shared/database-errors.js";
+import { canonicalTimestamp } from "../shared/timestamps.js";
+const RESTORE_HEADER =
+  "kind,mmsi,month,version,checksum,row_count,archive_bytes,archive_sizes,first_at,last_at,max_arrived_at,min_lat,max_lat,min_lon,max_lon";
+const groupIdentity = (g: Pick<MetadataGroup, "kind" | "mmsi" | "month">) =>
+  `${g.kind}:${g.mmsi}:${g.month}`;
+function restoreHeader(g: Partial<MetadataGroup>) {
+  return Object.fromEntries(
+    RESTORE_HEADER.split(",").map((k) => [
+      k,
+      typeof (g as any)[k] === "string"
+        ? canonicalTimestamp((g as any)[k])
+        : (g as any)[k],
+    ]),
+  );
+}
 export class CompactRepository extends PostgresRepository {
+  async restoreHotRows<T>(table: Table): Promise<T[]> {
+    // PostgresRepository.all delegates track reads virtually; bypass that union
+    // while reconciling the raw part of a compressed restore.
+    if (table === "track_archives") {
+      const rows: T[] = [];
+      for await (const row of super.iterateArchives()) rows.push(row as T);
+      return rows;
+    }
+    return super.all<T>(table);
+  }
+  private async restoreHeaders() {
+    const rows = new Map<string, Partial<MetadataGroup>>();
+    for (const kind of GROUP_KINDS) {
+      let cursor: Partial<MetadataGroup> | undefined;
+      for (;;) {
+        let q = this.client
+          .from("metadata_groups")
+          .select(RESTORE_HEADER)
+          .eq("kind", kind)
+          .order("mmsi")
+          .order("month")
+          .limit(500);
+        if (cursor)
+          q = q.or(
+            `mmsi.gt.${cursor.mmsi},and(mmsi.eq.${cursor.mmsi},month.gt.${cursor.month})`,
+          );
+        const page = checked(await q) as MetadataGroup[];
+        for (const g of page) rows.set(groupIdentity(g), g);
+        if (page.length < 500) break;
+        cursor = page.at(-1);
+      }
+    }
+    return rows;
+  }
+  async verifyPackedRestore(
+    groups: MetadataGroup[],
+    mode: "empty" | "partial" | "complete",
+  ) {
+    const expected = new Map(groups.map((g) => [groupIdentity(g), g]));
+    if (expected.size !== groups.length)
+      throw new Error("BACKUP_GROUP_DUPLICATE");
+    const existing = await this.restoreHeaders();
+    if (mode === "empty" && existing.size)
+      throw new Error("RESTORE_REQUIRES_EMPTY_TARGET");
+    for (const [key, g] of existing) {
+      const source = expected.get(key);
+      if (
+        !source ||
+        !isDeepStrictEqual(restoreHeader(g), restoreHeader(source))
+      )
+        throw new Error("RESTORE_TARGET_CONTENT_MISMATCH");
+    }
+    if (mode === "complete" && existing.size !== expected.size)
+      throw new Error("RESTORE_COUNT_MISMATCH");
+  }
+  async restorePackedGroups(groups: MetadataGroup[]) {
+    await this.verifyPackedRestore(groups, "partial");
+    const existing = await this.restoreHeaders();
+    let changes: ReturnType<CompactRepository["commitArgs"]>[] = [],
+      bytes = 0;
+    const flush = async () => {
+      if (!changes.length) return;
+      if (
+        !checked(
+          await this.client.rpc("apply_metadata_groups_batch_beta", {
+            changes,
+          }),
+        )
+      )
+        throw new Error("RESTORE_TARGET_CONTENT_MISMATCH");
+      changes = [];
+      bytes = 0;
+    };
+    for (const g of groups) {
+      if (existing.has(groupIdentity(g))) continue;
+      const change = this.commitArgs(g, null, []),
+        size = Buffer.byteLength(JSON.stringify(change));
+      if (changes.length && (changes.length >= 8 || bytes + size > 256 * 1024))
+        await flush();
+      changes.push(change);
+      bytes += size;
+    }
+    await flush();
+    await this.verifyPackedRestore(groups, "complete");
+  }
   async archiveReferences(checkDeadline: () => void) {
     return this.consistentRead(async () => {
       const refs = new Set<string>();

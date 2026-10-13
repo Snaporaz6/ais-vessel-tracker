@@ -7,6 +7,7 @@ import type {
   SanctionRecord,
 } from "../shared/types.js";
 import { getDistance } from "geolib";
+import type { MetadataGroup } from "./metadata-groups.js";
 import {
   checkedDatabase as checked,
   databaseFetch,
@@ -46,7 +47,13 @@ export interface StorageMetrics {
   last_observation_at: string | null;
 }
 export interface Repository {
-  finishRestore?(): Promise<void>;
+  finishRestore?(minimumEventID?: number): Promise<void>;
+  restoreHotRows?<T>(table: Table): Promise<T[]>;
+  verifyPackedRestore?(
+    groups: MetadataGroup[],
+    mode: "empty" | "partial" | "complete",
+  ): Promise<void>;
+  restorePackedGroups?(groups: MetadataGroup[]): Promise<void>;
   all<T>(table: Table): Promise<T[]>;
   iterateArchives(): AsyncIterable<ArchiveEntry>;
   upsert(table: Table, rows: unknown[]): Promise<void>;
@@ -78,8 +85,14 @@ const CONFLICT: Record<Table, string> = {
   import_states: "source",
 };
 export class PostgresRepository implements Repository {
-  async finishRestore() {
+  async finishRestore(minimumEventID?: number) {
     checked(await this.client.rpc("finish_restore_beta"));
+    if (minimumEventID !== undefined)
+      checked(
+        await this.client.rpc("advance_restored_anomalies_beta", {
+          minimum_id: minimumEventID,
+        }),
+      );
   }
   readonly client: SupabaseClient;
   constructor(url: string, key: string) {

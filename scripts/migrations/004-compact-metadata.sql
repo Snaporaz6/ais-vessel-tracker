@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS metadata_groups (
 );
 ALTER TABLE metadata_groups DROP CONSTRAINT IF EXISTS metadata_groups_kind_check;
 ALTER TABLE metadata_groups ADD CONSTRAINT metadata_groups_kind_check CHECK(kind IN ('track_archives','detected_stops','anomaly_events'));
+ALTER TABLE metadata_groups DROP CONSTRAINT IF EXISTS metadata_groups_payload_checksum_check;
+ALTER TABLE metadata_groups ADD CONSTRAINT metadata_groups_payload_checksum_check CHECK(encode(sha256(payload),'hex')=checksum);
 ALTER TABLE metadata_groups ADD COLUMN IF NOT EXISTS archive_sizes JSONB NOT NULL DEFAULT '{}'::jsonb;
 CREATE INDEX IF NOT EXISTS metadata_groups_period_idx ON metadata_groups(kind,month);
 CREATE INDEX IF NOT EXISTS metadata_groups_area_idx ON metadata_groups USING gist(area) WHERE kind='detected_stops';
@@ -179,5 +181,15 @@ RETURNS SETOF metadata_groups LANGUAGE sql STABLE SET search_path=public,pg_temp
 $$;
 REVOKE ALL ON FUNCTION metadata_groups_page_beta(TEXT,TEXT,DATE,TEXT,DATE) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION metadata_groups_page_beta(TEXT,TEXT,DATE,TEXT,DATE) TO service_role;
+CREATE OR REPLACE FUNCTION advance_restored_anomalies_beta(minimum_id BIGINT) RETURNS VOID LANGUAGE plpgsql SET search_path=public,pg_temp SET statement_timeout='60s' AS $$
+DECLARE current_value BIGINT; sequence_name TEXT;
+BEGIN
+ IF minimum_id IS NULL OR minimum_id<1 OR minimum_id>2147483646 THEN RAISE EXCEPTION 'RESTORE_ID_INVALID'; END IF;
+ sequence_name := pg_get_serial_sequence('anomaly_events','id');
+ current_value := nextval(sequence_name::regclass);
+ WHILE current_value<minimum_id LOOP current_value := nextval(sequence_name::regclass); END LOOP;
+END; $$;
+REVOKE ALL ON FUNCTION advance_restored_anomalies_beta(BIGINT) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION advance_restored_anomalies_beta(BIGINT) TO service_role;
 NOTIFY pgrst,'reload schema';
 COMMIT;

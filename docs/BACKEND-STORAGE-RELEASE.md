@@ -71,11 +71,19 @@ Una sosta non viene unita ad altre né eliminata per la sua durata.
 I backup v2 conservano le righe recenti e i gruppi compressi verificati, evitando
 che il backup ordinario espanda tutto lo storico in memoria. Il lettore accetta
 anche i primi backup v2 con righe già decompattate. Il ripristino ricostruisce le tabelle ordinarie su una destinazione
-isolata, verifica righe e tracce e permette poi una nuova compattazione. Il lettore
+isolata. Con il lettore compatto, i gruppi v2 vengono ripristinati direttamente
+in forma compressa: anche il recupero resta entro lo spazio del database.
+Le destinazioni ordinarie ricostruiscono invece tutte le righe, per confronto
+e ricostruzione. Entrambe verificano righe e tracce prima del completamento. Il lettore
 continua ad accettare v1. I ripristini v2 conservano anche gli identificativi
 seriali originali e riallineano le sequenze per gli inserimenti successivi.
 La prova del 13 ottobre comprende anomalie hot/cold, tutti i campi e IDs,
-669 oggetti riletti dal bucket e ripristino PostgreSQL completo.
+669 oggetti riletti dal bucket e ripristino PostgreSQL completo. Lo staging è
+stato poi azzerato solo dopo il confronto con il backup verificato, e recuperato
+via API con 673 gruppi compressi. Un errore temporaneo durante la prima tabella
+è stato recuperato dalla sessione salvata, senza duplicati: confronti completi
+riusciti e database circa 22,6 MB. Un vincolo del database verifica inoltre
+il checksum dei payload, impedendo aggiornamenti corrotti.
 **Disabilitare il flag dopo aver compattato non è un
 rollback valido:** usare una versione compatibile o il ripristino isolato verificato.
 
