@@ -1,6 +1,31 @@
-# Stato della beta — 11 ottobre 2026
+# Stato della beta — 13 ottobre 2026
 
 La [beta Mediterraneo](https://ais-vessel-tracker.vercel.app) è online senza account per le verifiche, con dati AIS reali. Il ripristino cloud isolato e la Preview sono stati verificati. La release resta da qualificare: durata della manutenzione aggiornata, sette giorni sulla versione finale, capacità del database a 90 giorni e costo mensile verificato. La [proposta #2](https://github.com/Snaporaz6/ais-vessel-tracker/pull/2) è stata integrata in `main` (`c8d0d13`) e distribuita in produzione. Le misure operative riportate sotto appartengono alle date indicate; non sono nuove misure del 10 ottobre.
+
+## Backend: archivio e compattazione preparati il 13 ottobre
+
+Il ramo `codex/backend-storage-reliability` contiene le migrazioni additive 004/005,
+metadati compressi per nave/mese, backup v2, pulizia con checkpoint e diagnostica
+aggiornata. **Queste modifiche non sono ancora distribuite in produzione.**
+
+Tutte le 596.609 posizioni legacy sono conservate nel bucket privato sotto `legacy/`
+e in una copia locale verificata. Il download e il ripristino completo in PostgreSQL
+isolato sono riusciti. La tabella di produzione è ancora intatta: prima dello
+svuotamento resta obbligatorio confrontare la fingerprint della sorgente sotto lock.
+
+Lo staging conserva gli stessi risultati dopo compattazione; il nuovo backup con
+670 gruppi è stato scaricato e ripristinato con verifica completa di righe e delle
+669 tracce. Passano 71 test automatici, TypeScript, lint, build frontend e 22 prove
+browser desktop/telefono. Il carico locale con 20 client e 300 richieste passa con
+p95 560 ms; non sostituisce la prova remota della versione finale.
+
+Il controllo di produzione delle 23:27 UTC del 12 ottobre (01:27 del 13 ottobre in
+Italia) restituisce `/ready` e metriche 200, AIS fresco e tutte le dipendenze sane.
+L'allineamento finale dello staging e le migrazioni in produzione richiedono ancora
+la console Supabase sbloccata. Nessun recupero fisico dei circa 162 MB è ancora
+avvenuto. Capacità e costo restano aperti; la nuova settimana inizierà dopo l'ultima
+distribuzione backend. Le date delle vecchie finestre sotto non certificano questa
+release. Procedura e stato dettagliato: [BACKEND-STORAGE-RELEASE.md](BACKEND-STORAGE-RELEASE.md).
 
 ## Implementazione verificata
 

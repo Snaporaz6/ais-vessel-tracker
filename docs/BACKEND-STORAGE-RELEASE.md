@@ -84,6 +84,13 @@ durata e codici sanitizzati; non conservano messaggi privati dei fornitori.
 Le letture GET possono ritentare; le mutazioni del database non vengono ripetute
 alla cieca. I caricamenti ripetono solo lo stesso oggetto con gli stessi byte.
 
+## Verifiche completate sul codice
+
+71 test automatici, TypeScript, lint e build frontend passano. Le 22 prove browser
+desktop/telefono passano; otto casi esclusivi per telefono sono intenzionalmente
+saltati sul progetto desktop. Carico locale: 20 client, 300 risposte valide, zero
+errori e p95 560 ms. Le prove non certificano il carico remoto finale.
+
 ## Verifiche ancora necessarie
 
 Allineamento finale dello staging, prova fisica della capacità, migrazioni e
