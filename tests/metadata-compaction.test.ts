@@ -220,6 +220,15 @@ test("metadata transaction rejects stale rows/revisions, is repeatable, and pres
       "INSERT INTO anomaly_events(id,mmsi,type) VALUES (500,$1,'dark_activity')",
       [stop.mmsi],
     );
+    await db.exec("SET ROLE service_role;");
+    assert.equal(
+      (
+        await db.query<any>(
+          "SELECT has_sequence_privilege(current_user,'anomaly_events_id_seq','UPDATE') AS allowed",
+        )
+      ).rows[0].allowed,
+      false,
+    );
     await db.query("SELECT finish_restore_beta()");
     assert.equal(
       (
@@ -230,7 +239,7 @@ test("metadata transaction rejects stale rows/revisions, is repeatable, and pres
       ).rows[0].id,
       501,
     );
-    await db.exec("SET ROLE anon;");
+    await db.exec("RESET ROLE; SET ROLE anon;");
     await assert.rejects(db.query("SELECT * FROM metadata_groups"));
     await assert.rejects(
       db.query("SELECT * FROM nearby_metadata_groups_beta(38,15,0.01,0.01)"),

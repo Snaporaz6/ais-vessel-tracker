@@ -146,14 +146,18 @@ $$;
 REVOKE ALL ON FUNCTION prune_metadata_beta(TIMESTAMPTZ),nearby_stops_beta(DOUBLE PRECISION,DOUBLE PRECISION,INTEGER) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION prune_metadata_beta(TIMESTAMPTZ),nearby_stops_beta(DOUBLE PRECISION,DOUBLE PRECISION,INTEGER) TO service_role;
 -- Preserve original serial IDs in v2 restores and advance their next values.
--- Invoker rights: existing backend sequence privileges are required, never bypassed.
-CREATE OR REPLACE FUNCTION finish_restore_beta() RETURNS VOID LANGUAGE plpgsql SET search_path=public,pg_temp AS $$
-DECLARE table_name TEXT; sequence_name TEXT; maximum BIGINT;
+-- Invoker rights: advance with existing USAGE/nextval privileges; no UPDATE grant.
+-- Sequence progress survives a timeout, so retrying restore continues safely.
+CREATE OR REPLACE FUNCTION finish_restore_beta() RETURNS VOID LANGUAGE plpgsql SET search_path=public,pg_temp SET statement_timeout='60s' AS $$
+DECLARE table_name TEXT; sequence_name TEXT; maximum BIGINT; current_value BIGINT;
 BEGIN
  FOREACH table_name IN ARRAY ARRAY['anomaly_events','sanctions'] LOOP
   sequence_name := pg_get_serial_sequence(table_name,'id');
   EXECUTE format('SELECT max(id) FROM %I',table_name) INTO maximum;
-  IF sequence_name IS NOT NULL THEN PERFORM setval(sequence_name::regclass,greatest(coalesce(maximum,1),1),maximum IS NOT NULL); END IF;
+  IF sequence_name IS NOT NULL AND maximum IS NOT NULL THEN
+   current_value := nextval(sequence_name::regclass);
+   WHILE current_value < maximum LOOP current_value := nextval(sequence_name::regclass); END LOOP;
+  END IF;
  END LOOP;
 END; $$;
 REVOKE ALL ON FUNCTION finish_restore_beta() FROM PUBLIC,anon,authenticated;
