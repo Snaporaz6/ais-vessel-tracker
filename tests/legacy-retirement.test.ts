@@ -32,6 +32,9 @@ test("legacy retirement preserves changed rows and dependencies; verified retire
     );
     await assert.rejects(retire(fp), /UNEXPECTED_DEPENDENCY/);
     await db.exec("DROP TABLE child;");
+    await db.exec("CREATE TABLE descendant() INHERITS(vessel_positions);");
+    await assert.rejects(retire(fp), /UNEXPECTED_DEPENDENCY/);
+    await db.exec("DROP TABLE descendant;");
     await retire(fp);
     assert.equal(
       (await db.query("SELECT * FROM vessel_positions")).rows.length,

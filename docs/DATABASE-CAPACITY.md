@@ -1,5 +1,11 @@
 # Capacità del database — analisi del 12 ottobre 2026
 
+Aggiornamento del 13 ottobre: dopo archivio separato e ripristino completo, la
+tabella legacy è stata svuotata sotto lock con confronto di tutte le righe.
+Recuperati 161.513.472 byte; database circa 118,6 MB. Le misure sotto descrivono
+la situazione **precedente** e gli indici legacy sono già compresi nello spazio
+recuperato. La prova fisica del nuovo formato a 90 giorni è in corso in staging.
+
 Misure dirette sul progetto Supabase di produzione, tramite sole query SELECT.
 Il database misura circa 268 MB; le dimensioni qui sono byte decimali e comprendono
 gli indici. Le statistiche PostgreSQL degli aggiornamenti non sono conteggi di

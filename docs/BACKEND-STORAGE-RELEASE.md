@@ -3,7 +3,8 @@
 ## Stato delle operazioni
 
 Questo documento riguarda il ramo `codex/backend-storage-reliability`. Il codice
-non è ancora distribuito. La produzione conserva ancora tutte le posizioni legacy.
+non è ancora distribuito. La produzione conserva le posizioni di marzo nel bucket
+privato; la tabella legacy è stata svuotata dopo tutte le verifiche.
 Non considerare conclusa la qualificazione della beta.
 
 - Esportate tutte le 596.609 posizioni dal 6 al 15 marzo 2026 in 24 parti gzip,
@@ -12,10 +13,14 @@ Non considerare conclusa la qualificazione della beta.
   SHA-256. Un ripristino completo in PostgreSQL isolato ha verificato tutte le righe.
 - Prefisso protetto: `legacy/march-2026/2026-10-12T22-05-11-802Z`.
   Copia locale conservata fuori da Git. Non applicare scadenze a `legacy/`.
+- Fingerprint PostgreSQL della sorgente e del ripristino identiche. Il 13 ottobre
+  alle 19:47:42 UTC la transazione protetta ha svuotato soltanto la tabella legacy,
+  mantenendo schema e vincoli. Spazio recuperato: 161.513.472 byte.
+  `/ready`, live e tracce 1/7/30/90 giorni restano 200; database circa 118,6 MB.
 - Backup pre-migrazione di produzione verificato: 12.916.264 byte,
   `backups/2026-10-12T23-23-13-395Z-4146ff2816048e059fa7f5f76076cd6a496ac8d6843e22cd32a8db0a502de706.json.gz`.
 - La migrazione 004 è stata applicata nello staging; la sua ultima revisione
-  deve ancora essere allineata. La produzione non ha ricevuto 004/005.
+  è stata allineata e verificata il 13 ottobre. La produzione ha ricevuto 005; 004 resta da applicare dopo la prova fisica.
 - Il confronto delle 669 tracce dello staging dopo compattazione è riuscito.
   Il ripristino completo del primo backup v2 in PostgreSQL isolato è riuscito;
   anche il formato con 670 gruppi compressi è stato scaricato e ripristinato
@@ -86,15 +91,19 @@ alla cieca. I caricamenti ripetono solo lo stesso oggetto con gli stessi byte.
 
 ## Verifiche completate sul codice
 
-71 test automatici, TypeScript, lint e build frontend passano. Le 22 prove browser
+72 test automatici, TypeScript, lint e build frontend passano. Le 22 prove browser
 desktop/telefono passano; otto casi esclusivi per telefono sono intenzionalmente
 saltati sul progetto desktop. Carico locale: 20 client, 300 risposte valide, zero
 errori e p95 560 ms. Le prove non certificano il carico remoto finale.
 
 ## Verifiche ancora necessarie
 
-Allineamento finale dello staging, prova fisica della capacità, migrazioni e
-compattazione in produzione, rimozione legacy dopo confronto completo, carico
+Prova fisica della capacità, migrazione 004 e
+compattazione in produzione, carico
 remoto di 20 client, distribuzione del monitor e nuova settimana sulla versione
 finale. Conservare tutti i rapporti precedenti. I risultati gzip da soli non
 certificano né lo spazio fisico a 90 giorni né il costo mensile entro 25 €.
+
+Le due funzioni legacy hanno un timeout amministrativo limitato a 60 secondi,
+previsto da Supabase per funzioni REST; i limiti delle API ordinarie rimangono
+invariati. La procedura rifiuta anche relazioni ereditarie e usa `TRUNCATE ONLY`.

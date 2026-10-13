@@ -10,20 +10,24 @@ aggiornata. **Queste modifiche non sono ancora distribuite in produzione.**
 
 Tutte le 596.609 posizioni legacy sono conservate nel bucket privato sotto `legacy/`
 e in una copia locale verificata. Il download e il ripristino completo in PostgreSQL
-isolato sono riusciti. La tabella di produzione è ancora intatta: prima dello
-svuotamento resta obbligatorio confrontare la fingerprint della sorgente sotto lock.
+isolato sono riusciti. Il confronto della fingerprint della sorgente è riuscito e la transazione
+protetta ha svuotato la tabella legacy il 13 ottobre alle 19:47:42 UTC. Schema
+e vincoli restano disponibili; recuperati 161.513.472 byte (circa 161,5 MB).
 
 Lo staging conserva gli stessi risultati dopo compattazione; il nuovo backup con
 670 gruppi è stato scaricato e ripristinato con verifica completa di righe e delle
-669 tracce. Passano 71 test automatici, TypeScript, lint, build frontend e 22 prove
+669 tracce. Passano 72 test automatici, TypeScript, lint, build frontend e 22 prove
 browser desktop/telefono. Il carico locale con 20 client e 300 richieste passa con
 p95 560 ms; non sostituisce la prova remota della versione finale.
 
 Il controllo di produzione delle 23:27 UTC del 12 ottobre (01:27 del 13 ottobre in
 Italia) restituisce `/ready` e metriche 200, AIS fresco e tutte le dipendenze sane.
-L'allineamento finale dello staging e le migrazioni in produzione richiedono ancora
-la console Supabase sbloccata. Nessun recupero fisico dei circa 162 MB è ancora
-avvenuto. Capacità e costo restano aperti; la nuova settimana inizierà dopo l'ultima
+Lo staging è allineato e il ripristino completo è riuscito. La migrazione 005
+e il recupero dello spazio sono completati in produzione: database circa 118,6 MB,
+`/ready`, live e tracce 1/7/30/90 giorni 200. La migrazione 004 e la distribuzione
+restano in attesa della prova fisica della capacità, in corso su copie isolate.
+L'aggiornamento UE resta aperto: EUR-Lex risponde HTTP 202; lista precedente valida
+conservata, OFAC aggiornato il 13 ottobre. Capacità e costo restano aperti; la nuova settimana inizierà dopo l'ultima
 distribuzione backend. Le date delle vecchie finestre sotto non certificano questa
 release. Procedura e stato dettagliato: [BACKEND-STORAGE-RELEASE.md](BACKEND-STORAGE-RELEASE.md).
 
