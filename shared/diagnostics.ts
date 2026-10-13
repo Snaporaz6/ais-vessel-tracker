@@ -21,9 +21,22 @@ export function diagnosticCode(error: unknown): string {
     "BACKUP_UNVERIFIED",
     "BACKUP_CHECKSUM_MISMATCH",
     "IMPORT_FAILED",
+    "SANCTIONS_DOWNLOAD_FAILED",
+    "SANCTIONS_DOWNLOAD_INVALID",
+    "INVALID_SANCTIONS_SOURCE",
+    "INVALID_OFAC_XML",
+    "INVALID_OFAC_SCHEMA",
+    "INVALID_EU_SCHEMA",
+    "INCOMPLETE_OFAC_IMPORT",
+    "INCOMPLETE_EU_IMPORT",
+    "EU_CONSOLIDATION_NOT_FOUND",
+    "SANCTIONS_IMPORT_FAILED",
+    "SANCTIONS_IMPORT_PARTIAL",
     "LEGACY_EXPORT_FAILED",
   ]);
   if (codes.has(e?.message ?? "")) return e.message!;
+  if (/^SANCTIONS_HTTP_(?:202|[345]\d{2})$/.test(e?.message ?? ""))
+    return e.message!;
   if (e?.name === "TimeoutError" || e?.name === "AbortError")
     return "DEPENDENCY_TIMEOUT";
   if (
