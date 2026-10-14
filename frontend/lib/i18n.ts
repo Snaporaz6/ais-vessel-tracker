@@ -18,6 +18,13 @@ export const INTL_LOCALES: Record<Locale, string> = {
 // Italian source text and reviewed English, French and German translations.
 export const messages = {
   ...mapMessages,
+  "Navi 3D": ["3D vessels", "Navires 3D", "3D-Schiffe"],
+  Ombre: ["Shadows", "Ombres", "Schatten"],
+  "Modelli indicativi a zoom ravvicinato": [
+    "Illustrative models at close zoom",
+    "Modèles indicatifs à fort zoom",
+    "Schematische Modelle bei hoher Zoomstufe",
+  ],
   "Risultati ricerca": [
     "Search results",
     "Résultats de recherche",

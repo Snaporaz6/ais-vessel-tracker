@@ -44,6 +44,7 @@ export function createTrackMarkers(
     ) {
       position = moment?.position ?? null;
       if (moment && position) {
+        element.dataset.mmsi = position.mmsi;
         element.dataset.historic = String(!moment.live);
         label.textContent = moment.live ? currentLabel : historicLabel;
         element.setAttribute("aria-label", label.textContent);
