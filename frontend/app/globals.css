@@ -1159,6 +1159,34 @@ button.track-position-marker:hover {
   opacity: 0.5;
   cursor: default;
 }
+.track-position-marker[data-model-visible="true"] .track-position-arrow {
+  visibility: hidden;
+}
+.vessel-model-settings {
+  position: absolute;
+  top: 260px;
+  left: 16px;
+  z-index: 18;
+  display: flex;
+  gap: 12px;
+  padding: 7px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+}
+.vessel-model-settings label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.vessel-model-settings input {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  accent-color: var(--accent);
+}
 .track-timeline::after {
   content: "";
   display: block;
