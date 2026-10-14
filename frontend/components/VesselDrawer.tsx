@@ -27,7 +27,7 @@ export default function VesselDrawer({
   mmsi: string;
   onClose: () => void;
   onShowTrack: (m: string) => void;
-  onPosition: (p: VesselPosition | null) => void;
+  onPosition: (p: VesselPosition | null, locate: boolean) => void;
 }) {
   const { t, errorText } = useLanguage();
   const [vessel, setVessel] = useState<VesselDetail | null>(null),
@@ -53,10 +53,9 @@ export default function VesselDrawer({
           if (!signal.aborted && !stopped) {
             setVessel(v);
             setError("");
-            if (!centered && v.last_position) {
-              onPosition(v.last_position);
-              centered = true;
-            }
+            // Refresh the selected fix without re-centering every fifteen seconds.
+            onPosition(v.last_position, !centered && !!v.last_position);
+            if (v.last_position) centered = true;
           }
         })
         .catch((e) => {

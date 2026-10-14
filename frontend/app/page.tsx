@@ -83,6 +83,9 @@ export default function Home() {
     [globe, setGlobe] = useState(false),
     [focusMap, setFocusMap] = useState(true),
     [focusVersion, setFocusVersion] = useState(0),
+    [selectedPosition, setSelectedPosition] = useState<VesselPosition | null>(
+      null,
+    ),
     [center, setCenter] = useState<
       (VesselPosition & { preserveZoom?: boolean }) | null
     >(null);
@@ -162,9 +165,10 @@ export default function Home() {
       />
     ) : null;
   const onPosition = useCallback(
-    (p: VesselPosition | null) => {
+    (p: VesselPosition | null, locate: boolean) => {
+      setSelectedPosition(p);
       // Search and direct links locate vessels; map clicks keep the current view.
-      if (focusMap) setCenter(p);
+      if (focusMap && locate) setCenter(p);
     },
     [focusMap, focusVersion],
   );
@@ -225,6 +229,9 @@ export default function Home() {
         onTypeCounts={setCounts}
         isGlobe={globe}
         center={center}
+        selectedPosition={
+          selectedPosition?.mmsi === selected ? selectedPosition : null
+        }
         showGapLinks={showGapLinks}
         onTrackInfo={setTrackInfo}
         playbackAt={playbackAt}

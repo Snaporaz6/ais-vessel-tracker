@@ -323,3 +323,24 @@ aisstream.io (WebSocket)
 - Aperte manutenzioni complete, memoria/traffico,
   intero bucket, costo verificato entro 25 € e sette giorni sulla versione finale.
   La settimana riparte dopo l'ultima modifica backend; frontend invariato.
+
+## 14 ottobre 2026 — nave selezionata visibile senza traccia
+
+RDO CONCORD scompariva nascondendo la traccia perché il punto mancava dal live,
+limitato alle osservazioni degli ultimi dieci minuti. La scheda conservava l'ultima
+posizione ma il suo simbolo dipendeva dal cursore storico. Osservato un vuoto di
+circa 21 minuti (18:25–18:46 UTC), con altre navi nell'area e backend operativo.
+La causa specifica della mancata osservazione non è determinabile dai dati disponibili.
+
+Il frontend conserva ora un simbolo separato della nave selezionata, con orario
+esplicito, anche durante i vuoti AIS. Aggiornamenti della scheda senza ricentrare;
+precedenza al live più nuovo, nessun duplicato con il cursore della traccia.
+Traccia vuota/fallita non rimuove il punto; chiusura della scheda e posizione
+mancante lo eliminano. Acquisizione, archivi e soglia live invariati.
+
+TypeScript, lint, build e cinque prove mirate desktop/telefono riusciti; CI completa
+riuscita sul commit `1231c0a`, PR #16 integrato (`a39d457`). Vercel Production
+Ready/success, deployment `7074648038`, 14 ottobre 21:06 italiane (19:06 UTC).
+Prova pubblica mostra/nascondi su RDO CONCORD riuscita, un solo simbolo anche con
+ultima osservazione oltre dieci minuti. Backend `c7c2a34` operativo e finestra di
+qualificazione conservata. Dettagli: docs/SELECTED-VESSEL-MARKER.md.
