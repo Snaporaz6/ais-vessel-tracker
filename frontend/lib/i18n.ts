@@ -43,6 +43,13 @@ export const messages = {
     "Points atténués : dernière position reçue il y a plus de 10 minutes.",
     "Blasse Punkte: letzte Position vor mehr als 10 Minuten empfangen.",
   ],
+  "Navi 3D": ["3D vessels", "Navires 3D", "3D-Schiffe"],
+  Ombre: ["Shadows", "Ombres", "Schatten"],
+  "Modelli indicativi a zoom ravvicinato": [
+    "Illustrative models at close zoom",
+    "Modèles indicatifs à fort zoom",
+    "Schematische Modelle bei hoher Zoomstufe",
+  ],
   "Risultati ricerca": [
     "Search results",
     "Résultats de recherche",

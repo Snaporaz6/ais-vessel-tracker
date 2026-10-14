@@ -119,3 +119,5 @@ Foto libere, illustrazioni JPG per categoria e persistenza del tema nelle schede
 Traccia con cursore temporale, riproduzione delle osservazioni e pulsante Mostra/Nascondi: [controlli e limiti](docs/TRACK-PLAYBACK.md).
 
 Mobile: menu hamburger e un pannello alla volta in basso, con prove di utilizzo su tre formati: [interfaccia e verifiche](docs/MOBILE-MAP.md).
+
+Modelli WebGL per le otto categorie, finitura satinata, ombre e dimensioni proporzionate: [rendering e limiti](docs/VESSEL-MODELS.md).
