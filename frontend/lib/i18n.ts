@@ -18,6 +18,21 @@ export const INTL_LOCALES: Record<Locale, string> = {
 // Italian source text and reviewed English, French and German translations.
 export const messages = {
   ...mapMessages,
+  "AIS · ultime posizioni osservate": [
+    "AIS · latest observed positions",
+    "AIS · dernières positions observées",
+    "AIS · zuletzt beobachtete Positionen",
+  ],
+  "{recent} recenti · {stale} meno recenti nell’area": [
+    "{recent} recent · {stale} older fixes in the area",
+    "{recent} récentes · {stale} anciennes dans la zone",
+    "{recent} aktuell · {stale} ältere Positionen im Gebiet",
+  ],
+  "Punti attenuati: ultima posizione ricevuta oltre 10 minuti fa.": [
+    "Faded points: last position received more than 10 minutes ago.",
+    "Points atténués : dernière position reçue il y a plus de 10 minutes.",
+    "Blasse Punkte: letzte Position vor mehr als 10 Minuten empfangen.",
+  ],
   "Risultati ricerca": [
     "Search results",
     "Résultats de recherche",

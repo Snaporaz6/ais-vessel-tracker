@@ -205,3 +205,67 @@ test("traccia vuota o fallita non cancella il punto selezionato e gli aggiorname
   );
   await expect(marker).toHaveCount(0);
 });
+
+test("il punto meno recente è disegnato e cliccabile nella zona senza ricerca o selezione", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  const fix = { ...state.detail.last_position!, lat: 38, lon: 15 };
+  state.detail = { ...state.detail, last_position: fix };
+  await page.route("**/api/map/live?*", (route) =>
+    route.fulfill({
+      json: {
+        vessels: [
+          {
+            ...fix,
+            name: state.detail.name,
+            ship_type: "cargo",
+            is_sanctioned: false,
+            is_stale: true,
+            anomaly_flags: [],
+          },
+        ],
+        total_live: 0,
+        total_in_bbox: 1,
+        recent_in_bbox: 0,
+        last_known_in_bbox: 1,
+        truncated: false,
+        generated_at: new Date().toISOString(),
+        history_started_at: fix.timestamp,
+        source: {
+          connected: true,
+          subscribed: true,
+          last_message_at: new Date().toISOString(),
+          last_disconnect_at: null,
+          status: "live",
+          outages: [],
+        },
+      },
+    }),
+  );
+  await page.goto("/");
+  await expect(page.locator(".vessel-drawer")).toHaveCount(0);
+  await expect(page.locator(".selected-vessel-marker")).toHaveCount(0);
+  if (info.project.name === "telefono") {
+    await page.getByRole("button", { name: "Menu mappa", exact: true }).click();
+    await page.getByRole("button", { name: /^Stato dati/ }).click();
+  }
+  await expect(page.locator(".map-status")).toContainText(
+    "0 recenti · 1 meno recenti nell’area",
+  );
+  if (info.project.name === "telefono")
+    await page.getByRole("button", { name: "Chiudi stato dati" }).click();
+  const canvas = page.locator("canvas.maplibregl-canvas"),
+    box = await canvas.boundingBox();
+  expect(box).not.toBeNull();
+  await expect(async () => {
+    await canvas.click({ position: { x: box!.width / 2, y: box!.height / 2 } });
+    await expect(page.locator(".vessel-drawer h1")).toHaveText("RDO CONCORD", {
+      timeout: 1000,
+    });
+  }).toPass({ timeout: 15000 });
+  await expect(
+    page.getByRole("button", { name: "Mostra traccia", exact: true }),
+  ).toBeVisible();
+  await page.screenshot({ path: info.outputPath("dated-vessel-clicked.png") });
+});

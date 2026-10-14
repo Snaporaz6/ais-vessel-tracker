@@ -16,6 +16,7 @@ import {
   observationGap,
 } from "../../shared/history";
 import { getLiveVessels, getTrack } from "../lib/api";
+import { LIVE_TTL_MS } from "../../shared/config";
 import { trackGeometry, type TrackDisplayInfo } from "../lib/track-display";
 import { useLanguage } from "./LanguageProvider";
 import MarineLayers from "./MarineLayers";
@@ -201,6 +202,8 @@ export default function VesselMap({
         filter: ["!", ["has", "point_count"]],
         paint: {
           "circle-color": ["get", "color"],
+          "circle-opacity": ["case", ["get", "is_stale"], 0.55, 1],
+          "circle-stroke-opacity": ["case", ["get", "is_stale"], 0.7, 1],
           "circle-radius": 6,
           "circle-stroke-width": 1.5,
           "circle-stroke-color": "#fff",
@@ -534,6 +537,8 @@ export default function VesselMap({
           geometry: { type: "Point", coordinates: [v.lon, v.lat] },
           properties: {
             ...v,
+            is_stale:
+              v.is_stale ?? Date.now() - Date.parse(v.timestamp) > LIVE_TTL_MS,
             color: v.is_sanctioned ? "#ef4444" : COLORS[v.ship_type],
           },
         })),
@@ -830,7 +835,7 @@ export default function VesselMap({
             : source?.status === "demo"
               ? t("DEMO · dati interamente fittizi")
               : source?.status === "live"
-                ? t("AIS · osservazioni live")
+                ? t("AIS · ultime posizioni osservate")
                 : t("AIS · acquisizione non aggiornata")}
         </strong>
         <span>
@@ -847,6 +852,17 @@ export default function VesselMap({
                   "Nessuna acquisizione AIS fuori dal Mediterraneo in questa demo.",
                 )
               : t("Caricamento osservazioni…")}
+        </span>
+        {data?.recent_in_bbox !== undefined && (
+          <span>
+            {t("{recent} recenti · {stale} meno recenti nell’area", {
+              recent: numbers(data.recent_in_bbox),
+              stale: numbers(data.last_known_in_bbox ?? 0),
+            })}
+          </span>
+        )}
+        <span>
+          {t("Punti attenuati: ultima posizione ricevuta oltre 10 minuti fa.")}
         </span>
         <span>
           {t("Ultima ricezione: {date}", {
