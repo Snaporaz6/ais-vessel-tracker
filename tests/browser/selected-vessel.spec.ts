@@ -120,6 +120,50 @@ async function vesselPanel(page: Page, mobile: boolean) {
       .getByRole("button", { name: "Nave", exact: true })
       .click();
 }
+test("l’orario passa ad arancione e rosso anche senza nuovi dati e torna normale con un’osservazione recente", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  const now = Date.now();
+  const timestamp = new Date(now - 14 * 60_000).toISOString();
+  state.detail = {
+    ...state.detail,
+    last_position: { ...state.detail.last_position!, timestamp },
+  };
+  await page.clock.install({ time: now });
+  await page.goto("/?vessel=" + MMSI);
+  const time = page.locator(".vessel-drawer .observation-time");
+  await expect(time).toHaveClass(/observation-time--recent/);
+  await expect(time.locator("time")).toHaveAttribute("datetime", timestamp);
+  await expect(time.locator(".observation-age-badge")).toHaveCount(0);
+  await page.clock.fastForward(2 * 60_000);
+  await expect(time).toHaveClass(/observation-time--warning/);
+  await expect(time).toContainText("Dato non recente · oltre 15 minuti");
+  await expect(time.locator("time")).toHaveAttribute("datetime", timestamp);
+  await time.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: info.outputPath("observation-orange.png") });
+  await page.clock.fastForward(50 * 60_000);
+  await expect(time).toHaveClass(/observation-time--old/);
+  await expect(time).toContainText("Dato vecchio · oltre 1 ora");
+  await expect(time.locator("time")).toHaveAttribute("datetime", timestamp);
+  await page.screenshot({ path: info.outputPath("observation-red.png") });
+  // Both themes use explicit readable warning colours; text conveys severity too.
+  await page.evaluate(() => {
+    document.documentElement.dataset.mapTheme = "light";
+  });
+  await expect(time).toHaveCSS("color", "rgb(185, 28, 28)");
+  const fresh = new Date(now + 52 * 60_000 - 60_000).toISOString();
+  state.detail = {
+    ...state.detail,
+    last_position: { ...state.detail.last_position!, timestamp: fresh },
+  };
+  await page.evaluate(() =>
+    document.dispatchEvent(new Event("visibilitychange")),
+  );
+  await expect(time.locator("time")).toHaveAttribute("datetime", fresh);
+  await expect(time).toHaveClass(/observation-time--recent/);
+  await expect(time.locator(".observation-age-badge")).toHaveCount(0);
+});
 test("la nave assente dal live rimane visibile prima e dopo mostra/nascondi traccia", async ({
   page,
 }, info) => {

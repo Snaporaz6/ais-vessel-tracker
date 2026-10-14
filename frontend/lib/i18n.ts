@@ -18,6 +18,16 @@ export const INTL_LOCALES: Record<Locale, string> = {
 // Italian source text and reviewed English, French and German translations.
 export const messages = {
   ...mapMessages,
+  "Dato non recente · oltre 15 minuti": [
+    "Older data · over 15 minutes",
+    "Donnée moins récente · plus de 15 minutes",
+    "Ältere Daten · über 15 Minuten",
+  ],
+  "Dato vecchio · oltre 1 ora": [
+    "Old data · over 1 hour",
+    "Donnée ancienne · plus d’une heure",
+    "Veraltete Daten · über 1 Stunde",
+  ],
   "AIS · ultime posizioni osservate": [
     "AIS · latest observed positions",
     "AIS · dernières positions observées",

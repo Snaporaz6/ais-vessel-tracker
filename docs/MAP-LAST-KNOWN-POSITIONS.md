@@ -16,13 +16,21 @@ Il limite resta 5.000, con segnalazione esplicita e precedenza ai punti più nuo
 
 Il frontend attenua i punti con osservazioni oltre dieci minuti e spiega il significato
 nello stato dati, in italiano/inglese/francese/tedesco. Clic, filtri e raggruppamento
-restano disponibili. La scheda mostra l'orario effettivo della posizione ricevuta.
+restano disponibili. La scheda mostra l'orario effettivo della posizione ricevuta,
+sempre in UTC. Oltre 15 minuti l'orario e l'avviso «Dato non recente · oltre 15 minuti»
+diventano arancioni; oltre un'ora diventano rossi con «Dato vecchio · oltre 1 ora».
+La data non viene sostituita con l'ora attuale. L'indicazione si aggiorna ogni 30 secondi
+e al ritorno nella scheda, anche senza nuove osservazioni. Una nuova rilevazione recente
+riporta l'orario allo stato normale. Il componente è condiviso con la scheda completa,
+ha colori leggibili nei temi scuri e chiari e un testo esplicito oltre al colore.
 Il simbolo della selezione e il cursore della traccia continuano a evitare duplicati.
 
 Prove locali: API con punto recente, punto vecchio, punto fuori area e punto scaduto;
-risposta limitata con posizione recente inserita dopo 5.001 punti vecchi; sei prove
+risposta limitata con posizione recente inserita dopo 5.001 punti vecchi; otto prove
 browser desktop/telefono, compreso il clic sul punto vecchio senza ricerca o scheda
-preesistente. Compilazioni e lint riusciti. Pubblicazione e carico remoto da verificare.
+preesistente, avanzamento dell'orologio senza nuovi dati e ritorno a un dato recente.
+Verificati anche i confini esatti delle soglie 15/60 minuti. Compilazioni, lint e
+prove dell'avviso riusciti. Pubblicazione e carico remoto da completare.
 
 Distribuire prima il frontend compatibile, poi la modifica API sul backend già
 compatibile con i metadati compressi. Conservare i monitor precedenti e iniziare
