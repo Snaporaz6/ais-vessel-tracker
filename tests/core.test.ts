@@ -499,3 +499,67 @@ test("WebSocket distinguishes confirmations/errors from observations and reconne
   assert.equal(client.state.subscribed, true);
   assert.equal(client.state.outages.at(-1)?.to !== null, true);
 });
+
+test("map retains dated fixes in their area without selection and distinguishes recent observations", async (t) => {
+  const f = fixture(),
+    sanctions = new SanctionsCache(f.repo);
+  await sanctions.refresh();
+  f.live.latest(pos(-60000, { mmsi: "900000101" }));
+  const old = pos(-20 * 60000, { mmsi: "900000102" });
+  f.live.latest(old);
+  f.live.latest(pos(-91 * 86400000, { mmsi: "900000103" }));
+  f.live.latest(pos(-30 * 60000, { mmsi: "900000104", lon: 80 }));
+  const c = {
+    ...f,
+    config: { origins: ["http://localhost:3000"], demo: true } as RuntimeConfig,
+    sanctions,
+    historyStartedAt: old.timestamp,
+  } as unknown as Context;
+  const server = createApp(c, false).listen(0, "127.0.0.1");
+  await once(server, "listening");
+  t.after(() => server.close());
+  const response = await fetch(
+    `http://127.0.0.1:${(server.address() as any).port}/api/map/live?bbox=14,37,16,39`,
+  );
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.total_live, 1);
+  assert.equal(body.total_in_bbox, 2);
+  assert.equal(body.recent_in_bbox, 1);
+  assert.equal(body.last_known_in_bbox, 1);
+  assert.deepEqual(
+    body.vessels.map((v: any) => v.mmsi),
+    ["900000101", "900000102"],
+  );
+  assert.equal(body.vessels[0].is_stale, false);
+  assert.equal(body.vessels[1].is_stale, true);
+  assert.equal(body.vessels[1].timestamp, old.timestamp);
+});
+test("limited map responses prioritise newer fixes over previously inserted dated positions", async (t) => {
+  const f = fixture(),
+    sanctions = new SanctionsCache(f.repo);
+  await sanctions.refresh();
+  for (let i = 0; i < 5001; i++)
+    f.live.latest(pos(-20 * 60000, { mmsi: String(900000000 + i) }));
+  f.live.latest(pos(-60000, { mmsi: "900099999" }));
+  const c = {
+    ...f,
+    config: { origins: ["http://localhost:3000"], demo: true } as RuntimeConfig,
+    sanctions,
+    historyStartedAt: null,
+  } as unknown as Context;
+  const server = createApp(c, false).listen(0, "127.0.0.1");
+  await once(server, "listening");
+  t.after(() => server.close());
+  const body = await (
+    await fetch(
+      `http://127.0.0.1:${(server.address() as any).port}/api/map/live`,
+    )
+  ).json();
+  assert.equal(body.vessels.length, 5000);
+  assert.equal(body.vessels[0].mmsi, "900099999");
+  assert.equal(body.vessels[0].is_stale, false);
+  assert.equal(body.total_in_bbox, 5002);
+  assert.equal(body.last_known_in_bbox, 5001);
+  assert.equal(body.truncated, true);
+});

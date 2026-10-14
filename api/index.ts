@@ -23,6 +23,7 @@ import {
 import {
   HISTORY_TIERS,
   LIVE_TTL_MS,
+  RETENTION_DAYS,
   LIVE_MAP_MAX_VESSELS,
   TRACK_MAX_POINTS,
   SOURCE_STALE_MS,
@@ -163,10 +164,17 @@ export function createApp(c: Context, limited = true) {
       const now = Date.now(),
         vessels: LiveMapResponse["vessels"] = [];
       let total = 0,
-        inBbox = 0;
+        recentInBbox = 0;
+      const candidates: { position: VesselPosition; observedAt: number }[] = [];
       for (const p of c.live.positions.values()) {
-        if (now - Date.parse(p.timestamp) > LIVE_TTL_MS) continue;
-        total++;
+        const observedAt = Date.parse(p.timestamp);
+        if (
+          !Number.isFinite(observedAt) ||
+          now - observedAt > RETENTION_DAYS * 86400_000
+        )
+          continue;
+        const recent = now - observedAt <= LIVE_TTL_MS;
+        if (recent) total++;
         if (
           p.lon < bbox[0] ||
           p.lon > bbox[2] ||
@@ -174,8 +182,19 @@ export function createApp(c: Context, limited = true) {
           p.lat > bbox[3]
         )
           continue;
-        inBbox++;
-        if (vessels.length >= LIVE_MAP_MAX_VESSELS) continue;
+        if (recent) recentInBbox++;
+        candidates.push({ position: p, observedAt });
+      }
+      // A broad viewport must not let old fixes crowd out newer observations.
+      candidates.sort(
+        (a, b) =>
+          b.observedAt - a.observedAt ||
+          a.position.mmsi.localeCompare(b.position.mmsi),
+      );
+      for (const { position: p, observedAt } of candidates.slice(
+        0,
+        LIVE_MAP_MAX_VESSELS,
+      )) {
         const v = c.live.vessels.get(p.mmsi),
           sanctions = c.sanctions.check(p.mmsi, v?.imo),
           flags = (
@@ -199,6 +218,7 @@ export function createApp(c: Context, limited = true) {
           speed: p.speed,
           course: p.course,
           timestamp: p.timestamp,
+          is_stale: now - observedAt > LIVE_TTL_MS,
           is_sanctioned: sanctions.records.length > 0,
           sanction_status: sanctions.check.status,
           anomaly_flags: flags,
@@ -218,8 +238,10 @@ export function createApp(c: Context, limited = true) {
         JSON.stringify({
           vessels,
           total_live: total,
-          total_in_bbox: inBbox,
-          truncated: inBbox > vessels.length,
+          total_in_bbox: candidates.length,
+          recent_in_bbox: recentInBbox,
+          last_known_in_bbox: candidates.length - recentInBbox,
+          truncated: candidates.length > vessels.length,
           source,
           generated_at: new Date(now).toISOString(),
           history_started_at: c.historyStartedAt,
