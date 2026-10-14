@@ -11,6 +11,7 @@ import type {
   VesselPosition,
 } from "../../shared/types";
 import { VESSEL_COLORS } from "./vessel-colors";
+import { LIVE_TTL_MS } from "../../shared/config";
 import {
   createVesselMesh,
   MODEL_SPECS,
@@ -22,7 +23,7 @@ import {
 
 type ModelVessel = Pick<
   LiveMapVessel,
-  "mmsi" | "name" | "ship_type" | "lat" | "lon" | "course"
+  "mmsi" | "name" | "ship_type" | "lat" | "lon" | "course" | "timestamp"
 > & { heading?: number | null; priority?: boolean };
 type Drawn = {
   vessel: ModelVessel;
@@ -87,6 +88,7 @@ uniform sampler2D u_shadow;
 uniform vec4 u_cell;
 uniform float u_has_shadow;
 uniform vec3 u_view;
+uniform float u_opacity;
 out vec4 fragColor;
 void main(){
   vec3 p=v_shadow.xyz/v_shadow.w*.5+.5;
@@ -108,7 +110,7 @@ void main(){
   vec3 color=u_color*v_shade*lighting;
   color=mix(color,vec3(.90),frost)+vec3(gloss);
   color += vec3(.12)*max(v_shade-1.0,0.0);
-  float alpha=.95;
+  float alpha=u_opacity;
   fragColor=vec4(clamp(color,0.0,1.0)*alpha,alpha);
 }`;
 
@@ -201,6 +203,12 @@ export function createVesselModelLayer(
   let drawn: Drawn[] = [],
     shownKey = "",
     hovered: string | null = null;
+  const pointOpacity = map.getLayer("vessel-points")
+    ? (map.getPaintProperty("vessel-points", "circle-opacity") ?? 1)
+    : 1;
+  const strokeOpacity = map.getLayer("vessel-points")
+    ? (map.getPaintProperty("vessel-points", "circle-stroke-opacity") ?? 1)
+    : 1;
   function publish(ids: string[]) {
     if (hovered && !ids.includes(hovered)) {
       hovered = null;
@@ -224,14 +232,22 @@ export function createVesselModelLayer(
         ["in", ["get", "mmsi"], ["literal", ids]],
       ]);
     if (map.getLayer("vessel-points")) {
-      const opacity: any = [
+      const opacity = (base: any): any => [
         "case",
         ["in", ["get", "mmsi"], ["literal", ids]],
         0,
-        1,
+        base,
       ];
-      map.setPaintProperty("vessel-points", "circle-opacity", opacity);
-      map.setPaintProperty("vessel-points", "circle-stroke-opacity", opacity);
+      map.setPaintProperty(
+        "vessel-points",
+        "circle-opacity",
+        opacity(pointOpacity),
+      );
+      map.setPaintProperty(
+        "vessel-points",
+        "circle-stroke-opacity",
+        opacity(strokeOpacity),
+      );
     }
   }
   function release() {
@@ -533,6 +549,10 @@ export function createVesselModelLayer(
             Math.sin(viewAngle) * Math.sin(pitch),
             -Math.cos(viewAngle) * Math.sin(pitch),
             Math.cos(pitch),
+          );
+          context.uniform1f(
+            location(context, p, "u_opacity"),
+            Date.now() - Date.parse(v.timestamp) > LIVE_TTL_MS ? 0.6 : 0.95,
           );
           const hex = VESSEL_COLORS[type];
           context.uniform3f(

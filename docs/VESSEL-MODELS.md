@@ -31,6 +31,7 @@ Illuminazione direzionale stilizzata, fissa rispetto al modello, con ombre delle
 - Massimo 96 modelli nella vista desktop, 32 sul telefono; priorità alla nave selezionata e al cursore della traccia. Le altre navi restano visibili come icone. Filtri di categoria applicati alle navi live.
 - Geometrie GPU riutilizzate, nessun ciclo di animazione permanente. Disegno sui cambi di camera, dati e timeline già previsti dalla mappa. Proiezioni piana e globo supportate.
 - Posizioni e orientamento da AIS; nessuna interpolazione nei vuoti della traccia. Il modello sostituisce la freccia del cursore, conservando etichetta, data e pulsante accessibile. Il riferimento quadrato all'ultima posizione durante lo storico resta distinto.
+- Osservazioni oltre dieci minuti attenuate anche in 3D; le regole di opacità delle icone sottostanti vengono conservate, compresi eventuali punti meno recenti restituiti dall'API.
 - Nome al passaggio del cursore, clic senza cambi di zoom. Indicatore rosso delle sanzioni conservato accanto ai modelli delle navi live. Le posizioni selezionate già escluse dalla sorgente live conservano il controllo sanzioni nella scheda.
 - Risorse e ascoltatori rimossi alla chiusura della mappa; ritorno alle icone sul guasto e ripristino dopo perdita del contesto grafico. Nessun cambiamento alle API, all'acquisizione o alla copertura AIS mediterranea.
 
