@@ -3,10 +3,16 @@ import type { VesselPosition } from "../../shared/types";
 import { trackMoment } from "./track-playback";
 
 /** Distinct vessel cursor and a square reference to the latest received fix. */
-export function createTrackMarkers(map: Map, onSelect: () => void) {
+export function createTrackMarkers(
+  map: Map,
+  onSelect: () => void,
+  selected = false,
+) {
   const element = document.createElement("button");
   element.type = "button";
-  element.className = "track-position-marker";
+  element.className = selected
+    ? "track-position-marker selected-vessel-marker"
+    : "track-position-marker";
   const arrow = document.createElement("span");
   arrow.className = "track-position-arrow";
   const label = document.createElement("span");

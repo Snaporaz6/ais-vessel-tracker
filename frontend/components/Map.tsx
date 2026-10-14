@@ -47,6 +47,7 @@ type Props = {
   onTypeCounts: (c: Record<string, number>) => void;
   isGlobe: boolean;
   center: (VesselPosition & { preserveZoom?: boolean }) | null;
+  selectedPosition: VesselPosition | null;
   showGapLinks: boolean;
   onTrackInfo: (info: TrackDisplayInfo | null) => void;
   playbackAt: number | null;
@@ -59,6 +60,7 @@ export default function VesselMap({
   onTypeCounts,
   isGlobe,
   center,
+  selectedPosition,
   showGapLinks,
   onTrackInfo,
   playbackAt,
@@ -71,6 +73,13 @@ export default function VesselMap({
     null,
   );
   const activeTrack = useRef(trackMmsi);
+  const selectedMarkers = useRef<ReturnType<typeof createTrackMarkers> | null>(
+    null,
+  );
+  const selectedVessel = useRef(selectedPosition?.mmsi);
+  useEffect(() => {
+    selectedVessel.current = selectedPosition?.mmsi;
+  }, [selectedPosition]);
   useEffect(() => {
     activeTrack.current = trackMmsi;
   }, [trackMmsi]);
@@ -512,6 +521,7 @@ export default function VesselMap({
         .filter(
           (v) =>
             visibleTypes.has(v.ship_type) &&
+            v.mmsi !== selectedPosition?.mmsi &&
             !(
               v.mmsi === trackMmsi &&
               meta?.mmsi === trackMmsi &&
@@ -528,7 +538,15 @@ export default function VesselMap({
           },
         })),
     }),
-    [data, visibleTypes, trackMmsi, trackDays, meta, track.length],
+    [
+      data,
+      visibleTypes,
+      trackMmsi,
+      trackDays,
+      meta,
+      track.length,
+      selectedPosition?.mmsi,
+    ],
   );
   const trackView = useMemo(() => {
     if (!meta || meta.mmsi !== trackMmsi || meta.requested_days !== trackDays)
@@ -580,15 +598,36 @@ export default function VesselMap({
       position: playbackAt === null ? latest : selected.position,
     };
   }, [displayedTrack, playbackAt, data, trackMmsi]);
+  const selectedMoment = useMemo(() => {
+    if (!selectedPosition || (moment && trackMmsi === selectedPosition.mmsi))
+      return null;
+    const live = data?.vessels.find((v) => v.mmsi === selectedPosition.mmsi);
+    const fix: VesselPosition =
+      live &&
+      Date.parse(live.timestamp) > Date.parse(selectedPosition.timestamp)
+        ? { ...live, heading: null, nav_status: "unknown" }
+        : selectedPosition;
+    return trackMoment([fix], null);
+  }, [selectedPosition, data, moment, trackMmsi]);
   useEffect(() => {
     if (!ready || !map.current) return;
     const markers = createTrackMarkers(map.current, () => {
       if (activeTrack.current) click.current(activeTrack.current);
     });
+    const selected = createTrackMarkers(
+      map.current,
+      () => {
+        if (selectedVessel.current) click.current(selectedVessel.current);
+      },
+      true,
+    );
     trackMarkers.current = markers;
+    selectedMarkers.current = selected;
     return () => {
       markers.destroy();
+      selected.destroy();
       trackMarkers.current = null;
+      selectedMarkers.current = null;
     };
   }, [ready]);
   useEffect(() => {
@@ -598,6 +637,13 @@ export default function VesselMap({
       `${t("Posizione storica")} · ${date(moment?.position?.timestamp)}`,
     );
   }, [ready, moment, t, date]);
+  useEffect(() => {
+    selectedMarkers.current?.update(
+      selectedMoment,
+      `${t("Ultima posizione AIS")} · ${date(selectedMoment?.latest.timestamp)}`,
+      "",
+    );
+  }, [ready, selectedMoment, t, date]);
   const lines = useMemo(() => trackGeometry(displayedTrack), [displayedTrack]);
   const gaps = useMemo(() => trackGaps(displayedTrack), [displayedTrack]);
   useEffect(() => {
