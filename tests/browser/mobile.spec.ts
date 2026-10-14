@@ -341,7 +341,8 @@ test("timeline mobile: un pannello, riproduzione, intervalli vuoti e attiva/disa
   await page
     .getByRole("button", { name: "Nascondi traccia", exact: true })
     .click();
-  await expect(page.locator(".track-position-marker")).toHaveCount(0);
+  await expect(page.locator(".selected-vessel-marker")).toBeVisible();
+  await expect(page.locator(".track-position-marker")).toHaveCount(1);
   await expect(
     page.getByRole("button", { name: "Mostra traccia", exact: true }),
   ).toBeVisible();
