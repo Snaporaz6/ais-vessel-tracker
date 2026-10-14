@@ -42,4 +42,15 @@ TypeScript, lint e build frontend riusciti. Cinque prove mirate riuscite:
 ricerca con live vuoto, mostra/nascondi traccia, chiusura, storico vuoto/fallito,
 aggiornamento/null della posizione, riproduzione mobile con vuoti. Due scenari
 eseguiti su desktop e telefono; il test della timeline è soltanto mobile.
-La pipeline completa e la pubblicazione saranno annotate dopo la verifica.
+La [pipeline completa](https://github.com/Snaporaz6/ais-vessel-tracker/actions/runs/38619932247)
+è riuscita sul commit `1231c0a`; PR [#16](https://github.com/Snaporaz6/ais-vessel-tracker/pull/16)
+integrato in `main` (`a39d457`). Ramo di produzione aggiornato con fast-forward.
+Vercel Production **Ready/success**, deployment `7074648038`, sorgente `a39d457`,
+14 ottobre 2026 alle **21:06 italiane (19:06 UTC)**.
+
+Prova sul sito pubblico con RDO CONCORD: senza traccia un simbolo selezionato;
+con traccia un cursore e nessun duplicato; dopo “Nascondi traccia” torna un solo
+simbolo selezionato. Osservazione aggiornata alle 19:10 UTC: il simbolo rimane
+visibile anche nel controllo successivo delle 19:22 UTC, oltre la soglia live.
+Il backend resta `c7c2a34`, operativo; nessuna ridistribuzione Railway.
+La schermata della verifica è conservata con i rapporti locali, fuori da Git.
