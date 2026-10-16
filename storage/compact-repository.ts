@@ -1,6 +1,10 @@
 import { isDeepStrictEqual } from "node:util";
 import { getDistance } from "geolib";
-import { PostgresRepository, type Table } from "./repository.js";
+import {
+  PostgresRepository,
+  type Table,
+  type BackupReader,
+} from "./repository.js";
 import type { ArchiveEntry, PortCall, AnomalyEvent } from "../shared/types.js";
 import {
   decodeGroup,
@@ -65,6 +69,10 @@ export class CompactRepository extends PostgresRepository {
   }
   async restoreHotRows<T>(table: Table): Promise<T[]> {
     const rows: T[] = [];
+    for await (const row of this.iterateHotRows<T>(table)) rows.push(row);
+    return rows;
+  }
+  async *iterateHotRows<T>(table: Table): AsyncGenerator<T> {
     const key =
       table === "vessels"
         ? "mmsi"
@@ -80,14 +88,14 @@ export class CompactRepository extends PostgresRepository {
           .order(key, { ascending: false })
           .limit(1),
       ) as Record<string, any>[];
-      if (!bounds.length) return rows;
+      if (!bounds.length) return;
       upper = String(bounds[0][key]);
     }
     let cursor: Record<string, any> | undefined;
     for (;;) {
       const page = await this.hotPage<T>(table, cursor, undefined, upper);
-      rows.push(...page);
-      if (page.length < 500) return rows;
+      yield* page;
+      if (page.length < 500) return;
       cursor = page.at(-1) as Record<string, any>;
     }
   }
@@ -177,6 +185,21 @@ export class CompactRepository extends PostgresRepository {
     });
   }
   /** Keep backup memory proportional to compressed history, not expanded 90-day rows. */
+  async withBackupReader<T>(action: (reader: BackupReader) => Promise<T>) {
+    return this.consistentRead(() =>
+      action({
+        rows: (table) => this.iterateHotRows(table),
+        groups: () => this.backupGroups(),
+      }),
+    );
+  }
+  private async *backupGroups() {
+    for (const kind of GROUP_KINDS)
+      for await (const group of this.groups(kind)) {
+        decodeGroup(group);
+        yield group;
+      }
+  }
   async backupRepresentation() {
     return this.consistentRead(async () => {
       const snapshot = {} as import("./repository.js").Snapshot;

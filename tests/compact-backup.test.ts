@@ -82,10 +82,15 @@ test("compact backup preserves monthly groups, expands hot overrides and protect
     import_states: [],
   };
   const repo = Object.create(CompactRepository.prototype) as CompactRepository;
-  repo.backupRepresentation = async () => ({
-    snapshot,
-    metadata_groups: groups,
-  });
+  repo.withBackupReader = async (action) =>
+    action({
+      async *rows(table) {
+        yield* snapshot[table];
+      },
+      async *groups() {
+        yield* groups;
+      },
+    });
   const saved = await backup(repo, objects),
     bytes = await objects.get(saved.key),
     packed = decodeBackup(bytes, saved.checksum, false);
