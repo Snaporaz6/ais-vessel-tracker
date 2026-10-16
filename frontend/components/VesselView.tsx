@@ -5,6 +5,7 @@ import type { VesselDetail, PortCall } from "../../shared/types";
 import AnomalyBadge from "./AnomalyBadge";
 import SanctionBadge from "./SanctionBadge";
 import VesselPhoto from "./VesselPhoto";
+import ObservationTime from "./ObservationTime";
 function VesselView({
   vessel: v,
   stops,
@@ -73,7 +74,7 @@ function VesselView({
         <h2>{t("Ultima osservazione")}</h2>
         {p ? (
           <>
-            <p className="timestamp">{date(p.timestamp)}</p>
+            <ObservationTime timestamp={p.timestamp} />
             <dl className="data-grid">
               <div>
                 <dt>{t("Coordinate")}</dt>

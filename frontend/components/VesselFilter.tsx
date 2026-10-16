@@ -4,18 +4,21 @@ import { MapSetting, useMapUI } from "./MapUIProvider";
 
 import { useState } from "react";
 import type { ShipType } from "../../shared/types";
+import { VESSEL_COLORS } from "../lib/vessel-colors";
 
 /** Colori per tipo nave — coerenti con Map.tsx */
-const VESSEL_TYPE_CONFIG: { type: ShipType; label: string; color: string }[] = [
-  { type: "cargo", label: "Cargo", color: "#22c55e" },
-  { type: "tanker", label: "Petroliere", color: "#f59e0b" },
-  { type: "passenger", label: "Passeggeri", color: "#3b82f6" },
-  { type: "fishing", label: "Pesca", color: "#06b6d4" },
-  { type: "tug", label: "Rimorchiatori", color: "#8b5cf6" },
-  { type: "pleasure", label: "Diporto", color: "#ec4899" },
-  { type: "military", label: "Militari", color: "#6b7280" },
-  { type: "other", label: "Altro", color: "#9ca3af" },
-];
+const VESSEL_TYPE_CONFIG = (
+  [
+    ["cargo", "Cargo"],
+    ["tanker", "Petroliere"],
+    ["passenger", "Passeggeri"],
+    ["fishing", "Pesca"],
+    ["tug", "Rimorchiatori"],
+    ["pleasure", "Diporto"],
+    ["military", "Militari"],
+    ["other", "Altro"],
+  ] as [ShipType, string][]
+).map(([type, label]) => ({ type, label, color: VESSEL_COLORS[type] }));
 
 const ALL_TYPES = new Set<ShipType>(VESSEL_TYPE_CONFIG.map((c) => c.type));
 

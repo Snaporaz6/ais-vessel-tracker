@@ -252,3 +252,12 @@ rimangono invariati, inclusa la distinzione dei dati mancanti e dei guasti.
 4. Completare sette giorni sulla versione finale: dal 13 ottobre 22:33:31 UTC al
    20 ottobre alla stessa ora (21 ottobre 00:33 in Italia), se non cambia il backend.
    La data è il termine minimo della finestra, non una qualificazione automatica.
+
+## Modelli nave WebGL — 14 ottobre 2026
+
+- Otto sagome per tutte le categorie, basate sulle sette illustrazioni fallback dell'utente più uno scafo neutro. Colori condivisi con i filtri, finitura satinata leggermente lucida ispirata al vetro opaco e ombre sul modello.
+- Dimensioni proporzionate con scala comune: pescherecci, yacht e rimorchiatori più piccoli delle grandi navi. Lunghezza/larghezza AIS della scheda quando disponibili; altrimenti dimensioni nominali di categoria, esplicitamente indicative.
+- Caricamento WebGL2 nel contesto MapLibre soltanto da zoom 13; massimo 96 modelli desktop e 32 mobile nella vista. Geometrie e atlante ombre condivisi, circa 595 KiB per queste risorse, nessuna texture o nuova dipendenza. La cifra non include tutta la memoria del driver e della mappa.
+- Controlli brevi «Navi 3D» e «Ombre», nel menu hamburger mobile; preferenze persistenti. Nome al passaggio del cursore, selezione senza zoom, icone di riserva, traccia e vuoti AIS conservati. Copertura AIS mediterranea e backend invariati.
+- Typecheck, lint e build frontend riusciti localmente; anteprima visuale del renderer reale con otto posizioni dimostrative separata dalla produzione. Nessun nuovo test automatico aggiunto o eseguito manualmente. Dettagli in [VESSEL-MODELS.md](VESSEL-MODELS.md).
+- PR [#18](https://github.com/Snaporaz6/ais-vessel-tracker/pull/18) integrato in `main`; [CI preesistente](https://github.com/Snaporaz6/ais-vessel-tracker/actions/runs/38627509769) riuscita sul codice `3ca8fe9`, compresi controlli browser, carico e audit. Rilascio frontend avviato sul ramo di produzione `codex/mediterranean-beta`; nessuna distribuzione Railway richiesta da questa modifica.

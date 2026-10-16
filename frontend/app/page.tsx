@@ -9,6 +9,7 @@ import TrackSummary from "../components/TrackSummary";
 import type { TrackDisplayInfo } from "../lib/track-display";
 import VesselDrawer from "../components/VesselDrawer";
 import TrackTimeline from "../components/TrackTimeline";
+import type { VesselModelProfile } from "../lib/vessel-models";
 import { MapSetting, useMapUI } from "../components/MapUIProvider";
 const Map = dynamic(() => import("../components/Map"), {
   ssr: false,
@@ -30,6 +31,8 @@ function MapLoading() {
 }
 export default function Home() {
   const { t } = useLanguage();
+  const [selectedProfile, setSelectedProfile] =
+    useState<VesselModelProfile | null>(null);
   const {
     isMobile,
     menuOpen,
@@ -165,8 +168,13 @@ export default function Home() {
       />
     ) : null;
   const onPosition = useCallback(
-    (p: VesselPosition | null, locate: boolean) => {
+    (
+      p: VesselPosition | null,
+      locate: boolean,
+      profile: VesselModelProfile,
+    ) => {
       setSelectedPosition(p);
+      setSelectedProfile(profile);
       // Search and direct links locate vessels; map clicks keep the current view.
       if (focusMap && locate) setCenter(p);
     },
@@ -231,6 +239,9 @@ export default function Home() {
         center={center}
         selectedPosition={
           selectedPosition?.mmsi === selected ? selectedPosition : null
+        }
+        selectedProfile={
+          selectedProfile?.mmsi === selected ? selectedProfile : null
         }
         showGapLinks={showGapLinks}
         onTrackInfo={setTrackInfo}

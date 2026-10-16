@@ -16,10 +16,15 @@ import {
   observationGap,
 } from "../../shared/history";
 import { getLiveVessels, getTrack } from "../lib/api";
+import { LIVE_TTL_MS } from "../../shared/config";
 import { trackGeometry, type TrackDisplayInfo } from "../lib/track-display";
 import { useLanguage } from "./LanguageProvider";
 import MarineLayers from "./MarineLayers";
 import MapStyleSelector from "./MapStyleSelector";
+import VesselModelControls from "./VesselModelControls";
+import { VESSEL_COLORS as COLORS } from "../lib/vessel-colors";
+import type { VesselModelProfile } from "../lib/vessel-models";
+import type { createVesselModelLayer } from "../lib/vessel-model-layer";
 import { MapSetting, useMapUI } from "./MapUIProvider";
 import { trackMoment } from "../lib/track-playback";
 import { createTrackMarkers } from "../lib/track-markers";
@@ -29,16 +34,6 @@ import {
   removeGlobalBathymetry,
 } from "../lib/global-bathymetry";
 const EMPTY: FeatureCollection = { type: "FeatureCollection", features: [] };
-const COLORS: Record<ShipType, string> = {
-  cargo: "#22c55e",
-  tanker: "#f59e0b",
-  passenger: "#3b82f6",
-  fishing: "#06b6d4",
-  tug: "#8b5cf6",
-  pleasure: "#ec4899",
-  military: "#6b7280",
-  other: "#9ca3af",
-};
 type Props = {
   onVesselClick: (m: string) => void;
   trackMmsi: string | null;
@@ -48,6 +43,7 @@ type Props = {
   isGlobe: boolean;
   center: (VesselPosition & { preserveZoom?: boolean }) | null;
   selectedPosition: VesselPosition | null;
+  selectedProfile: VesselModelProfile | null;
   showGapLinks: boolean;
   onTrackInfo: (info: TrackDisplayInfo | null) => void;
   playbackAt: number | null;
@@ -61,12 +57,45 @@ export default function VesselMap({
   isGlobe,
   center,
   selectedPosition,
+  selectedProfile,
   showGapLinks,
   onTrackInfo,
   playbackAt,
 }: Props) {
   const { t, date, numbers, errorText, locale } = useLanguage();
   const { isMobile, panel, openPanel, closePanel } = useMapUI();
+  const [modelsEnabled, setModelsEnabled] = useState(true),
+    [modelShadows, setModelShadows] = useState(true),
+    [modelsHydrated, setModelsHydrated] = useState(false);
+  const modelLayer = useRef<ReturnType<typeof createVesselModelLayer> | null>(
+    null,
+  );
+  const modelProfiles = useRef(
+    new globalThis.Map<string, VesselModelProfile>(),
+  );
+  const ensureModels = useRef<() => void>(() => {});
+  const modelInput = useRef<Parameters<
+    ReturnType<typeof createVesselModelLayer>["update"]
+  > | null>(null);
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(
+        localStorage.getItem("ais-vessel-models-v1") ?? "null",
+      );
+      if (typeof saved?.enabled === "boolean") setModelsEnabled(saved.enabled);
+      if (typeof saved?.shadows === "boolean") setModelShadows(saved.shadows);
+    } catch {}
+    setModelsHydrated(true);
+  }, []);
+  useEffect(() => {
+    if (modelsHydrated)
+      try {
+        localStorage.setItem(
+          "ais-vessel-models-v1",
+          JSON.stringify({ enabled: modelsEnabled, shadows: modelShadows }),
+        );
+      } catch {}
+  }, [modelsEnabled, modelShadows, modelsHydrated]);
   const language = useRef({ t });
   const popup = useRef<maplibregl.Popup | null>(null);
   const trackMarkers = useRef<ReturnType<typeof createTrackMarkers> | null>(
@@ -201,6 +230,8 @@ export default function VesselMap({
         filter: ["!", ["has", "point_count"]],
         paint: {
           "circle-color": ["get", "color"],
+          "circle-opacity": ["case", ["get", "is_stale"], 0.55, 1],
+          "circle-stroke-opacity": ["case", ["get", "is_stale"], 0.7, 1],
           "circle-radius": 6,
           "circle-stroke-width": 1.5,
           "circle-stroke-color": "#fff",
@@ -279,6 +310,10 @@ export default function VesselMap({
       m.on("mousemove", "vessel-points", (event) => {
         const f = event.features?.[0];
         if (!f || f.geometry.type !== "Point") return;
+        if (modelLayer.current?.visible(String(f.properties?.mmsi))) {
+          label.remove();
+          return;
+        }
         const name = String(f.properties?.name || f.properties?.mmsi || "");
         if (name !== hoveredName) {
           label.setText(name);
@@ -292,6 +327,7 @@ export default function VesselMap({
       m.on("click", "vessel-points", (event) => {
         const f = event.features?.[0];
         if (!f || f.geometry.type !== "Point") return;
+        if (modelLayer.current?.visible(String(f.properties?.mmsi))) return;
         label.remove();
         m.stop();
         click.current(String(f.properties!.mmsi));
@@ -534,6 +570,8 @@ export default function VesselMap({
           geometry: { type: "Point", coordinates: [v.lon, v.lat] },
           properties: {
             ...v,
+            is_stale:
+              v.is_stale ?? Date.now() - Date.parse(v.timestamp) > LIVE_TTL_MS,
             color: v.is_sanctioned ? "#ef4444" : COLORS[v.ship_type],
           },
         })),
@@ -609,6 +647,111 @@ export default function VesselMap({
         : selectedPosition;
     return trackMoment([fix], null);
   }, [selectedPosition, data, moment, trackMmsi]);
+  useEffect(() => {
+    const fixes: {
+      position: VesselPosition;
+      profile?: VesselModelProfile;
+      name?: string;
+    }[] = [];
+    if (selectedProfile) {
+      modelProfiles.current.set(selectedProfile.mmsi, selectedProfile);
+      if (modelProfiles.current.size > 32)
+        modelProfiles.current.delete(
+          modelProfiles.current.keys().next().value!,
+        );
+    }
+    const seen = new Set<string>();
+    for (const fix of [moment?.position, selectedMoment?.position])
+      if (fix && !seen.has(fix.mmsi)) {
+        seen.add(fix.mmsi);
+        fixes.push({
+          position: fix,
+          profile: modelProfiles.current.get(fix.mmsi),
+          name:
+            modelProfiles.current.get(fix.mmsi)?.name ??
+            data?.vessels.find((v) => v.mmsi === fix.mmsi)?.name,
+        });
+      }
+    modelInput.current = [
+      (data?.vessels ?? []).filter((v) => visibleTypes.has(v.ship_type)),
+      fixes,
+      { mobile: isMobile, enabled: modelsEnabled, shadows: modelShadows },
+    ];
+    modelLayer.current?.update(...modelInput.current);
+    ensureModels.current();
+  }, [
+    data,
+    visibleTypes,
+    moment,
+    selectedMoment,
+    selectedProfile,
+    isMobile,
+    modelsEnabled,
+    modelShadows,
+  ]);
+  useEffect(() => {
+    if (!ready || !map.current) return;
+    const m = map.current;
+    let stopped = false,
+      loading = false;
+    const tooltip = new maplibregl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      focusAfterOpen: false,
+      anchor: "bottom",
+      offset: 18,
+      maxWidth: "none",
+      className: "vessel-name-tooltip",
+    });
+    const ensure = () => {
+      if (
+        stopped ||
+        loading ||
+        modelLayer.current ||
+        m.getZoom() < 13 ||
+        !modelInput.current?.[2].enabled
+      )
+        return;
+      loading = true;
+      import("../lib/vessel-model-layer")
+        .then(({ createVesselModelLayer }) => {
+          if (stopped) return;
+          modelLayer.current = createVesselModelLayer(
+            m,
+            (mmsi) => {
+              m.stop();
+              click.current(mmsi);
+            },
+            (v) => {
+              if (v) {
+                tooltip.setText(v.name).setLngLat([v.lon, v.lat]).addTo(m);
+                m.getCanvas().style.cursor = "pointer";
+              } else {
+                tooltip.remove();
+                m.getCanvas().style.cursor = "";
+              }
+            },
+          );
+          if (modelInput.current)
+            modelLayer.current.update(...modelInput.current);
+        })
+        .catch(() => {})
+        .finally(() => {
+          loading = false;
+        });
+    };
+    ensureModels.current = ensure;
+    m.on("zoom", ensure);
+    ensure();
+    return () => {
+      stopped = true;
+      m.off("zoom", ensure);
+      ensureModels.current = () => {};
+      tooltip.remove();
+      modelLayer.current?.destroy();
+      modelLayer.current = null;
+    };
+  }, [ready]);
   useEffect(() => {
     if (!ready || !map.current) return;
     const markers = createTrackMarkers(map.current, () => {
@@ -733,6 +876,12 @@ export default function VesselMap({
         aria-label={t("Mappa delle navi")}
       />
       {ready && map.current && <MapStyleSelector map={map.current} />}
+      <VesselModelControls
+        enabled={modelsEnabled}
+        shadows={modelShadows}
+        onEnabled={setModelsEnabled}
+        onShadows={setModelShadows}
+      />
       {ready && map.current && (
         <MarineLayers
           map={map.current}
@@ -830,7 +979,7 @@ export default function VesselMap({
             : source?.status === "demo"
               ? t("DEMO · dati interamente fittizi")
               : source?.status === "live"
-                ? t("AIS · osservazioni live")
+                ? t("AIS · ultime posizioni osservate")
                 : t("AIS · acquisizione non aggiornata")}
         </strong>
         <span>
@@ -847,6 +996,17 @@ export default function VesselMap({
                   "Nessuna acquisizione AIS fuori dal Mediterraneo in questa demo.",
                 )
               : t("Caricamento osservazioni…")}
+        </span>
+        {data?.recent_in_bbox !== undefined && (
+          <span>
+            {t("{recent} recenti · {stale} meno recenti nell’area", {
+              recent: numbers(data.recent_in_bbox),
+              stale: numbers(data.last_known_in_bbox ?? 0),
+            })}
+          </span>
+        )}
+        <span>
+          {t("Punti attenuati: ultima posizione ricevuta oltre 10 minuti fa.")}
         </span>
         <span>
           {t("Ultima ricezione: {date}", {
