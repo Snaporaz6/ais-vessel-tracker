@@ -1,6 +1,13 @@
-import { gzipSync, gunzipSync } from "node:zlib";
+import { createGzip, gunzipSync } from "node:zlib";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { createHash } from "node:crypto";
-import { TABLES, type Repository, type Snapshot } from "./repository.js";
+import {
+  TABLES,
+  type Repository,
+  type Snapshot,
+  type BackupReader,
+} from "./repository.js";
 import { checksum, type ObjectStore } from "./object-store.js";
 import { CompactRepository } from "./compact-repository.js";
 import { atomicWrite, readJSON } from "./durable.js";
@@ -92,25 +99,48 @@ function remainingRows(expected: unknown[], existing: unknown[]) {
   return [...fingerprints.values()].flat();
 }
 export async function backup(repo: Repository, objects: ObjectStore) {
-  const representation =
-    repo instanceof CompactRepository
-      ? await repo.backupRepresentation()
-      : null;
-  const snapshot = representation?.snapshot ?? ({} as Snapshot);
-  if (!representation)
-    for (const table of TABLES)
-      (snapshot as any)[table] = await repo.all(table);
-  const value: Backup = {
-      version: repo instanceof CompactRepository ? 2 : 1,
-      created_at: new Date().toISOString(),
-      snapshot,
-      ...(representation
-        ? { metadata_groups: representation.metadata_groups }
-        : {}),
-    },
-    data = gzipSync(JSON.stringify(value)),
+  const createdAt = new Date().toISOString();
+  const encode = async (reader: BackupReader, version: 1 | 2) => {
+    async function* document() {
+      yield `{"version":${version},"created_at":${JSON.stringify(createdAt)},"snapshot":{`;
+      let tableIndex = 0;
+      for (const table of TABLES) {
+        yield `${tableIndex++ ? "," : ""}${JSON.stringify(table)}:[`;
+        let rowIndex = 0;
+        for await (const row of reader.rows(table))
+          yield `${rowIndex++ ? "," : ""}${JSON.stringify(row) ?? "null"}`;
+        yield "]";
+      }
+      yield "}";
+      if (version === 2) {
+        yield ',"metadata_groups":[';
+        let groupIndex = 0;
+        for await (const group of reader.groups())
+          yield `${groupIndex++ ? "," : ""}${JSON.stringify(group)}`;
+        yield "]";
+      }
+      yield "}";
+    }
+    const chunks: Buffer[] = [];
+    await pipeline(Readable.from(document()), createGzip(), async (source) => {
+      for await (const chunk of source) chunks.push(chunk as Buffer);
+    });
+    return Buffer.concat(chunks);
+  };
+  const data =
+      repo instanceof CompactRepository
+        ? await repo.withBackupReader((reader) => encode(reader, 2))
+        : await encode(
+            {
+              async *rows(table) {
+                yield* await repo.all(table);
+              },
+              async *groups() {},
+            },
+            1,
+          ),
     sha = checksum(data),
-    key = `backups/${value.created_at.replace(/[:.]/g, "-")}-${sha}.json.gz`;
+    key = `backups/${createdAt.replace(/[:.]/g, "-")}-${sha}.json.gz`;
   await objects.put(key, data);
   if (checksum(await objects.get(key)) !== sha)
     throw new Error("BACKUP_UNVERIFIED");
@@ -118,7 +148,7 @@ export async function backup(repo: Repository, objects: ObjectStore) {
     key,
     checksum: sha,
     bytes: data.length,
-    created_at: value.created_at,
+    created_at: createdAt,
   };
 }
 export function decodeBackup(

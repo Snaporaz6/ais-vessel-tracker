@@ -38,6 +38,10 @@ export const TABLES = [
   "import_states",
 ] as const;
 export type Table = (typeof TABLES)[number];
+export interface BackupReader {
+  rows(table: Table): AsyncIterable<unknown>;
+  groups(): AsyncIterable<MetadataGroup>;
+}
 export interface StorageMetrics {
   database_bytes: number;
   metadata_bytes: number;
