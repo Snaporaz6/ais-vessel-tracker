@@ -2,7 +2,7 @@
   "name": "ais-tracker",
   "version": "0.1.0",
   "private": true,
-  "description": "AIS Vessel Tracker \u2014 free alternative to MarineTraffic",
+  "description": "AIS Vessel Tracker — free alternative to MarineTraffic",
   "scripts": {
     "dev:server": "tsx watch server/index.ts",
     "start": "node dist/server/index.js",
@@ -45,6 +45,7 @@
     "geolib": "^3.3.4",
     "helmet": "^7.1.0",
     "node-cron": "^4.6.0",
+    "stream-json": "3.7.0",
     "ws": "^8.22.0",
     "zod": "^3.22.4"
   },

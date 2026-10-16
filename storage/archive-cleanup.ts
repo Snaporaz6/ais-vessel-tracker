@@ -66,8 +66,7 @@ export class ArchiveCleanup {
           checkDeadline();
           refs.add(row.object_key);
         }
-      for (const key of await retainedBackupReferences(this.objects, now))
-        refs.add(key);
+      await retainedBackupReferences(this.objects, now, checkDeadline, refs);
       return refs;
     });
     let deleted = 0,

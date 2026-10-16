@@ -5,6 +5,7 @@ import { checksum, type ObjectStore } from "./object-store.js";
 import { CompactRepository } from "./compact-repository.js";
 import { atomicWrite, readJSON } from "./durable.js";
 import { canonicalTimestamp } from "../shared/timestamps.js";
+import { collectBackupReferences } from "./backup-references.js";
 import {
   decodeGroup,
   rowKey,
@@ -294,23 +295,21 @@ export async function restore(
 export async function retainedBackupReferences(
   objects: ObjectStore,
   now = Date.now(),
+  checkDeadline: () => void = () => {},
+  refs = new Set<string>(),
 ) {
-  const refs = new Set<string>();
   for await (const obj of objects.list("backups/")) {
+    checkDeadline();
     if (now - obj.modified.getTime() > 7 * 86400_000) {
       await objects.delete(obj.key);
       continue;
     }
-    const data = await objects.get(obj.key),
-      value = decodeBackup(
-        data,
-        obj.key.match(/([a-f0-9]{64})\.json\.gz$/)?.[1] ?? "",
-        false,
-      );
-    for (const e of value.snapshot.track_archives) refs.add(e.object_key);
-    for (const group of value.metadata_groups ?? [])
-      if (group.kind === "track_archives")
-        for (const e of decodeGroup(group)) refs.add(e.object_key);
+    await collectBackupReferences(
+      await objects.get(obj.key),
+      obj.key.match(/([a-f0-9]{64})\.json\.gz$/)?.[1] ?? "",
+      refs,
+      checkDeadline,
+    );
   }
   return refs;
 }
