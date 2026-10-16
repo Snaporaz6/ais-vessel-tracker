@@ -64,7 +64,9 @@ export function applyMapTheme(map: Map, theme: MapTheme) {
     const overlay = /^(marine-|bathymetry-|global-bathymetry-)/.test(layer.id);
     const ais =
       ["clusters", "cluster-count", "vessel-points"].includes(layer.id) ||
-      layer.id.startsWith("track");
+      layer.id.startsWith("track") ||
+      layer.id.startsWith("vessel-layout-") ||
+      layer.id.startsWith("vessel-model-");
     if (ais) continue;
     const colors: Record<string, unknown> = {};
     if (!overlay) {

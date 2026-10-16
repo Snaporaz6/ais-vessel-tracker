@@ -43,6 +43,16 @@ export const messages = {
     "Points atténués : dernière position reçue il y a plus de 10 minutes.",
     "Blasse Punkte: letzte Position vor mehr als 10 Minuten empfangen.",
   ],
+  "Orientamento stimato": [
+    "Estimated orientation",
+    "Orientation estimée",
+    "Geschätzte Ausrichtung",
+  ],
+  "Sagoma affiancata": [
+    "Visually offset model",
+    "Modèle décalé visuellement",
+    "Optisch versetztes Modell",
+  ],
   "Navi 3D": ["3D vessels", "Navires 3D", "3D-Schiffe"],
   Ombre: ["Shadows", "Ombres", "Schatten"],
   "Modelli indicativi a zoom ravvicinato": [
