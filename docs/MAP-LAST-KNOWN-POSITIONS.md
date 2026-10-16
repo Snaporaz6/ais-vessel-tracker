@@ -30,7 +30,11 @@ risposta limitata con posizione recente inserita dopo 5.001 punti vecchi; otto p
 browser desktop/telefono, compreso il clic sul punto vecchio senza ricerca o scheda
 preesistente, avanzamento dell'orologio senza nuovi dati e ritorno a un dato recente.
 Verificati anche i confini esatti delle soglie 15/60 minuti. Compilazioni, lint e
-prove dell'avviso riusciti. Pubblicazione e carico remoto da completare.
+prove dell'avviso riusciti. Frontend PR #17 pubblicato il 16 ottobre alle
+09:19 UTC (Vercel Production `7115441272`), backend compatibile incluso in
+`7baf5a3`. Mappa pubblica e API verificate il 16 ottobre dopo il ripristino:
+ultime posizioni presenti senza ricerca, freschezza e limite espliciti.
+Carico remoto e nuova finestra backend riportati in [STATUS](STATUS.md).
 
 Distribuire prima il frontend compatibile, poi la modifica API sul backend già
 compatibile con i metadati compressi. Conservare i monitor precedenti e iniziare

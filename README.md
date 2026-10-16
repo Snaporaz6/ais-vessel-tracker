@@ -123,3 +123,9 @@ Traccia con cursore temporale, riproduzione delle osservazioni e pulsante Mostra
 Mobile: menu hamburger e un pannello alla volta in basso, con prove di utilizzo su tre formati: [interfaccia e verifiche](docs/MOBILE-MAP.md).
 
 Modelli WebGL per le otto categorie, finitura satinata, ombre e dimensioni proporzionate: [rendering e limiti](docs/VESSEL-MODELS.md).
+
+
+Il servizio è stato ripristinato il **16 ottobre 2026** dopo i crash Railway:
+correzione della memoria della manutenzione, archivi conservati e nuova finestra
+di qualificazione. Vedere [stato attuale](docs/STATUS.md) e
+[riscontri dell'incidente](docs/INCIDENT-2026-10-16.md).

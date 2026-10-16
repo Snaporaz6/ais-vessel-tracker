@@ -1,10 +1,11 @@
-# Archivio separato e affidabilità — 14 ottobre 2026
+# Archivio separato e affidabilità — 16 ottobre 2026
 
-## Stato delle operazioni
+Il codice backend è integrato in `main` tramite PR #15 e #20. `7baf5a3` produce e legge i backup progressivamente; il backup produttivo è riuscito alle 14:55:32 UTC. `57c8be9`, attivo dal 16 ottobre alle 15:15:59 UTC, aggiunge la scansione asincrona del volume. Metadati compressi e protezioni conservati. Heap Node 384 MiB, senza aumenti di piano. Il tentativo parziale `5d5a867` è fallito durante la creazione del backup e rimane documentato. [Incidente e riscontri](INCIDENT-2026-10-16.md).
 
-Questo documento riguarda il ramo `codex/backend-storage-reliability`. La correzione finale `c7c2a34` è distribuita dal 13 ottobre alle 22:30 UTC. La produzione conserva le posizioni di marzo nel bucket
-privato; la tabella legacy è stata svuotata dopo tutte le verifiche.
-Non considerare conclusa la qualificazione della beta.
+Le posizioni di marzo restano nel bucket privato; la tabella legacy è stata svuotata dopo tutte le verifiche. Le finestre precedenti comprendono guasti e non qualificano la release. Nuovo monitor `beta-monitor-recovery-57c8be9-2026-10-16.jsonl`: sette giorni, manutenzioni e costo totale entro 25 €/mese ancora da verificare. 85 test e CI completa passano; carico finale `57c8be9`: 20 client, 300/300 valide,
+zero errori, p95 328,95 ms. Il campionamento tracce ha richiesto un ritentativo
+per errore database; manutenzione completa ancora da verificare. Stato corrente
+e riscontri in [STATUS](STATUS.md).
 
 - Esportate tutte le 596.609 posizioni dal 6 al 15 marzo 2026 in 24 parti gzip,
   9.893.716 byte complessivi, con tutti gli otto campi originali.
@@ -104,7 +105,7 @@ durata e codici sanitizzati; non conservano messaggi privati dei fornitori.
 Le letture GET possono ritentare; le mutazioni del database non vengono ripetute
 alla cieca. I caricamenti ripetono solo lo stesso oggetto con gli stessi byte.
 
-## Verifiche completate sul codice
+## Verifiche completate al 14 ottobre
 
 75 test automatici, TypeScript, lint, build backend e CI passano. Le 22 prove browser
 desktop/telefono passano; otto casi esclusivi per telefono sono intenzionalmente

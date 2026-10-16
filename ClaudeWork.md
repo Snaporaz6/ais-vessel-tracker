@@ -344,3 +344,75 @@ Ready/success, deployment `7074648038`, 14 ottobre 21:06 italiane (19:06 UTC).
 Prova pubblica mostra/nascondi su RDO CONCORD riuscita, un solo simbolo anche con
 ultima osservazione oltre dieci minuti. Backend `c7c2a34` operativo e finestra di
 qualificazione conservata. Dettagli: docs/SELECTED-VESSEL-MARKER.md.
+
+
+## 16 ottobre 2026 — ripristino Railway e riduzione memoria
+
+Backend trovato senza deployment attivi, dopo ripetuti crash del 15 ottobre e
+rimozione automatica della piattaforma. Picco circa 976 MB sul limite di 1.024 MB;
+volume preservato. Ripristino della stessa immagine dalle 09:13 UTC, poi correzione
+`5d5a867` dalle 09:30 UTC: heap 384 MiB e scansione streaming dei riferimenti nei
+backup. Integrità e protezioni mantenute; il tentativo è poi fallito nella
+creazione del backup, che materializzava ancora le tabelle e il JSON completo.
+
+Prove: 79 test locali, ulteriore test delle soglie temporali integrato da main,
+CI completa riuscita, documento circa 138 MB con heap 64 MiB e backup reale
+con heap 96 MiB. Tutti i 69.963 riferimenti confrontati con la procedura precedente.
+Tracce 1/7/30/90 HTTP 200, primo archivio della nuova versione alle 09:38:20 UTC.
+Frontend PR #17 pubblicato (Vercel Production 7115441272), compresi punti meno
+recenti e avvisi temporali; backend PR #15 integrato in main. Rapporti precedenti
+conservati, nuova finestra da completare. Nessuna certificazione di sette giorni
+o costi. Osservazioni mancanti durante il fermo non ricreabili. Dettagli e prove:
+docs/INCIDENT-2026-10-16.md e docs/STATUS.md.
+
+
+### 16 ottobre, pomeriggio — creazione backup progressiva
+
+Dopo il crash V8 delle 09:44 e i successivi arresti, `7baf5a3` legge il database
+in pagine e produce JSON/gzip in sequenza; anche la verifica delle revisioni
+copre l'intera lettura. Formati v1/v2 e precisione conservati. 82 test locali,
+CI completa riuscita, 130.000 righe scritte/ripristinate con heap 64 MiB,
+confronto reale nello staging di tutte le righe e 673 gruppi identici.
+PR #20 integrato (`b2f0a53`); distribuzione `3c88e3a5`, server/AIS ripresi
+alle 14:50:31 UTC. `/ready` operativo, tracce 1/7/30/90 HTTP 200, mappa pubblica
+con navi effettivamente disegnate. Nessuna migrazione o aumento di piano.
+
+Monitor separato `e1cc5795`, prima lettura 14:51:04.670 UTC; settimana minima
+fino al 23 ottobre alla stessa ora se il backend rimane invariato. Conservati
+anche i rapporti falliti. La verifica produttiva del backup e il carico remoto
+sono in corso; manutenzioni complete, fonte UE e costo totale restano aperti.
+
+
+### 16 ottobre — controllo del volume senza bloccare le API
+
+`7baf5a3` ha completato il backup produttivo in 75,6 secondi: 23.354.653 byte,
+upload/rilettura e checksum verificati; indice cloud riletto dal Mac. Il download
+indipendente dal Mac non è terminato. Primo carico: 300/300 valide, zero errori,
+p95 7.012 ms; un unico burst coincide con il controllo del disco. Secondo carico
+sullo stesso codice: p95 442,95 ms, zero errori. Entrambi i risultati conservati.
+
+`57c8be9` rende la scansione asincrona e seriale, senza perdere le prenotazioni
+per nuove scritture durante cancellazioni concorrenti. Un errore mantiene il
+budget precedente. Checkpoint e scansione hanno durate separate nei log.
+85 test e CI completa riusciti, PR #21 integrato (`0218df7`). Distribuzione
+`0b82e8ee`, server dalle 15:15:59 UTC; `/ready` operativo. Prime durate:
+checkpoint 135–302 ms, scansione 78–126 ms. Nuovo monitor e carico in corso.
+
+Alle 14:58:22 UTC la versione precedente aveva incontrato DATABASE_UNAVAILABLE
+nel campionamento delle tracce: backup riuscito conservato, ritentativi attivi,
+readiness degradata correttamente segnalata. La manutenzione completa e la fonte
+UE rimangono aperte, insieme alla settimana finale e ai costi verificati.
+
+Monitor finale `e101ccd4`, file `beta-monitor-recovery-57c8be9-2026-10-16.jsonl`,
+prima lettura 16 ottobre 15:20:09.333 UTC, HTTP 200 e versione corretta.
+La settimana minima termina il 23 ottobre alle 15:20 UTC, se la versione
+rimane invariata e tutti i criteri passano. Rapporti precedenti conservati.
+
+Carico finale `57c8be9` alle 15:23:11 UTC: 20 client simultanei, 300/300 valide,
+zero errori, p95 **328,95 ms**, massimo 402,22 ms. Quattro prime letture operative,
+RSS circa 317–340 MB, senza errori HTTP o campioni mancanti. Mappa pubblica
+verificata visivamente con ricezione aggiornata alle 15:23 UTC. Le finestre
+precedenti, incluse quelle con cambio di versione o archivio degradato, non
+qualificano la beta. Prima archiviazione `57c8be9` completata alle **15:22:00 UTC**, 360.452 ms;
+manutenzione giornaliera ancora in corso. Backup produttivo già verificato
+con lo stesso codice streaming di `7baf5a3`.
