@@ -160,3 +160,27 @@ test("recovered maintenance retries remain visible and unresolved faults or miss
   );
   assert.equal(summarize(missing, 24, end).passed, false);
 });
+
+test("monitor distinguishes failed dependencies, request failures and version changes", () => {
+  const end = Date.now();
+  const rows = [
+    {
+      at: new Date(end - 60000).toISOString(),
+      ready: false,
+      version: "first",
+      ready_checks: { archive: false, database: true },
+      request_errors: { metrics: "DEPENDENCY_TIMEOUT" },
+    },
+    {
+      at: new Date(end).toISOString(),
+      ready: true,
+      version: "second",
+      ready_checks: { archive: true, database: true },
+    },
+  ];
+  const r = summarize(rows, null, end);
+  assert.deepEqual(r.failed_checks, { archive: 1 });
+  assert.deepEqual(r.request_failures, { "metrics:DEPENDENCY_TIMEOUT": 1 });
+  assert.equal(r.version_changes_observed, 1);
+  assert.equal(r.passed, false);
+});

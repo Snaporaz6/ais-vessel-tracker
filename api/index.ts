@@ -129,6 +129,9 @@ export function createApp(c: Context, limited = true) {
         checks.volume &&
         checks.writes;
       res.status(ok ? 200 : 503).json({
+        version: c.config.DEPLOYMENT_VERSION ?? "unknown",
+        oldest_pending_write_age_ms:
+          oldestWrite === null ? 0 : Math.max(0, Date.now() - oldestWrite),
         status: ok ? "operational" : c.config.demo ? "demo" : "degraded",
         checks,
         last_observation_at: source.last_message_at,

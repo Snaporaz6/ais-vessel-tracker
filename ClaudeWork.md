@@ -298,6 +298,32 @@ aisstream.io (WebSocket)
 - API pubblica con chiave per monetizzazione
 
 
+## 14 ottobre 2026 — backend, archivio e affidabilità
+
+- Conservate integralmente 596.609 posizioni di marzo in archivio privato `legacy/`
+  e copia locale, download e ripristino PostgreSQL verificati. Recuperati
+  161.513.472 byte dalla tabella operativa senza eliminare schema o vincoli.
+- Metadati vecchi per nave/mese in gzip verificato, dati recenti e soste aperte
+  ordinari; backup v2 e recupero diretto di 673 gruppi nello staging, tutti i
+  campi e IDs conservati. Ripresa reale dopo guasto temporaneo verificata.
+- Capacità fisica PostgreSQL, indici compresi: 443,36 MiB a 90 giorni nello
+  scenario documentato, margine stretto di 6,64 MiB. Benchmark isolato ripulito.
+- `aab43a4` distribuito su backend unico Railway, monitor con file separato;
+  CI e 74 test riusciti. Carico europeo 20 client/300 richieste: zero errori,
+  p95 260,96 ms. Conservata anche la prova fallita dal Mac.
+- Compattazione produttiva fermata prima dello spostamento: REST arrotonda
+  numeri DOUBLE PRECISION e il confronto atomico li rifiuta. Correzione tramite
+  JSON SQL a precisione completa verificata nello staging, senza allentare i confronti.
+- Completata la compattazione produttiva con verifica integrale: 1.725 soste e
+  26 anomalie in 1.495 gruppi, secondo tentativo senza duplicati. Correzione
+  `c7c2a34`, 75 test e CI riusciti; distribuzione finale operativa,
+  `/ready`, live e tracce 1/7/30/90 giorni 200.
+- Carico finale europeo `c7c2a34`: 20 client/300 valide, zero errori, p95
+  221,80 ms. Nuova finestra dal 13 ottobre 22:33:31 UTC, rapporti conservati.
+- Aperte manutenzioni complete, memoria/traffico,
+  intero bucket, costo verificato entro 25 € e sette giorni sulla versione finale.
+  La settimana riparte dopo l'ultima modifica backend; frontend invariato.
+
 ## 14 ottobre 2026 — nave selezionata visibile senza traccia
 
 RDO CONCORD scompariva nascondendo la traccia perché il punto mancava dal live,

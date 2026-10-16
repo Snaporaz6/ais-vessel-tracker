@@ -1,3 +1,4 @@
+import { diagnosticCode } from "../shared/diagnostics.js";
 import { config } from "dotenv";
 import {
   appendFileSync,
@@ -10,6 +11,12 @@ config({ path: process.env.ENV_FILE ?? ".env.local" });
 interface Sample {
   at: string;
   ready: boolean;
+  ready_http_status?: number;
+  metrics_http_status?: number;
+  ready_checks?: Record<string, boolean | number>;
+  request_errors?: Record<string, string>;
+  version?: string;
+  oldest_pending_write_age_ms?: number;
   uptime_seconds?: number;
   cpu_seconds?: number;
   rss_bytes?: number;
@@ -107,7 +114,27 @@ export function summarize(
       monthlyCost >= 0 &&
       monthlyCost <= 25,
     dbFits = db90 !== null && db90 < 450 * 1024 * 1024;
+  const failedChecks: Record<string, number> = {};
+  const requestFailures: Record<string, number> = {};
+  let versionChanges = 0,
+    previousVersion: string | undefined;
+  for (const sample of ordered) {
+    for (const [name, value] of Object.entries(sample.ready_checks ?? {}))
+      if (value === false) failedChecks[name] = (failedChecks[name] ?? 0) + 1;
+    for (const [name, value] of Object.entries(sample.request_errors ?? {}))
+      requestFailures[name + ":" + value] =
+        (requestFailures[name + ":" + value] ?? 0) + 1;
+    if (sample.version && sample.version !== "unknown") {
+      if (previousVersion && previousVersion !== sample.version)
+        versionChanges++;
+      previousVersion = sample.version;
+    }
+  }
   return {
+    failed_checks: failedChecks,
+    request_failures: requestFailures,
+    version_changes_observed: versionChanges,
+    deployed_version: previousVersion ?? null,
     from: first?.at ?? null,
     to: last?.at ?? null,
     observed_days: days,
@@ -136,6 +163,7 @@ export function summarize(
       complete &&
       outage === 0 &&
       resets === 0 &&
+      versionChanges === 0 &&
       metricsComplete &&
       maintenanceRecovered &&
       dbFits &&
@@ -164,19 +192,41 @@ async function main() {
     const sampledAt = Date.now(),
       at = new Date(sampledAt).toISOString();
     let sample: Sample = { at, ready: false };
-    try {
-      const [ready, metrics] = await Promise.all([
-        fetch(base + "/ready", { signal: AbortSignal.timeout(20_000) }),
-        fetch(base + "/admin/metrics", {
-          headers: { Authorization: `Bearer ${token}` },
-          signal: AbortSignal.timeout(20_000),
-        }),
-      ]);
-      if (!metrics.ok) throw new Error("METRICS_UNAVAILABLE");
-      sample = { ...(await metrics.json()), at, ready: ready.ok };
-    } catch {
-      /* failures are observations, never silently omitted */
+    const responses = await Promise.allSettled([
+      fetch(base + "/ready", { signal: AbortSignal.timeout(20_000) }),
+      fetch(base + "/admin/metrics", {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(20_000),
+      }),
+    ]);
+    sample.request_errors = {};
+    for (const [i, result] of responses.entries()) {
+      const name = i === 0 ? "ready" : "metrics";
+      if (result.status === "rejected") {
+        sample.request_errors![name] = diagnosticCode(result.reason);
+        continue;
+      }
+      const response = result.value;
+      if (i === 0) sample.ready_http_status = response.status;
+      else sample.metrics_http_status = response.status;
+      if (!response.ok)
+        sample.request_errors![name] = "HTTP_" + response.status;
+      try {
+        const payload = await response.json();
+        if (i === 0) {
+          sample.ready_checks = payload.checks;
+          sample.version = payload.version;
+          sample.oldest_pending_write_age_ms =
+            payload.oldest_pending_write_age_ms;
+        } else if (response.ok) sample = { ...sample, ...payload, at };
+      } catch {
+        sample.request_errors![name] = "INVALID_RESPONSE";
+      }
     }
+    sample.ready =
+      sample.ready_http_status === 200 &&
+      sample.metrics_http_status === 200 &&
+      Object.keys(sample.request_errors ?? {}).length === 0;
     appendFileSync(file, JSON.stringify(sample) + "\n", { flush: true });
     const all = readFileSync(file, "utf8")
         .split("\n")
@@ -190,6 +240,12 @@ async function main() {
         event: "beta_sample_saved",
         at,
         ready: sample.ready,
+        ready_http_status: sample.ready_http_status,
+        metrics_http_status: sample.metrics_http_status,
+        ready_checks: sample.ready_checks,
+        request_errors: sample.request_errors,
+        version: sample.version,
+        oldest_pending_write_age_ms: sample.oldest_pending_write_age_ms,
         samples: summary.samples,
         missing_samples: summary.missing_samples,
         unavailable_samples: summary.unavailable_samples,

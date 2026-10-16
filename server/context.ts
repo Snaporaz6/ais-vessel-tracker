@@ -1,3 +1,4 @@
+import { CompactRepository } from "../storage/compact-repository.js";
 import { config as dotenv } from "dotenv";
 import { join, resolve } from "node:path";
 import { runtimeConfig } from "../shared/runtime.js";
@@ -23,7 +24,9 @@ export async function createContext(options: { requireAIS?: boolean } = {}) {
   const config = runtimeConfig(options),
     repo = config.demo
       ? new MemoryRepository()
-      : new PostgresRepository(
+      : new (config.METADATA_COMPACTION === "true"
+          ? CompactRepository
+          : PostgresRepository)(
           config.SUPABASE_URL!,
           config.SUPABASE_SERVICE_ROLE_KEY!,
         );

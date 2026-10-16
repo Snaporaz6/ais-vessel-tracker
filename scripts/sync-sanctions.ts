@@ -2,6 +2,7 @@ import { XMLParser, XMLValidator } from "fast-xml-parser";
 import { load } from "cheerio";
 import type { Repository, Source, ImportState } from "../storage/repository.js";
 import type { SanctionRecord } from "../shared/types.js";
+import { diagnosticCode } from "../shared/diagnostics.js";
 const OFAC_URL =
   "https://sanctionslistservice.ofac.treas.gov/api/PublicationPreview/exports/SDN.XML";
 const EU_URL =
@@ -58,7 +59,7 @@ async function downloadSanctions(
     },
   });
   if (!res.ok || res.status === 202)
-    throw new Error("SANCTIONS_DOWNLOAD_FAILED");
+    throw new Error(`SANCTIONS_HTTP_${res.status}`);
   const text = await res.text();
   if (!text.length || text.length > 64 * 1024 * 1024)
     throw new Error("SANCTIONS_DOWNLOAD_INVALID");
@@ -175,20 +176,26 @@ export async function syncSanctions(
         )
       )
         return;
+      let phase = "download_list";
       try {
         let url =
           source === "OFAC" ? OFAC_URL : process.env.EU_SANCTIONS_URL || EU_URL;
         if (source === "EU" && !process.env.EU_SANCTIONS_URL) {
+          phase = "download_index";
           const index = await downloadSanctions(EU_URL, source, fetcher);
+          phase = "resolve_index";
           url = resolveEUConsolidatedURL(index, at);
         }
+        phase = "download_list";
         const text = await downloadSanctions(url, source, fetcher);
+        phase = "parse_list";
         const rows =
           source === "OFAC" ? parseOFAC(text, at) : parseEU(text, at);
         for (const row of rows)
           row.details_json = { ...row.details_json, source_url: url };
         if (source === "OFAC" && rows.length < 100)
           throw new Error("INCOMPLETE_OFAC_IMPORT");
+        phase = "replace_database";
         await repo.replaceSanctions(source, rows, at);
         console.info(
           JSON.stringify({
@@ -197,11 +204,16 @@ export async function syncSanctions(
             count: rows.length,
           }),
         );
-      } catch {
-        await repo.importFailure(source, at);
+      } catch (error) {
         console.warn(
-          JSON.stringify({ event: "sanctions_import_failed", source }),
+          JSON.stringify({
+            event: "sanctions_import_failed",
+            source,
+            phase,
+            code: diagnosticCode(error),
+          }),
         );
+        await repo.importFailure(source, at);
         throw new Error("SANCTIONS_IMPORT_FAILED");
       }
     }),

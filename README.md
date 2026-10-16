@@ -2,7 +2,7 @@
 
 Mappa pubblica senza account, ricerca MMSI/IMO/nome, schede nave, tracce fino a 90 giorni, soste rilevate e controlli OFAC/UE. Lo storico esiste soltanto per le osservazioni effettivamente ricevute; copertura, aggiornamento e interruzioni sono visibili.
 
-**Stato:** [beta online per le verifiche](https://ais-vessel-tracker.vercel.app), con acquisizione AIS reale dal 6 ottobre 2026. Backup e ripristino cloud isolato sono stati provati. La qualificazione della release richiede ancora sette giorni sulla versione finale, tempi della manutenzione aggiornata, capacità del database e previsione di spesa. Misure e criteri aperti sono in [STATUS.md](docs/STATUS.md). I dati dimostrativi sono fittizi e non possono essere utilizzati in produzione.
+**Stato:** [beta online per le verifiche](https://ais-vessel-tracker.vercel.app), con acquisizione AIS reale dal 6 ottobre 2026. Backup e ripristino cloud isolato sono stati provati. La qualificazione della release richiede ancora sette giorni sulla versione finale, manutenzioni reali, memoria/traffico e previsione di spesa. La prova fisica proietta 443,36 MiB a 90 giorni nello scenario verificato; il backend `c7c2a34` è online e la compattazione produttiva è verificata. Il carico finale da Railway Europa passa con 20 client, zero errori e p95 222 ms; la nuova finestra di monitoraggio conserva tutti i rapporti precedenti. Misure e criteri aperti sono in [STATUS.md](docs/STATUS.md). I dati dimostrativi sono fittizi e non possono essere utilizzati in produzione.
 
 ## Avvio riproducibile
 
@@ -34,7 +34,7 @@ flowchart LR
   B --> L[Ultime posizioni in memoria]
   B --> V[Volume persistente: spool + outbox + checkpoint]
   V --> S[Bucket privato: tracce gzip per nave / giorno UTC]
-  B --> D[Supabase PostgreSQL: metadati, anomalie, soste, catalogo]
+  B --> D[Supabase PostgreSQL: dati recenti + gruppi gzip per nave/mese]
   F[Next.js 16 / React 19 / MapLibre 6] --> B
 ```
 
@@ -48,6 +48,8 @@ flowchart LR
 - `tests/`: casi di guasto, PostgreSQL locale e browser desktop/telefono.
 
 Nessun Redis, TimescaleDB o collegamento pubblico al database. Supabase conserva gli indici; le posizioni vengono archiviate nel bucket privato. Railway deve avere **una sola replica** e il volume montato su `/data`.
+
+La revisione backend in corso è descritta in [BACKEND-STORAGE-RELEASE.md](docs/BACKEND-STORAGE-RELEASE.md): archivio legacy separato, gruppi compressi dei metadati e manutenzione riprendibile. Il documento distingue codice preparato, prove e operazioni effettivamente distribuite.
 
 ## Storico e attendibilità
 

@@ -1,6 +1,49 @@
-# Stato della beta — 11 ottobre 2026
+# Stato della beta — 14 ottobre 2026
 
 La [beta Mediterraneo](https://ais-vessel-tracker.vercel.app) è online senza account per le verifiche, con dati AIS reali. Il ripristino cloud isolato e la Preview sono stati verificati. La release resta da qualificare: durata della manutenzione aggiornata, sette giorni sulla versione finale, capacità del database a 90 giorni e costo mensile verificato. La [proposta #2](https://github.com/Snaporaz6/ais-vessel-tracker/pull/2) è stata integrata in `main` (`c8d0d13`) e distribuita in produzione. Le misure operative riportate sotto appartengono alle date indicate; non sono nuove misure del 10 ottobre.
+
+## Backend: distribuzione e verifiche del 14 ottobre
+
+Il backend finale `c7c2a34` è distribuito su Railway dal 13 ottobre alle 22:30 UTC
+(14 ottobre in Italia), con una replica e `METADATA_COMPACTION=true`.
+Migrazioni additive 004/005 applicate in produzione; `/ready` operativo,
+acquisizione AIS fresca, scritture persistenti senza coda crescente nelle prime
+letture. OFAC e UE risultano aggiornate il 13 ottobre. Frontend e API pubbliche
+mantengono i contratti esistenti. PR [#15](https://github.com/Snaporaz6/ais-vessel-tracker/pull/15).
+
+- Marzo: tutte le 596.609 posizioni esportate, scaricate e ripristinate integralmente,
+  con schema, manifesto e checksum. Archivio `legacy/` escluso dalle scadenze;
+  tabella operativa svuotata con controlli, recuperati **161.513.472 byte**.
+- Metadati: catalogo, soste e anomalie comprimibili per nave/mese; sette giorni
+  recenti e soste aperte restano ordinari. Backup v2 e ripristino compatto verificati
+  nello staging, inclusi tutti i campi, IDs, 673 gruppi e 669 tracce del bucket.
+  Ripresa riuscita dopo un errore temporaneo durante il recupero.
+- Capacità: prova PostgreSQL completa, indici inclusi, **443,36 MiB a 90 giorni**,
+  con margine di 6,64 MiB nello scenario misurato. Non è una garanzia per tassi
+  di crescita diversi. [Assunzioni e risultati](DATABASE-CAPACITY.md).
+- Verifiche `aab43a4`: 74 test e CI riusciti. Carico europeo indipendente,
+  20 client/300 richieste: zero errori, **p95 260,96 ms**, massimo 304,79 ms.
+  Il test dal Mac è distinto e fallito: 60 richieste incomplete/non decodificabili,
+  p95 9.048 ms; una successiva diagnosi dà 20 JSON validi in circa due secondi.
+  Il test europeo verifica la soglia da quel punto di misura, senza certificare
+  tutte le connessioni degli utenti.
+- Compattazione produttiva verificata il 13 ottobre **22:27:16 UTC**: 1.725 soste
+  e 26 anomalie in 1.495 gruppi, tutti i campi e IDs confrontati; secondo
+  tentativo senza nuove righe spostate. La lettura privata SQL a precisione
+  completa risolve l'arrotondamento REST senza allentare i confronti atomici.
+  Migrazione 006 applicata, 75 test e [CI](https://github.com/Snaporaz6/ais-vessel-tracker/actions/runs/38477499418)
+  riusciti per `c7c2a34`; distribuzione e controllo operativo riusciti.
+- Monitor finale: prima lettura 13 ottobre **22:33:31 UTC**, file separato
+  `beta-monitor-storage-c7c2a34-2026-10-14.jsonl`. Rapporti precedenti conservati.
+  Carico finale europeo: 300/300 risposte valide, zero errori, **p95 221,80 ms**,
+  massimo 254,38 ms. Costi verificati ancora assenti; la finestra deve ripartire
+  dopo ogni ulteriore modifica del backend.
+
+La qualificazione rimane aperta:
+manutenzioni complete, memoria/traffico, spazio dell'intero bucket, costo totale
+entro 25 €/mese e sette giorni sulla versione finale. Database nelle prime letture
+circa 119,8 MB; memoria RSS circa 350–416 MB. Questi campioni non sono proiezioni
+sufficienti. [Procedura e stato dettagliato](BACKEND-STORAGE-RELEASE.md).
 
 ## Implementazione verificata
 
@@ -138,6 +181,77 @@ Il nuovo elenco delle funzionalità richieste e proposte è in [ROADMAP-MAPPA-GL
 - Typecheck, lint, 59 test automatici e build frontend riusciti localmente. Otto nuovi scenari mobile riusciti su 360×740, 390×844 e 844×390; controllate visivamente le schermate di scheda e timeline. Suite browser completa: **22 prove riuscite** (15 telefono, 7 desktop), otto esclusioni intenzionali dei casi soltanto mobile nel progetto desktop. Le prove usano Chromium con emulazione touch e dati locali controllati, non dispositivi fisici o fonti marine esterne.
 - PR [#14](https://github.com/Snaporaz6/ais-vessel-tracker/pull/14) integrato; [CI](https://github.com/Snaporaz6/ais-vessel-tracker/actions/runs/38180799354) riuscita sul codice `558869f`, compresi browser, carico e audit. Rilascio frontend avviato sul ramo di produzione `codex/mediterranean-beta`; backend invariato.
 - Pubblicato su Vercel in produzione: **READY/success**, commit `b83667e`, deployment `7002818608`, **11 ottobre 2026, 22:37:07 UTC** (12 ottobre in Italia). Nessuna nuova distribuzione Railway necessaria.
+
+## Backend: archivio separato e capacità — 13 ottobre 2026
+
+Le 596.609 posizioni di marzo sono conservate nel prefisso privato `legacy/`,
+con copia locale e ripristino completo verificato. La produzione è stata svuotata
+solo dopo il confronto PostgreSQL integrale: recuperati 161.513.472 byte,
+mantenendo schema e vincoli. Live, acquisizione e tracce 1/7/30/90 giorni operativi.
+
+La migrazione 004 finale è verificata nello staging: catalogo, soste e anomalie
+vecchie sono comprimibili per nave/mese, senza cambiare i contratti pubblici.
+Backup v2 e ripristino completo preservano anche gli IDs interni; il riallineamento
+delle sequenze usa i permessi USAGE già presenti. 74 test passano, TypeScript e
+build backend riusciti. PR [#15](https://github.com/Snaporaz6/ais-vessel-tracker/pull/15).
+
+La prova PostgreSQL su 90 giorni include 2.465.811 righe storiche, dati recenti,
+116.084 anagrafiche e tutti gli indici: **443,36 MiB**, con circa 6,64 MiB sotto
+la soglia concordata. È uno scenario di crescita, non una garanzia per tassi
+diversi. Dettagli in [DATABASE-CAPACITY.md](DATABASE-CAPACITY.md). Le tabelle
+di benchmark sono state svuotate dopo la verifica; staging circa 22,6 MB.
+
+Distribuzione `aab43a4` completata e carico europeo riuscito (p95 260,96 ms).
+Compattazione produttiva completata dopo la correzione della precisione: 1.725
+soste e 26 anomalie preservate, secondo tentativo idempotente. La qualificazione
+resta aperta per nuova settimana sulla versione finale, manutenzioni reali,
+traffico Supabase, memoria dei backup e costo complessivo entro 25 €/mese.
+Nessun aumento automatico di piano o modifica al frontend.
+
+Prova aggiuntiva: recuperato integralmente lo staging via API dopo azzeramento
+controllato, mantenendo 673 gruppi compressi e tutti i campi/IDs. Ripreso da una
+sessione parziale dopo un errore temporaneo del database. Database finale
+22.599.347 byte: il recupero compatto non richiede di espandere lo storico nel
+database gratuito. La ricostruzione delle righe in PostgreSQL locale resta verificata.
+
+
+### Spazio completo del bucket — 14 ottobre
+
+Scansione di tutti i prefissi, 380 pagine, terminata il 13 ottobre alle 22:28 UTC:
+379.763 oggetti e **755.092.042 byte** complessivi. Tracce: 628.664.312 byte;
+15 backup: 116.527.494 byte; archivio protetto `legacy/`: 9.900.236 byte.
+Il catalogo attivo da solo misura circa 116 MB e non rappresenta l'intero bucket:
+sono presenti anche versioni precedenti e oggetti tutelati dai backup. Non
+classificarli come eliminabili senza verificare i riferimenti e la retention.
+La scansione paginata durante l'acquisizione non è uno snapshot atomico.
+La misura di spazio non certifica traffico, costi né durata della pulizia.
+
+
+Controllo dopo il riavvio finale, 13 ottobre 22:32 UTC: `/ready`, live e tracce
+1/7/30/90 giorni restituiscono 200, versione `c7c2a34`. Database 121.138.323 byte,
+RSS 304.087.040 byte, 13 scritture in attesa con età massima 325 ms;
+nessun errore archivio/manutenzione segnalato. Il primo flush dopo il riavvio
+non era ancora completato: il suo tempo resta da misurare.
+
+
+API sul dato compattato: confronto integrale della sosta campione nella scheda
+nave riuscito; pagina della località 200 con sei visite. I contratti pubblici
+rimangono invariati, inclusa la distinzione dei dati mancanti e dei guasti.
+
+
+## Prossime verifiche backend
+
+1. Misurare il completamento del primo flush e della manutenzione delle 03:30 UTC:
+   fasi, durate, checkpoint e recupero dei lavori incompleti, senza rifare backup riusciti.
+2. Misurare crescita delle singole tabelle, spazio completo del bucket, memoria
+   durante i backup e traffico Supabase/Railway. Il margine fisico dello scenario
+   a 90 giorni è stretto: ricontrollare la proiezione con le osservazioni nuove
+   e il picco dei dati recenti prima della compattazione giornaliera.
+3. Verificare spesa totale, imposte, staging e monitor inclusi, entro 25 €/mese;
+   configurare limiti/avvisi disponibili senza attivare automaticamente piani pagati.
+4. Completare sette giorni sulla versione finale: dal 13 ottobre 22:33:31 UTC al
+   20 ottobre alla stessa ora (21 ottobre 00:33 in Italia), se non cambia il backend.
+   La data è il termine minimo della finestra, non una qualificazione automatica.
 
 ## Modelli nave WebGL — 14 ottobre 2026
 

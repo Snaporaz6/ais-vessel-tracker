@@ -166,3 +166,20 @@ Se i dati sono compromessi, ripristinare prima su destinazione isolata e verific
 Compilazioni/CI verdi, AIS reale e riconnessione verificati, fonti sanzioni aggiornate o limite dichiarato con decisione esplicita, backup/ripristino cloud provato, interfaccia desktop/telefono verificata, carico remoto entro soglia, sette giorni senza crash non recuperati e costo totale ≤25 €. Pubblicare come **beta**, mostrando da quale data esiste realmente lo storico. I 90 giorni si accumulano con l'acquisizione.
 
 Il precedente formato railway.toml è deprecato per i nuovi servizi: questo repository usa Dockerfile e impostazioni della console. Eventuale IaC deve seguire la [documentazione attuale](https://docs.railway.com/infrastructure-as-code/reference), con un piano esaminato prima dell’applicazione.
+
+
+## Compattazione e letture esatte — aggiornamento del 14 ottobre
+
+Prima di distribuire il lettore compatto aggiornato applicare, dopo backup verificato,
+le migrazioni additive 004, 005 e 006. La 006 aggiunge la lettura privata
+`metadata_hot_page_beta`: massimo 500 righe per pagina, cursore per chiave,
+JSON formato in PostgreSQL con precisione completa e timestamp UTC. Serve
+anche a backup e confronti di ripristino: la formattazione REST ordinaria di
+DOUBLE PRECISION può arrotondare e far rifiutare una transazione altrimenti valida.
+Non sostituire il confronto integrale delle righe con una tolleranza numerica.
+
+`REPORT_FILE` è la variabile usata da `scripts/load-test.ts` per salvare il rapporto.
+Eseguire il carico remoto dal servizio europeo indipendente, rispettando il limite
+per origine e senza IP simulati; conservare anche prove da altri punti di misura.
+Il file del monitor deve cambiare dopo l'ultima modifica backend, mantenendo
+le finestre precedenti. Le prime letture sane non certificano sette giorni né costi.

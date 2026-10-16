@@ -1,3 +1,4 @@
+import { diagnosticCode } from "../shared/diagnostics.js";
 /** Archive/import jobs are serial; metadata delivery must keep running during them. */
 export class BackgroundJobs {
   private maintenanceRunning = false;
@@ -52,10 +53,11 @@ export class BackgroundJobs {
             duration_ms: Date.now() - started,
           }),
         );
-    } catch {
+    } catch (error) {
       console.warn(
         JSON.stringify({
           event: "maintenance_failed",
+          code: diagnosticCode(error),
           job: name,
           duration_ms: Date.now() - started,
         }),
