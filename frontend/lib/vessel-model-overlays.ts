@@ -30,18 +30,13 @@ function icon(type: ShipType, neutral: boolean) {
   if (neutral) {
     // Side-view category badge deliberately has no geographic bow direction.
     c.beginPath();
-    c.roundRect(6, 13, 52, 38, 12);
-    c.fillStyle = "#16202c";
-    c.fill();
-    c.stroke();
-    c.fillStyle = VESSEL_COLORS[type];
-    c.beginPath();
     c.moveTo(11, 36);
     c.lineTo(53, 36);
     c.lineTo(46, 45);
     c.lineTo(17, 45);
     c.closePath();
     c.fill();
+    c.stroke();
     c.fillRect(18, 25, 11, 11);
     c.fillRect(33, 29, 10, 7);
     if (type === "cargo") {
