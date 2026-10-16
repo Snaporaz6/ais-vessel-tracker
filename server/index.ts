@@ -10,6 +10,7 @@ import { syncSanctions } from "../scripts/sync-sanctions.js";
 import { timingSafeEqual } from "node:crypto";
 import { DailyMaintenance } from "./maintenance.js";
 import { BackgroundJobs } from "./jobs.js";
+import { measuredPhase } from "../shared/diagnostics.js";
 export async function startServer() {
   const c = await createContext(),
     app = createApp(c),
@@ -86,15 +87,22 @@ export async function startServer() {
       if (c.outbox.pending) void job("outbox", () => c.outbox.flush());
     }, 500),
   );
+  let checkpointRunning = false;
   intervals.push(
     setInterval(() => {
-      try {
-        c.checkpoint();
-        c.budget.rescan();
-      } catch {
-        console.error(JSON.stringify({ event: "checkpoint_failed" }));
-        client?.forceReconnect();
-      }
+      if (checkpointRunning || shuttingDown) return;
+      checkpointRunning = true;
+      void (async () => {
+        await measuredPhase("live_checkpoint", async () => c.checkpoint());
+        await measuredPhase("volume_scan", () => c.budget.rescan());
+      })()
+        .catch(() => {
+          console.error(JSON.stringify({ event: "checkpoint_failed" }));
+          client?.forceReconnect();
+        })
+        .finally(() => {
+          checkpointRunning = false;
+        });
     }, 60_000),
   );
   const archive = async () => {
