@@ -11,10 +11,13 @@ Node ≥22, preferito 24 LTS. `npm ci` e `npm --prefix frontend ci`.
 - Controlli: `npm run verify`, `npm run lint`, `npm run build`.
 - Browser: `npx playwright install chromium`, `npm run test:e2e`.
 - Carico: `npm run test:load`; AIS reale: `npx tsx scripts/verify-live.ts`.
+- Compattazione: `npm run compact:metadata` dopo migrazioni 004/006 e backup; il tempo simulato è ammesso soltanto nello staging isolato.
 - Backup/ripristino/migrazione: seguire `docs/OPERATIONS.md`; backup verificato obbligatorio prima del SQL.
 
 ## Architettura
 `server/index.ts` è l'unico processo API + acquisizione + cron. Supabase PostgreSQL conserva metadati, eventi, soste, importazioni e catalogo. Ultime posizioni in memoria, checkpoint e spool/outbox fsync sul volume, tracce gzip in bucket privato per MMSI/giorno UTC. Una sola replica Railway; frontend Next.js 16/React 19 su Vercel Hobby per uso personale non commerciale. Niente TimescaleDB, Redis, Leaflet o query Supabase dal frontend.
+
+Con `METADATA_COMPACTION=true`, `storage/compact-repository.ts` unisce righe recenti e gruppi gzip versionati per nave/mese in PostgreSQL. Catalogo/soste concluse/anomalie recenti: sette giorni; soste aperte conservate; scadenza complessiva 90 giorni anche nei mesi parziali. Le tracce restano giornaliere nel bucket.
 
 `shared/types.ts` definisce i contratti; `shared/config.ts` definisce le soglie; `shared/runtime.ts` valida l'ambiente. API/browser devono cambiare insieme. Errori database/bucket non sono risultati vuoti validi; valori AIS mancanti sono null.
 
@@ -23,6 +26,9 @@ Node ≥22, preferito 24 LTS. `npm ci` e `npm --prefix frontend ci`.
 - `INGESTOR_BBOX`: latMin,lonMin,latMax,lonMax entro 30,-6,46,36.5. HTTP mappa: lonMin,latMin,lonMax,latMax.
 - Live deduplicato ogni 2 s; storico ordinario 1/5/30/120 minuti per 48h/7d/30d/90d, più punti significativi. Anomalie analizzate sul live prima del campionamento.
 - Scrittura archivio: oggetto immutabile + rilettura/checksum → catalogo → eliminazione sola parte spool verificata. Retry idempotenti; append durante upload devono restare sul volume. Conservare oggetti citati dai backup recenti.
+- Compattazione: confronto di tutte le righe e checksum, scrittura/rimozione atomiche. La 006 forma JSON con precisione completa (`extra_float_digits=3`, UTC): usare `metadata_hot_page_beta` per compattazione e backup, senza tolleranze che indeboliscano il CAS. L'arrotondamento REST può provocare falsi conflitti.
+- Backup v2: gruppi compressi verificati; recupero diretto nei lettori compatti, ricostruzione delle righe nelle destinazioni ordinarie. Preservare IDs e sequenze, sessione e destinazione del ripristino. Disabilitare il flag dopo compattazione non è un rollback: usare codice compatibile o un recupero isolato verificato.
+- `legacy/` contiene marzo verificato: escluso da retention 90 giorni e scadenza backup, fino a decisione esplicita. Pulizia con checkpoint solo sui prefissi autorizzati, massimo 20 minuti per sessione, fasi riuscite conservate. Misurare tutto il bucket, non soltanto i byte del catalogo attivo.
 - Riavvio: checkpoint, archivio, spool e outbox ricostruiscono ultime posizioni, cooldown e soste. Non usare un vuoto dell'intero servizio come anomalia della singola nave.
 - Un solo StopDetector alimenta schede e località. Chiamare le soste “soste rilevate”. Il catalogo mondiale NGA è cartografico: non attribuire automaticamente soste, disponibilità degli ormeggi o congestione ufficiale ai porti.
 - Sanzioni sostituite atomicamente con staging validato; mantenere liste valide sui guasti. Esplicitare disponibilità, data, fonte e ambito, anche nelle corrispondenze.
@@ -43,3 +49,5 @@ Documentare il motivo prima di aggiungere altre dipendenze.
 Testare le conseguenze: corruzione/upload falliti, catalogo indisponibile, messaggi malformati/duplicati/fuori ordine, riavvio prima del checkpoint, lista sanzioni conservata, estremi/svolte/vuoti 90 giorni, permessi anonimi e ripristino. Evitare test che ripetano soltanto l'implementazione. Controllo completo desktop/telefono e 20 utenti p95<1s, poi sette giorni su infrastruttura reale con costi misurati. Distinguere sempre verifica locale, dati reali e servizi cloud.
 
 README e OPERATIONS contengono le istruzioni operative; ClaudeWork è un diario storico e non prova lo stato della beta attuale.
+
+Dopo ogni modifica backend, nuovo `BETA_LOG_FILE` e nuova settimana; conservare tutte le finestre precedenti. `REPORT_FILE` salva il carico. Stato, misure e prove della release: `docs/STATUS.md`, `docs/BACKEND-STORAGE-RELEASE.md`, `docs/DATABASE-CAPACITY.md`. Non dichiarare costi o qualificazione superati senza dati reali.

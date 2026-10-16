@@ -19,6 +19,11 @@ export function runtimeConfig({
       .max(SPOOL_LIMIT_BYTES)
       .default(SPOOL_LIMIT_BYTES),
     CORS_ORIGINS: z.string().default("http://localhost:3000"),
+    METADATA_COMPACTION: z.enum(["true", "false"]).default("false"),
+    DEPLOYMENT_VERSION: z
+      .string()
+      .max(80)
+      .default(process.env.RAILWAY_DEPLOYMENT_ID ?? "unknown"),
     DEMO_MODE: z.enum(["true", "false"]).default("false"),
     INGESTOR_BBOX: z
       .string()

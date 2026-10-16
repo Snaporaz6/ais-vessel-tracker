@@ -19,10 +19,15 @@ import { resolve, dirname } from "node:path";
 import type { RuntimeConfig } from "../shared/runtime.js";
 export const checksum = (data: Uint8Array) =>
   createHash("sha256").update(data).digest("hex");
+export interface ObjectPage {
+  items: { key: string; modified: Date }[];
+  next?: string;
+}
 export interface ObjectStore {
+  page?(prefix: string, token?: string): Promise<ObjectPage>;
   put(key: string, data: Buffer): Promise<void>;
   get(key: string): Promise<Buffer>;
-  delete(key: string): Promise<void>;
+  delete(key: string, timeoutMs?: number): Promise<void>;
   health(): Promise<void>;
   list(prefix: string): AsyncIterable<{ key: string; modified: Date }>;
 }
@@ -43,16 +48,34 @@ export class BucketStore implements ObjectStore {
     });
   }
   async put(key: string, data: Buffer) {
-    await this.client.send(
-      new PutObjectCommand({
-        Bucket: this.bucket,
-        Key: key,
-        Body: data,
-        ContentType: "application/gzip",
-        Metadata: { sha256: checksum(data) },
-      }),
-      { abortSignal: AbortSignal.timeout(30_000) },
-    );
+    // Repeating the same key and bytes is idempotent, including after an
+    // ambiguous timeout. Large verified backups need more time than track parts.
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await this.client.send(
+          new PutObjectCommand({
+            Bucket: this.bucket,
+            Key: key,
+            Body: data,
+            ContentType: "application/gzip",
+            Metadata: { sha256: checksum(data) },
+          }),
+          {
+            abortSignal: AbortSignal.timeout(
+              data.length > 1024 * 1024 ? 120_000 : 30_000,
+            ),
+          },
+        );
+        return;
+      } catch (error) {
+        const name = (error as { name?: string }).name;
+        if (
+          attempt >= 2 ||
+          !["TimeoutError", "AbortError"].includes(name ?? "")
+        )
+          throw error;
+      }
+    }
   }
   async get(key: string) {
     const obj = await this.client.send(
@@ -62,16 +85,39 @@ export class BucketStore implements ObjectStore {
     if (!obj.Body) throw new Error("ARCHIVE_UNAVAILABLE");
     return Buffer.from(await obj.Body.transformToByteArray());
   }
-  async delete(key: string) {
+  async delete(key: string, timeoutMs = 30000) {
     await this.client.send(
       new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
-      { abortSignal: AbortSignal.timeout(30_000) },
+      {
+        abortSignal: AbortSignal.timeout(
+          Math.max(1, Math.min(30000, timeoutMs)),
+        ),
+      },
     );
   }
   async health() {
     await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }), {
       abortSignal: AbortSignal.timeout(10_000),
     });
+  }
+  async page(prefix: string, token?: string): Promise<ObjectPage> {
+    const res = await this.client.send(
+      new ListObjectsV2Command({
+        Bucket: this.bucket,
+        Prefix: prefix,
+        ContinuationToken: token,
+        MaxKeys: 1000,
+      }),
+      { abortSignal: AbortSignal.timeout(30000) },
+    );
+    if (res.IsTruncated && !res.NextContinuationToken)
+      throw new Error("ARCHIVE_LIST_INVALID");
+    return {
+      items: (res.Contents ?? [])
+        .filter((o) => o.Key && o.LastModified)
+        .map((o) => ({ key: o.Key!, modified: o.LastModified! })),
+      next: res.NextContinuationToken,
+    };
   }
   async *list(prefix: string) {
     let token: string | undefined;

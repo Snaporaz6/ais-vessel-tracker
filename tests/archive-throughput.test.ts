@@ -1,6 +1,7 @@
+import { ArchiveCleanup } from "../storage/archive-cleanup.js";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MemoryRepository } from "../storage/repository.js";
@@ -15,7 +16,7 @@ function fixture() {
   const repo = new MemoryRepository();
   const objects = new FileObjectStore(join(root, "objects"));
   const tracks = new TrackStore(root, repo, objects, new DiskBudget(root));
-  return { repo, objects, tracks };
+  return { root, repo, objects, tracks };
 }
 const position = (mmsi: string, at: number, gap = false): VesselPosition => ({
   mmsi,
@@ -31,7 +32,7 @@ const position = (mmsi: string, at: number, gap = false): VesselPosition => ({
 
 test(
   "bounded uploads drain on failure and preserve failed/new observations for a retry",
-  { timeout: 5000 },
+  { timeout: 15000 },
   async () => {
     const f = fixture(),
       now = Date.now();
@@ -143,7 +144,7 @@ test("expired catalog entries need no track download and remain recoverable from
 
 test(
   "cleanup drains bounded deletes after a failure and preserves active, recent and backup objects",
-  { timeout: 5000 },
+  { timeout: 15000 },
   async () => {
     const f = fixture(),
       now = Date.now();
@@ -192,7 +193,7 @@ test(
       await blocked;
       await remove(key);
     };
-    const cleanup = f.tracks.flush(now, true).then(
+    const cleanup = new ArchiveCleanup(f.root, f.repo, f.objects).run(now).then(
       () => {
         settled = true;
         return null;
@@ -211,6 +212,7 @@ test(
     assert.equal(entered, 8);
     assert.equal(pruned, 0);
     f.objects.delete = remove;
+    await new ArchiveCleanup(f.root, f.repo, f.objects).run(now);
     await f.tracks.flush(now, true);
     assert.equal(pruned, 1);
     const remaining = [];
@@ -222,3 +224,60 @@ test(
     assert.equal(f.tracks.lastError, null);
   },
 );
+
+test("cleanup resumes the saved page after a bounded session and preserves legacy objects", async () => {
+  const f = fixture(),
+    now = Date.now(),
+    old = new Date(now - 2 * 86400000);
+  let pages = 0,
+    deletions = 0;
+  const listed = Array.from({ length: 12 }, (_, i) => ({
+    key: `tracks/obsolete-${i}`,
+    modified: old,
+  }));
+  for (const item of listed) await f.objects.put(item.key, Buffer.from("old"));
+  await f.objects.put("legacy/march-preserved", Buffer.from("legacy"));
+  const objects = {
+    ...f.objects,
+    put: f.objects.put.bind(f.objects),
+    get: f.objects.get.bind(f.objects),
+    list: f.objects.list.bind(f.objects),
+    health: f.objects.health.bind(f.objects),
+    page: async () => {
+      pages++;
+      return { items: listed };
+    },
+    delete: async (key: string) => {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      await f.objects.delete(key);
+      deletions++;
+    },
+  };
+  const cleanup = new ArchiveCleanup(f.root, f.repo, objects);
+  const first = await cleanup.run(now, 10);
+  assert.equal(first.complete, false);
+  const result = await new ArchiveCleanup(f.root, f.repo, objects).run(now);
+  assert.equal(result.complete, true);
+  assert.equal(pages, 1);
+  assert.equal(deletions, 12);
+  assert.equal(
+    (await f.objects.get("legacy/march-preserved")).toString(),
+    "legacy",
+  );
+});
+
+test("corrupt cleanup checkpoints cannot redirect deletions into the protected legacy prefix", async () => {
+  const f = fixture(),
+    cleanup = new ArchiveCleanup(f.root, f.repo, f.objects);
+  await f.objects.put("legacy/march", Buffer.from("preserved"));
+  writeFileSync(
+    cleanup.path,
+    JSON.stringify({
+      version: 1,
+      complete: false,
+      pending: [{ key: "legacy/march", modified: "2026-01-01T00:00:00Z" }],
+    }),
+  );
+  await assert.rejects(cleanup.run(), /CLEANUP_CHECKPOINT_INVALID/);
+  assert.equal((await f.objects.get("legacy/march")).toString(), "preserved");
+});

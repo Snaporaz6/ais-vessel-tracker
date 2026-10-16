@@ -1,3 +1,6 @@
+import { ArchiveCleanup } from "../storage/archive-cleanup.js";
+import { CompactRepository } from "../storage/compact-repository.js";
+import { runDailyPhases } from "./daily-phases.js";
 import cron, { type ScheduledTask } from "node-cron";
 import { createApp } from "../api/index.js";
 import { createContext } from "./context.js";
@@ -7,6 +10,7 @@ import { syncSanctions } from "../scripts/sync-sanctions.js";
 import { timingSafeEqual } from "node:crypto";
 import { DailyMaintenance } from "./maintenance.js";
 import { BackgroundJobs } from "./jobs.js";
+import { measuredPhase } from "../shared/diagnostics.js";
 export async function startServer() {
   const c = await createContext(),
     app = createApp(c),
@@ -31,6 +35,11 @@ export async function startServer() {
         cpu = process.cpuUsage();
       return res.json({
         at: new Date().toISOString(),
+        version: c.config.DEPLOYMENT_VERSION,
+        oldest_pending_write_age_ms:
+          c.outbox.oldestPendingAt === null
+            ? 0
+            : Date.now() - c.outbox.oldestPendingAt,
         uptime_seconds: (Date.now() - started) / 1000,
         cpu_seconds: (cpu.user + cpu.system) / 1e6,
         rss_bytes: process.memoryUsage().rss,
@@ -78,15 +87,22 @@ export async function startServer() {
       if (c.outbox.pending) void job("outbox", () => c.outbox.flush());
     }, 500),
   );
+  let checkpointRunning = false;
   intervals.push(
     setInterval(() => {
-      try {
-        c.checkpoint();
-        c.budget.rescan();
-      } catch {
-        console.error(JSON.stringify({ event: "checkpoint_failed" }));
-        client?.forceReconnect();
-      }
+      if (checkpointRunning || shuttingDown) return;
+      checkpointRunning = true;
+      void (async () => {
+        await measuredPhase("live_checkpoint", async () => c.checkpoint());
+        await measuredPhase("volume_scan", () => c.budget.rescan());
+      })()
+        .catch(() => {
+          console.error(JSON.stringify({ event: "checkpoint_failed" }));
+          client?.forceReconnect();
+        })
+        .finally(() => {
+          checkpointRunning = false;
+        });
     }, 60_000),
   );
   const archive = async () => {
@@ -119,12 +135,51 @@ export async function startServer() {
         hour: 3,
         minute: 30,
         action: async () => {
-          await c.outbox.flush();
-          await c.tracks.flush();
-          await c.refreshHistoryStart();
-          await backup(c.repo, c.objects);
-          await c.tracks.flush(Date.now(), true);
-          await c.refreshHistoryStart();
+          await runDailyPhases(c.config.storageDir, [
+            {
+              name: "flush",
+              run: async () => {
+                await c.outbox.flush();
+                await c.tracks.flush();
+                await c.refreshHistoryStart();
+              },
+            },
+            { name: "backup", run: () => backup(c.repo, c.objects) },
+            {
+              name: "track_compaction",
+              run: async () => {
+                await c.tracks.flush(Date.now(), true);
+                await c.refreshHistoryStart();
+              },
+            },
+            {
+              name: "metadata_compaction",
+              run: async () => {
+                if (c.repo instanceof CompactRepository) {
+                  const result = await c.repo.compact();
+                  console.info(
+                    JSON.stringify({ event: "metadata_compaction", ...result }),
+                  );
+                  if (!result.complete)
+                    throw new Error("METADATA_COMPACTION_PENDING");
+                }
+              },
+            },
+            {
+              name: "cleanup",
+              run: async () => {
+                const result = await new ArchiveCleanup(
+                  c.config.storageDir,
+                  c.repo,
+                  c.objects,
+                ).run();
+                console.info(
+                  JSON.stringify({ event: "archive_cleanup", ...result }),
+                );
+                if (!result.complete) throw new Error("CLEANUP_PENDING");
+              },
+            },
+          ]);
         },
       },
     ]);

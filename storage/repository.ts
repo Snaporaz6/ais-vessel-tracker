@@ -7,6 +7,11 @@ import type {
   SanctionRecord,
 } from "../shared/types.js";
 import { getDistance } from "geolib";
+import type { MetadataGroup } from "./metadata-groups.js";
+import {
+  checkedDatabase as checked,
+  databaseFetch,
+} from "../shared/database-errors.js";
 
 export type Source = "OFAC" | "EU";
 export interface ImportState {
@@ -33,6 +38,10 @@ export const TABLES = [
   "import_states",
 ] as const;
 export type Table = (typeof TABLES)[number];
+export interface BackupReader {
+  rows(table: Table): AsyncIterable<unknown>;
+  groups(): AsyncIterable<MetadataGroup>;
+}
 export interface StorageMetrics {
   database_bytes: number;
   metadata_bytes: number;
@@ -42,6 +51,13 @@ export interface StorageMetrics {
   last_observation_at: string | null;
 }
 export interface Repository {
+  finishRestore?(minimumEventID?: number): Promise<void>;
+  restoreHotRows?<T>(table: Table): Promise<T[]>;
+  verifyPackedRestore?(
+    groups: MetadataGroup[],
+    mode: "empty" | "partial" | "complete",
+  ): Promise<void>;
+  restorePackedGroups?(groups: MetadataGroup[]): Promise<void>;
   all<T>(table: Table): Promise<T[]>;
   iterateArchives(): AsyncIterable<ArchiveEntry>;
   upsert(table: Table, rows: unknown[]): Promise<void>;
@@ -64,11 +80,6 @@ export interface Repository {
   metrics(): Promise<StorageMetrics>;
 }
 
-// Do not include provider error bodies or URLs in public errors/logs.
-function checked<T>(result: { data: T; error: unknown }): T {
-  if (result.error) throw new Error("DATABASE_UNAVAILABLE");
-  return result.data;
-}
 const CONFLICT: Record<Table, string> = {
   vessels: "mmsi",
   anomaly_events: "event_key",
@@ -78,13 +89,21 @@ const CONFLICT: Record<Table, string> = {
   import_states: "source",
 };
 export class PostgresRepository implements Repository {
+  async finishRestore(minimumEventID?: number) {
+    checked(await this.client.rpc("finish_restore_beta"));
+    if (minimumEventID !== undefined)
+      checked(
+        await this.client.rpc("advance_restored_anomalies_beta", {
+          minimum_id: minimumEventID,
+        }),
+      );
+  }
   readonly client: SupabaseClient;
   constructor(url: string, key: string) {
     this.client = createClient(url, key, {
       auth: { persistSession: false, autoRefreshToken: false },
       global: {
-        fetch: (url, init) =>
-          fetch(url, { ...init, signal: AbortSignal.timeout(15_000) }),
+        fetch: databaseFetch,
       },
     });
   }
@@ -213,7 +232,9 @@ export class PostgresRepository implements Repository {
       let q = this.client
         .from("detected_stops")
         .select("*")
-        .gte("arrived_at", new Date(Date.now() - 90 * 86400_000).toISOString())
+        .or(
+          `departed_at.is.null,arrived_at.gte.${new Date(Date.now() - 90 * 86400000).toISOString()},departed_at.gte.${new Date(Date.now() - 90 * 86400000).toISOString()},last_seen_at.gte.${new Date(Date.now() - 90 * 86400000).toISOString()}`,
+        )
         .order("arrived_at", { ascending: false })
         .order("id");
       if (mmsi) q = q.eq("mmsi", mmsi);

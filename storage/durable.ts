@@ -14,6 +14,7 @@ import { join, dirname } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { Repository, Table } from "./repository.js";
 import { SPOOL_LIMIT_BYTES } from "../shared/config.js";
+import { readdir, stat } from "node:fs/promises";
 
 export function atomicWrite(path: string, data: string | Buffer) {
   mkdirSync(dirname(path), { recursive: true });
@@ -36,7 +37,18 @@ export function readJSON<T>(path: string, fallback: T): T {
   }
 }
 export class DiskBudget {
-  bytes = 0;
+  private currentBytes = 0;
+  private scanning: Promise<void> | null = null;
+  private addedDuringScan = 0;
+  get bytes() {
+    return this.currentBytes;
+  }
+  set bytes(value: number) {
+    // Do not lose new reservations when files disappear during an async scan.
+    if (this.scanning)
+      this.addedDuringScan += Math.max(0, value - this.currentBytes);
+    this.currentBytes = value;
+  }
   constructor(
     readonly root: string,
     readonly limit = SPOOL_LIMIT_BYTES,
@@ -55,17 +67,32 @@ export class DiskBudget {
     if (this.bytes + extra > this.limit)
       throw new Error("PERSISTENT_VOLUME_FULL");
   }
-  rescan() {
-    let bytes = 0;
-    const walk = (dir: string) => {
-      for (const e of readdirSync(dir, { withFileTypes: true })) {
+  rescan(): Promise<void> {
+    if (this.scanning) return this.scanning;
+    this.addedDuringScan = 0;
+    const walk = async (dir: string): Promise<number> => {
+      let bytes = 0;
+      for (const e of await readdir(dir, { withFileTypes: true })) {
         const path = join(dir, e.name);
-        if (e.isDirectory()) walk(path);
-        else bytes += statSync(path).size;
+        try {
+          bytes += e.isDirectory() ? await walk(path) : (await stat(path)).size;
+        } catch (error) {
+          // Archiving may remove a file after the directory page was read.
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        }
       }
+      return bytes;
     };
-    walk(this.root);
-    this.bytes = bytes;
+    this.scanning = walk(this.root)
+      .then((bytes) => {
+        // A new file can already be counted by stat: overcount conservatively
+        // until the next scan instead of letting concurrent writes bypass quota.
+        this.currentBytes = bytes + this.addedDuringScan;
+      })
+      .finally(() => {
+        this.scanning = null;
+      });
+    return this.scanning;
   }
 }
 export class DurableOutbox {

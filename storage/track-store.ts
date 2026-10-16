@@ -30,7 +30,6 @@ import {
   HISTORY_TIERS,
 } from "../shared/config.js";
 import type { ArchiveEntry, VesselPosition } from "../shared/types.js";
-import { retainedBackupReferences } from "./backup.js";
 
 const MAX_FILE_BYTES = 64 * 1024 * 1024;
 const MAX_WINDOW_POINTS = 100_000;
@@ -373,32 +372,6 @@ export class TrackStore {
       this.lastError = null;
       this.summary = undefined;
       if (maintenance) {
-        const referenced = new Set<string>();
-        for await (const e of this.repo.iterateArchives())
-          referenced.add(e.object_key);
-        for (const key of await retainedBackupReferences(this.objects, now))
-          referenced.add(key);
-        // Keep superseded objects for a full day so readers and recent backups can finish.
-        let obsolete: string[] = [];
-        const deleteObsolete = async () => {
-          const keys = obsolete;
-          obsolete = [];
-          // Drain the entire group before retrying or releasing the flush lock.
-          const results = await Promise.allSettled(
-            keys.map((key) => this.objects.delete(key)),
-          );
-          const failed = results.find((result) => result.status === "rejected");
-          if (failed?.status === "rejected") throw failed.reason;
-        };
-        for await (const obj of this.objects.list("tracks/"))
-          if (
-            !referenced.has(obj.key) &&
-            now - obj.modified.getTime() > 24 * 3600_000
-          ) {
-            obsolete.push(obj.key);
-            if (obsolete.length === ARCHIVE_BATCH_SIZE) await deleteObsolete();
-          }
-        await deleteObsolete();
         await this.repo.prune(
           new Date(now - RETENTION_DAYS * 86400_000).toISOString(),
         );
