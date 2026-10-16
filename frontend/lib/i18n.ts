@@ -18,6 +18,31 @@ export const INTL_LOCALES: Record<Locale, string> = {
 // Italian source text and reviewed English, French and German translations.
 export const messages = {
   ...mapMessages,
+  "Dato non recente · oltre 15 minuti": [
+    "Older data · over 15 minutes",
+    "Donnée moins récente · plus de 15 minutes",
+    "Ältere Daten · über 15 Minuten",
+  ],
+  "Dato vecchio · oltre 1 ora": [
+    "Old data · over 1 hour",
+    "Donnée ancienne · plus d’une heure",
+    "Veraltete Daten · über 1 Stunde",
+  ],
+  "AIS · ultime posizioni osservate": [
+    "AIS · latest observed positions",
+    "AIS · dernières positions observées",
+    "AIS · zuletzt beobachtete Positionen",
+  ],
+  "{recent} recenti · {stale} meno recenti nell’area": [
+    "{recent} recent · {stale} older fixes in the area",
+    "{recent} récentes · {stale} anciennes dans la zone",
+    "{recent} aktuell · {stale} ältere Positionen im Gebiet",
+  ],
+  "Punti attenuati: ultima posizione ricevuta oltre 10 minuti fa.": [
+    "Faded points: last position received more than 10 minutes ago.",
+    "Points atténués : dernière position reçue il y a plus de 10 minutes.",
+    "Blasse Punkte: letzte Position vor mehr als 10 Minuten empfangen.",
+  ],
   "Navi 3D": ["3D vessels", "Navires 3D", "3D-Schiffe"],
   Ombre: ["Shadows", "Ombres", "Schatten"],
   "Modelli indicativi a zoom ravvicinato": [
