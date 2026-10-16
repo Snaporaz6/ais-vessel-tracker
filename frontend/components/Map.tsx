@@ -595,7 +595,7 @@ export default function VesselMap({
       lon: live.lon,
       speed: live.speed,
       course: live.course,
-      heading: null,
+      heading: live.heading ?? null,
       nav_status: "unknown",
     };
     latest.gap_before = observationGap(last, latest);
@@ -620,7 +620,7 @@ export default function VesselMap({
       return selected;
     const latest: VesselPosition = {
       ...live,
-      heading: null,
+      heading: live.heading ?? null,
       nav_status: "unknown",
     };
     // Even when the sampled track cannot accept another point, its error must
@@ -638,7 +638,7 @@ export default function VesselMap({
     const fix: VesselPosition =
       live &&
       Date.parse(live.timestamp) > Date.parse(selectedPosition.timestamp)
-        ? { ...live, heading: null, nav_status: "unknown" }
+        ? { ...live, heading: live.heading ?? null, nav_status: "unknown" }
         : selectedPosition;
     return trackMoment([fix], null);
   }, [selectedPosition, data, moment, trackMmsi]);

@@ -1099,6 +1099,18 @@ button.track-position-marker:hover {
   inset: 3px;
   background: var(--cursor-color);
 }
+.track-position-marker[data-orientation-unknown="true"]
+  .track-position-arrow::before,
+.track-position-marker[data-orientation-unknown="true"]
+  .track-position-arrow::after {
+  clip-path: none;
+  border-radius: 50%;
+  inset: 6px;
+}
+.track-position-marker[data-orientation-unknown="true"]
+  .track-position-arrow::after {
+  inset: 8px;
+}
 .track-position-label {
   position: absolute;
   bottom: 32px;

@@ -12,6 +12,8 @@ import type {
 } from "../../shared/types";
 import { VESSEL_COLORS } from "./vessel-colors";
 import { LIVE_TTL_MS } from "../../shared/config";
+import { vesselHeading, vesselModelPixels } from "./vessel-model-display";
+import { vesselWaterMask } from "./vessel-water-mask";
 import {
   createVesselMesh,
   MODEL_SPECS,
@@ -23,8 +25,18 @@ import {
 
 type ModelVessel = Pick<
   LiveMapVessel,
-  "mmsi" | "name" | "ship_type" | "lat" | "lon" | "course" | "timestamp"
-> & { heading?: number | null; priority?: boolean };
+  | "mmsi"
+  | "name"
+  | "ship_type"
+  | "lat"
+  | "lon"
+  | "course"
+  | "speed"
+  | "timestamp"
+  | "heading"
+  | "length"
+  | "width"
+> & { priority?: boolean };
 type Drawn = {
   vessel: ModelVessel;
   center: { x: number; y: number };
@@ -203,6 +215,22 @@ export function createVesselModelLayer(
   let drawn: Drawn[] = [],
     shownKey = "",
     hovered: string | null = null;
+  let waterMask: ReturnType<typeof vesselWaterMask> = null,
+    waterDirty = true;
+  const waterFits = new globalThis.Map<string, number>();
+  const refreshWater = () => {
+    waterDirty = true;
+  };
+  const hullOutline = [
+    [0, 0],
+    [-0.5, -0.45],
+    [0.5, -0.45],
+    [0.5, 0.25],
+    [0.34, 0.4],
+    [0, 0.5],
+    [-0.34, 0.4],
+    [-0.5, 0.25],
+  ];
   const pointOpacity = map.getLayer("vessel-points")
     ? (map.getPaintProperty("vessel-points", "circle-opacity") ?? 1)
     : 1;
@@ -303,6 +331,7 @@ export function createVesselModelLayer(
       }
       // Shadow resources are optional: flat lighting still works if allocation fails.
       depth = gl.createTexture();
+      if (!depth) throw new Error("3D texture unavailable");
       framebuffer = gl.createFramebuffer();
       if (depth && framebuffer) {
         gl.bindTexture(gl.TEXTURE_2D, depth);
@@ -472,7 +501,9 @@ export function createVesselModelLayer(
           h = map.getCanvas().clientHeight;
         const bounds = map.getBounds();
         const candidates = input
-          .filter((v) => bounds.contains([v.lon, v.lat]))
+          .filter(
+            (v) => bounds.contains([v.lon, v.lat]) && vesselHeading(v) !== null,
+          )
           .map((v) => ({ v, p: map.project([v.lon, v.lat]) }))
           .filter(
             ({ p }) => p.x > -90 && p.x < w + 90 && p.y > -90 && p.y < h + 90,
@@ -484,38 +515,67 @@ export function createVesselModelLayer(
               Math.hypot(b.p.x - w / 2, b.p.y - h / 2),
         );
         const visible = candidates.slice(0, mobile ? 32 : 96);
-        const referenceLength = Math.max(
-          180,
-          ...visible.map(({ v }) => {
-            const l = profiles.find((p) => p.mmsi === v.mmsi)?.length;
-            return l && l > 0 && l <= 500
-              ? l
-              : (MODEL_SPECS[v.ship_type]?.length ?? 40);
-          }),
-        );
+        if (waterDirty && !map.isMoving()) {
+          waterMask = vesselWaterMask(map);
+          waterDirty = !waterMask;
+          waterFits.clear();
+        }
         for (const { v, p: screen } of visible) {
+          const heading = vesselHeading(v);
+          if (heading === null) continue;
           const type = MODEL_SPECS[v.ship_type] ? v.ship_type : "other",
             spec = MODEL_SPECS[type],
             m = models.get(type)!;
           const profile = profiles.find((p) => p.mmsi === v.mmsi),
+            measuredLength = profile?.length ?? v.length,
+            measuredWidth = profile?.width ?? v.width,
             realLength =
-              profile?.length && profile.length > 0 && profile.length <= 500
-                ? profile.length
+              measuredLength && measuredLength > 0 && measuredLength <= 500
+                ? measuredLength
                 : spec.length;
           const beam =
-            profile?.width && profile.width > 0
-              ? Math.min(0.6, Math.max(0.08, profile.width / realLength))
+            measuredWidth && measuredWidth > 0
+              ? Math.min(0.6, Math.max(0.08, measuredWidth / realLength))
               : spec.beam;
           const metersPerPixel =
             (40075016.686 * Math.cos((v.lat * Math.PI) / 180)) /
             (512 * 2 ** map.getZoom());
-          const displayScale = Math.min(
-            1,
-            ((mobile ? 112 : 144) * metersPerPixel) / referenceLength,
-          );
-          const length = realLength * displayScale;
-          if (length / metersPerPixel < 7) continue;
+          let length =
+            vesselModelPixels(realLength, metersPerPixel, mobile) *
+            metersPerPixel;
           const merc = MercatorCoordinate.fromLngLat([v.lon, v.lat]);
+          if (waterMask) {
+            const key = `${v.mmsi}:${v.lat}:${v.lon}:${heading}:${beam}:${length.toFixed(2)}`;
+            let fitting = waterFits.get(key);
+            if (fitting === undefined) {
+              const angle = (heading * Math.PI) / 180,
+                s = Math.sin(angle),
+                c = Math.cos(angle),
+                units = merc.meterInMercatorCoordinateUnits();
+              fitting = 0;
+              for (
+                let candidate = length;
+                candidate / metersPerPixel >= 20;
+                candidate *= 0.75
+              ) {
+                const fits = hullOutline.every(([x, y]) => {
+                  const p = new MercatorCoordinate(
+                    merc.x + (x * beam * c + y * s) * candidate * units,
+                    merc.y + (x * beam * s - y * c) * candidate * units,
+                  ).toLngLat();
+                  return waterMask!(p.lng, p.lat);
+                });
+                if (fits) {
+                  fitting = candidate;
+                  break;
+                }
+              }
+              if (waterFits.size >= 512) waterFits.clear();
+              waterFits.set(key, fitting);
+            }
+            if (!fitting) continue;
+            length = fitting;
+          }
           const tiles = 2 ** 16,
             x = Math.floor(merc.x * tiles),
             y = Math.floor(merc.y * tiles),
@@ -538,11 +598,9 @@ export function createVesselModelLayer(
           );
           context.uniform1f(
             location(context, p, "u_angle"),
-            ((v.heading ?? v.course ?? 0) * Math.PI) / 180,
+            (heading * Math.PI) / 180,
           );
-          const viewAngle =
-              (((v.heading ?? v.course ?? 0) - map.getBearing()) * Math.PI) /
-              180,
+          const viewAngle = ((heading - map.getBearing()) * Math.PI) / 180,
             pitch = (map.getPitch() * Math.PI) / 180;
           context.uniform3f(
             location(context, p, "u_view"),
@@ -655,6 +713,8 @@ export function createVesselModelLayer(
   map.on("click", handleClick);
   map.on("mousemove", handleHover);
   map.on("movestart", leave);
+  map.on("moveend", refreshWater);
+  map.on("sourcedata", refreshWater);
   map.getCanvas().addEventListener("mouseleave", leave);
   map.on("webglcontextlost", lost);
   map.on("webglcontextrestored", restored);
@@ -698,6 +758,9 @@ export function createVesselModelLayer(
       map.off("click", handleClick);
       map.off("mousemove", handleHover);
       map.off("movestart", leave);
+      map.off("moveend", refreshWater);
+      map.off("sourcedata", refreshWater);
+      waterFits.clear();
       map.getCanvas().removeEventListener("mouseleave", leave);
       map.off("webglcontextlost", lost);
       map.off("webglcontextrestored", restored);

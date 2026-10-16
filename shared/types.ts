@@ -70,6 +70,10 @@ export interface LiveMapVessel {
   lon: number;
   speed: number | null;
   course: number | null;
+  /** Optional for compatibility with older API deployments. */
+  heading?: number | null;
+  length?: number | null;
+  width?: number | null;
   is_sanctioned: boolean;
   anomaly_flags: AnomalyType[];
   timestamp: string;
