@@ -1,5 +1,17 @@
 # Stato della beta — 16 ottobre 2026
 
+> **Aggiornamento del 16 ottobre, 18:34 UTC: incidente ancora aperto.**
+> Dopo le prime verifiche riuscite, `57c8be9` ha subito dieci nuovi arresti V8
+> per memoria esaurita fra le 17:03 e le 18:34 UTC. Campionamento tracce e
+> compattazione metadati erano completati; il percorso successivo di pulizia
+> richiede ancora diagnosi. Il servizio risponde fra i riavvii, ma la finestra
+> delle 15:20 non qualifica una settimana stabile. Il contatore monitor
+> `restarts_observed=0` non esclude questi crash: prevalgono i log FATAL e gli
+> avvii del processo. [Report tecnico completo](REPORT-CRASH-2026-10-16.md).
+>
+> Le informazioni successive descrivono il ripristino del pomeriggio e restano
+> riscontri datati, non una dichiarazione di stabilità attuale.
+
 La [beta Mediterraneo](https://ais-vessel-tracker.vercel.app) riceve nuovamente dati dopo i crash Railway. Il backend `57c8be9` è in ascolto dal 16 ottobre alle **15:15:59 UTC** (17:15 in Italia), con una replica, volume e metadati compressi conservati. Il codice è integrato in `main` tramite PR #15, #17, #20 e #21. La qualificazione resta aperta: occorrono una nuova settimana sulla versione finale, manutenzioni complete e costo totale verificato entro 25 €/mese. Le misure storiche sotto conservano le loro date originali.
 
 ## Ripristino del 16 ottobre
