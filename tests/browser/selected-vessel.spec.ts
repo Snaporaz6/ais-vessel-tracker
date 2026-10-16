@@ -120,6 +120,50 @@ async function vesselPanel(page: Page, mobile: boolean) {
       .getByRole("button", { name: "Nave", exact: true })
       .click();
 }
+test("l’orario passa ad arancione e rosso anche senza nuovi dati e torna normale con un’osservazione recente", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  const now = Date.now();
+  const timestamp = new Date(now - 14 * 60_000).toISOString();
+  state.detail = {
+    ...state.detail,
+    last_position: { ...state.detail.last_position!, timestamp },
+  };
+  await page.clock.install({ time: now });
+  await page.goto("/?vessel=" + MMSI);
+  const time = page.locator(".vessel-drawer .observation-time");
+  await expect(time).toHaveClass(/observation-time--recent/);
+  await expect(time.locator("time")).toHaveAttribute("datetime", timestamp);
+  await expect(time.locator(".observation-age-badge")).toHaveCount(0);
+  await page.clock.fastForward(2 * 60_000);
+  await expect(time).toHaveClass(/observation-time--warning/);
+  await expect(time).toContainText("Dato non recente · oltre 15 minuti");
+  await expect(time.locator("time")).toHaveAttribute("datetime", timestamp);
+  await time.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: info.outputPath("observation-orange.png") });
+  await page.clock.fastForward(50 * 60_000);
+  await expect(time).toHaveClass(/observation-time--old/);
+  await expect(time).toContainText("Dato vecchio · oltre 1 ora");
+  await expect(time.locator("time")).toHaveAttribute("datetime", timestamp);
+  await page.screenshot({ path: info.outputPath("observation-red.png") });
+  // Both themes use explicit readable warning colours; text conveys severity too.
+  await page.evaluate(() => {
+    document.documentElement.dataset.mapTheme = "light";
+  });
+  await expect(time).toHaveCSS("color", "rgb(185, 28, 28)");
+  const fresh = new Date(now + 52 * 60_000 - 60_000).toISOString();
+  state.detail = {
+    ...state.detail,
+    last_position: { ...state.detail.last_position!, timestamp: fresh },
+  };
+  await page.evaluate(() =>
+    document.dispatchEvent(new Event("visibilitychange")),
+  );
+  await expect(time.locator("time")).toHaveAttribute("datetime", fresh);
+  await expect(time).toHaveClass(/observation-time--recent/);
+  await expect(time.locator(".observation-age-badge")).toHaveCount(0);
+});
 test("la nave assente dal live rimane visibile prima e dopo mostra/nascondi traccia", async ({
   page,
 }, info) => {
@@ -204,4 +248,68 @@ test("traccia vuota o fallita non cancella il punto selezionato e gli aggiorname
     document.dispatchEvent(new Event("visibilitychange")),
   );
   await expect(marker).toHaveCount(0);
+});
+
+test("il punto meno recente è disegnato e cliccabile nella zona senza ricerca o selezione", async ({
+  page,
+}, info) => {
+  const state = await fixture(page);
+  const fix = { ...state.detail.last_position!, lat: 38, lon: 15 };
+  state.detail = { ...state.detail, last_position: fix };
+  await page.route("**/api/map/live?*", (route) =>
+    route.fulfill({
+      json: {
+        vessels: [
+          {
+            ...fix,
+            name: state.detail.name,
+            ship_type: "cargo",
+            is_sanctioned: false,
+            is_stale: true,
+            anomaly_flags: [],
+          },
+        ],
+        total_live: 0,
+        total_in_bbox: 1,
+        recent_in_bbox: 0,
+        last_known_in_bbox: 1,
+        truncated: false,
+        generated_at: new Date().toISOString(),
+        history_started_at: fix.timestamp,
+        source: {
+          connected: true,
+          subscribed: true,
+          last_message_at: new Date().toISOString(),
+          last_disconnect_at: null,
+          status: "live",
+          outages: [],
+        },
+      },
+    }),
+  );
+  await page.goto("/");
+  await expect(page.locator(".vessel-drawer")).toHaveCount(0);
+  await expect(page.locator(".selected-vessel-marker")).toHaveCount(0);
+  if (info.project.name === "telefono") {
+    await page.getByRole("button", { name: "Menu mappa", exact: true }).click();
+    await page.getByRole("button", { name: /^Stato dati/ }).click();
+  }
+  await expect(page.locator(".map-status")).toContainText(
+    "0 recenti · 1 meno recenti nell’area",
+  );
+  if (info.project.name === "telefono")
+    await page.getByRole("button", { name: "Chiudi stato dati" }).click();
+  const canvas = page.locator("canvas.maplibregl-canvas"),
+    box = await canvas.boundingBox();
+  expect(box).not.toBeNull();
+  await expect(async () => {
+    await canvas.click({ position: { x: box!.width / 2, y: box!.height / 2 } });
+    await expect(page.locator(".vessel-drawer h1")).toHaveText("RDO CONCORD", {
+      timeout: 1000,
+    });
+  }).toPass({ timeout: 15000 });
+  await expect(
+    page.getByRole("button", { name: "Mostra traccia", exact: true }),
+  ).toBeVisible();
+  await page.screenshot({ path: info.outputPath("dated-vessel-clicked.png") });
 });

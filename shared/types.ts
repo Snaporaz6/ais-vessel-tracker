@@ -73,6 +73,8 @@ export interface LiveMapVessel {
   is_sanctioned: boolean;
   anomaly_flags: AnomalyType[];
   timestamp: string;
+  /** Last known fix older than the live freshness threshold. */
+  is_stale?: boolean;
   sanction_status?: SanctionsCheck["status"];
 }
 
@@ -155,6 +157,8 @@ export interface LiveMapResponse {
   vessels: LiveMapVessel[];
   total_live: number;
   total_in_bbox: number;
+  recent_in_bbox?: number;
+  last_known_in_bbox?: number;
   truncated: boolean;
   source: SourceState;
   generated_at: string;
