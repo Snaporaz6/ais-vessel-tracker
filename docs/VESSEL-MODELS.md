@@ -1,4 +1,4 @@
-# Modelli nave 3D — 14 ottobre 2026
+# Modelli nave 3D — aggiornamento 16 ottobre 2026
 
 La mappa mostra modelli WebGL leggeri da zoom 13. «Navi 3D» e «Ombre» sono attivi per impostazione predefinita e conservati nel browser; sul telefono si trovano nel menu hamburger. Da lontano, con il livello disattivato o in caso di errore grafico restano le icone esistenti.
 
@@ -17,7 +17,15 @@ Otto geometrie procedurali condivise coprono tutte le categorie dei filtri. Le s
 | Militare      | Grigio        | `military.jpg`, sovrastruttura angolare e radar |                             130 m |
 | Altro         | Grigio chiaro | Scafo generico                                  |                              40 m |
 
-Le dimensioni AIS della scheda selezionata hanno precedenza, quando disponibili e plausibili. Il livello live non contiene queste dimensioni: per le altre navi si usano proporzioni nominali di categoria. Una scala comune mantiene i rapporti tra le lunghezze nella vista e limita l'ingombro della nave più grande; non c'è una dimensione minima che ingrandisca un peschereccio quanto un cargo. Sotto sette pixel restano le icone. Queste sagome sono rappresentazioni di categoria, non ricostruzioni della singola nave o misure affidabili della sua impronta a terra.
+Le dimensioni AIS disponibili hanno precedenza; in loro assenza si usano le dimensioni nominali di categoria. Dal 16 ottobre la scala è volutamente compressa: pesca, rimorchiatori e diporto sono più grandi e leggibili rispetto alla prima versione proporzionale, conservando una differenza rispetto alle grandi navi. Il riferimento cargo varia fra 84 e 144 pixel desktop (68–112 mobile), con rapporto fra le lunghezze elevato a 0,55 e minimo di 30 pixel (26 mobile). La scala non cambia quando entra nella vista una nave più grande. Le sagome non rappresentano l'impronta fisica della nave.
+
+## Orientamento e costa
+
+- Prua AIS valida (`heading`, incluso 0°) prioritaria. La rotta di movimento (`course`) viene usata soltanto con velocità almeno 1 kn. Nessuna prua fissata arbitrariamente a nord: da ferme o con dati non validi, le navi senza prua hanno un simbolo senza orientamento. Anche selezione e aggiornamento della traccia conservano la prua ricevuta.
+- La risposta `/api/map/live` è estesa con `heading`, `length`, `width`, già presenti nei dati in memoria del backend. Campi facoltativi nel contratto, nessuna nuova richiesta per nave, query al database o migrazione; frontend compatibile con risposte precedenti.
+- I poligoni acqua della cartografia già caricata controllano centro e bordo dello scafo. Vicino ai moli si riduce il modello finché rientra nell'acqua; sotto 20 pixel o con punto sulla terra resta il simbolo semplice. Nessuna rotazione automatica verso il molo, nessuno spostamento delle coordinate AIS.
+- Il controllo dipende dai poligoni acqua disponibili e dal loro dettaglio. In assenza della cartografia il vincolo costiero non viene applicato. Non corregge posizioni AIS inesatte né garantisce un allineamento esatto al singolo ormeggio; non sono disponibili gli scostamenti fra antenna e centro dello scafo.
+- Poligoni riutilizzati fra i disegni, lettura dopo movimento/caricamento cartografico e cache dei risultati limitata a 512 elementi. Nessuna nuova sorgente o texture della costa.
 
 ## Materiale e ombre
 
@@ -40,3 +48,5 @@ Illuminazione direzionale stilizzata, fissa rispetto al modello, con ombre delle
 Le otto geometrie hanno 4.136 triangoli, 12.408 vertici e **347.424 byte** complessivi di buffer GPU. L'atlante 512×256 a 16 bit occupa **262.144 byte**. Circa **595 KiB** complessivi per queste due risorse condivise, non per nave. Programmi grafici, driver e MapLibre aggiungono memoria: questo conteggio non è una misura della RAM totale o delle prestazioni su dispositivi fisici.
 
 Typecheck, lint e build frontend riusciti localmente. Anteprima browser del renderer reale con otto posizioni dimostrative, separata dal sito: controllati sagome, colori, proporzioni, ombre e proiezione globo; nessun errore grafico segnalato nella console osservata. Non sono stati aggiunti o eseguiti manualmente nuovi test automatici per questa funzione. Esito della pipeline preesistente e pubblicazione sono riportati in [STATUS.md](STATUS.md).
+
+Il 16 ottobre sono riusciti lint e compilazioni frontend/backend. Verifica visiva locale delle barche ingrandite e di un porto dimostrativo: una nave con prua 90° e rotta 246° mantiene l'allineamento dato dalla prua, una nave ferma senza prua conserva il punto, una sagoma oltre il bordo dell'acqua viene sostituita dal punto. Clic sul modello confermato, senza cambio di camera. Questi scenari non sono dati AIS reali. Il precedente backend pubblico restituisce HTTP 404 «Application not found» e Railway dichiara il servizio fermo: nessun backend è stato ridistribuito; verifica con dati reali e attivazione dei nuovi campi API in attesa dell'ambiente corretto.

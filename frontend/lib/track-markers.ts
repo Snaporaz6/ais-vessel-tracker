@@ -1,6 +1,7 @@
 import { Marker, type Map } from "maplibre-gl";
 import type { VesselPosition } from "../../shared/types";
 import { trackMoment } from "./track-playback";
+import { vesselHeading } from "./vessel-model-display";
 
 /** Distinct vessel cursor and a square reference to the latest received fix. */
 export function createTrackMarkers(
@@ -32,8 +33,9 @@ export function createTrackMarkers(
   let cursorAdded = false,
     latestAdded = false;
   const rotate = () => {
-    const heading = position?.heading ?? position?.course ?? 0;
-    arrow.style.transform = `rotate(${heading - map.getBearing()}deg)`;
+    const heading = position ? vesselHeading(position) : null;
+    element.dataset.orientationUnknown = String(heading === null);
+    arrow.style.transform = `rotate(${(heading ?? 0) - map.getBearing()}deg)`;
   };
   map.on("rotate", rotate);
   return {
