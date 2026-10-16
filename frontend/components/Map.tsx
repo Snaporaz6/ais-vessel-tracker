@@ -67,6 +67,10 @@ export default function VesselMap({
   const [modelsEnabled, setModelsEnabled] = useState(true),
     [modelShadows, setModelShadows] = useState(true),
     [modelsHydrated, setModelsHydrated] = useState(false);
+  const modelLabels = useRef({ t, date });
+  useEffect(() => {
+    modelLabels.current = { t, date };
+  }, [t, date]);
   const modelLayer = useRef<ReturnType<typeof createVesselModelLayer> | null>(
     null,
   );
@@ -724,7 +728,18 @@ export default function VesselMap({
             },
             (v) => {
               if (v) {
-                tooltip.setText(v.name).setLngLat([v.lon, v.lat]).addTo(m);
+                const { t, date } = modelLabels.current;
+                const text = [v.name];
+                if (v.estimated) text.push(t("Orientamento stimato"));
+                if (v.displaced) text.push(t("Sagoma affiancata"));
+                if (Date.now() - Date.parse(v.timestamp) > LIVE_TTL_MS)
+                  text.push(
+                    `${t("Ultima posizione AIS")} · ${date(v.timestamp)}`,
+                  );
+                tooltip
+                  .setText(text.join(" · "))
+                  .setLngLat([v.displayLon, v.displayLat])
+                  .addTo(m);
                 m.getCanvas().style.cursor = "pointer";
               } else {
                 tooltip.remove();
