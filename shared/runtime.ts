@@ -20,6 +20,7 @@ export function runtimeConfig({
       .default(SPOOL_LIMIT_BYTES),
     CORS_ORIGINS: z.string().default("http://localhost:3000"),
     METADATA_COMPACTION: z.enum(["true", "false"]).default("false"),
+    ARCHIVE_CLEANUP_ENABLED: z.enum(["true", "false"]).default("true"),
     DEPLOYMENT_VERSION: z
       .string()
       .max(80)

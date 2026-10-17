@@ -5,6 +5,56 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { runDailyPhases } from "../server/daily-phases.js";
 import { diagnosticCode } from "../shared/diagnostics.js";
+import { ArchiveCleanup } from "../storage/archive-cleanup.js";
+import { MemoryRepository } from "../storage/repository.js";
+import { FileObjectStore } from "../storage/object-store.js";
+import { readJSON } from "../storage/durable.js";
+
+test("paused cleanup never deletes objects or records completion, and resume keeps the verified backup", async () => {
+  const root = mkdtempSync(join(tmpdir(), "ais-cleanup-pause-")),
+    repo = new MemoryRepository(),
+    objects = new FileObjectStore(join(root, "objects")),
+    now = Date.now() + 2 * 86400000;
+  await objects.put(
+    "tracks/old-unreferenced",
+    Buffer.from("keep while paused"),
+  );
+  let enabled = false,
+    backups = 0;
+  const phases = [
+    {
+      name: "backup",
+      run: async () => {
+        backups++;
+      },
+    },
+    {
+      name: "cleanup",
+      run: () => new ArchiveCleanup(root, repo, objects, enabled).run(now),
+    },
+  ];
+  await assert.rejects(runDailyPhases(root, phases, now), /CLEANUP_PAUSED/);
+  assert.equal(diagnosticCode(new Error("CLEANUP_PAUSED")), "CLEANUP_PAUSED");
+  assert.equal(
+    (await objects.get("tracks/old-unreferenced")).toString(),
+    "keep while paused",
+  );
+  assert.deepEqual(
+    readJSON<{ completed: string[] }>(join(root, "daily-phases.json"), {
+      completed: [],
+    }).completed,
+    ["backup"],
+  );
+  enabled = true;
+  await runDailyPhases(root, phases, now);
+  assert.equal(backups, 1);
+  assert.deepEqual(
+    readJSON<{ completed: string[] }>(join(root, "daily-phases.json"), {
+      completed: [],
+    }).completed,
+    ["backup", "cleanup"],
+  );
+});
 test("a cleanup retry and process restart preserve the verified daily backup phase", async () => {
   const root = mkdtempSync(join(tmpdir(), "ais-phases-")),
     now = Date.parse("2026-10-13T06:00:00Z");

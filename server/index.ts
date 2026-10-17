@@ -51,6 +51,7 @@ export async function startServer() {
         archive_flushed_at: c.tracks.lastFlush,
         archive_error: c.tracks.lastError,
         maintenance_errors: daily?.status().retry_after ?? {},
+        archive_cleanup_enabled: c.config.ARCHIVE_CLEANUP_ENABLED !== "false",
         sanctions_sources: c.sanctions.check("000000000").check.sources,
         source: c.ingestor.source,
         ...storage,
@@ -172,6 +173,7 @@ export async function startServer() {
                   c.config.storageDir,
                   c.repo,
                   c.objects,
+                  c.config.ARCHIVE_CLEANUP_ENABLED !== "false",
                 ).run();
                 console.info(
                   JSON.stringify({ event: "archive_cleanup", ...result }),
