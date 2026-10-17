@@ -134,18 +134,37 @@ export class ArchiveCleanup {
         }
         let consumed = 0;
         const eligible: { key: string; modified: string }[] = [];
-        while (consumed < state.pending.length && eligible.length < 8) {
+        const batchLimit = this.objects.deleteMany ? 1000 : 8;
+        while (
+          consumed < state.pending.length &&
+          eligible.length < batchLimit
+        ) {
           const o = state.pending[consumed++];
           if (!refs.has(o.key) && now - Date.parse(o.modified) > 24 * 3600000)
             eligible.push(o);
         }
-        const results = await Promise.allSettled(
-          eligible.map((o) =>
-            this.objects.delete(o.key, Math.max(1, deadline - Date.now())),
-          ),
-        );
-        const failed = results.find((r) => r.status === "rejected");
-        if (failed?.status === "rejected") {
+        try {
+          if (eligible.length)
+            await measuredPhase("cleanup_delete", async () => {
+              if (this.objects.deleteMany)
+                await this.objects.deleteMany(
+                  eligible.map((o) => o.key),
+                  Math.max(1, deadline - Date.now()),
+                );
+              else {
+                const results = await Promise.allSettled(
+                  eligible.map((o) =>
+                    this.objects.delete(
+                      o.key,
+                      Math.max(1, deadline - Date.now()),
+                    ),
+                  ),
+                );
+                const failed = results.find((r) => r.status === "rejected");
+                if (failed?.status === "rejected") throw failed.reason;
+              }
+            });
+        } catch (error) {
           save();
           if (Date.now() >= deadline)
             return {
@@ -154,11 +173,21 @@ export class ArchiveCleanup {
               pages,
               duration_ms: Date.now() - started,
             };
-          throw failed.reason;
+          throw error;
         }
         deleted += eligible.length;
         state.pending.splice(0, consumed);
         save();
+        if (!state.pending.length)
+          console.info(
+            JSON.stringify({
+              event: "cleanup_progress",
+              deleted,
+              pages,
+              pending_in_page: state.pending.length,
+              duration_ms: Date.now() - started,
+            }),
+          );
       }
       if (!state.next) {
         state.complete = true;

@@ -3,6 +3,7 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   HeadBucketCommand,
   ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
@@ -28,6 +29,7 @@ export interface ObjectStore {
   put(key: string, data: Buffer): Promise<void>;
   get(key: string): Promise<Buffer>;
   delete(key: string, timeoutMs?: number): Promise<void>;
+  deleteMany?(keys: string[], timeoutMs?: number): Promise<void>;
   health(): Promise<void>;
   list(prefix: string): AsyncIterable<{ key: string; modified: Date }>;
 }
@@ -94,6 +96,35 @@ export class BucketStore implements ObjectStore {
         ),
       },
     );
+  }
+  async deleteMany(keys: string[], timeoutMs = 30000) {
+    if (
+      !keys.length ||
+      keys.length > 1000 ||
+      new Set(keys).size !== keys.length
+    )
+      throw new Error("ARCHIVE_DELETE_INVALID_BATCH");
+    const response = await this.client.send(
+      new DeleteObjectsCommand({
+        Bucket: this.bucket,
+        Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: false },
+      }),
+      {
+        abortSignal: AbortSignal.timeout(
+          Math.max(1, Math.min(30000, timeoutMs)),
+        ),
+      },
+    );
+    // S3 can return HTTP 200 while individual deletions fail. Missing explicit
+    // confirmations also leave the whole checkpoint batch available for retry.
+    const confirmed = new Set(response.Deleted?.map((item) => item.Key));
+    if (
+      response.Errors?.length ||
+      response.Deleted?.length !== keys.length ||
+      confirmed.size !== keys.length ||
+      keys.some((key) => !confirmed.has(key))
+    )
+      throw new Error("ARCHIVE_DELETE_UNCONFIRMED");
   }
   async health() {
     await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }), {
