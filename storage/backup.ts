@@ -13,6 +13,7 @@ import { CompactRepository } from "./compact-repository.js";
 import { atomicWrite, readJSON } from "./durable.js";
 import { canonicalTimestamp } from "../shared/timestamps.js";
 import { collectBackupReferences } from "./backup-references.js";
+import type { ReferenceIndex } from "./reference-index.js";
 import {
   decodeGroup,
   rowKey,
@@ -326,7 +327,7 @@ export async function retainedBackupReferences(
   objects: ObjectStore,
   now = Date.now(),
   checkDeadline: () => void = () => {},
-  refs = new Set<string>(),
+  refs: ReferenceIndex = new Set<string>(),
 ) {
   for await (const obj of objects.list("backups/")) {
     checkDeadline();

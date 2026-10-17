@@ -18,6 +18,8 @@ interface Sample {
   version?: string;
   oldest_pending_write_age_ms?: number;
   uptime_seconds?: number;
+  process_instance_id?: string;
+  archive_cleanup_enabled?: boolean;
   cpu_seconds?: number;
   rss_bytes?: number;
   persistent_bytes?: number;
@@ -50,13 +52,30 @@ export function summarize(
       ? Math.floor(now / 60_000) - Math.floor(firstAt / 60_000) + 1
       : 0,
     fresh = !!last && now - lastAt <= 2 * 60_000;
-  const resets = ordered.filter(
-    (s, i) =>
-      i > 0 &&
-      s.uptime_seconds !== undefined &&
-      ordered[i - 1].uptime_seconds !== undefined &&
-      s.uptime_seconds < ordered[i - 1].uptime_seconds!,
-  ).length;
+  let resets = 0,
+    previousInstance: string | undefined,
+    previousUptime: number | undefined;
+  for (const sample of ordered) {
+    if (sample.process_instance_id) {
+      if (previousInstance && previousInstance !== sample.process_instance_id)
+        resets++;
+      else if (
+        !previousInstance &&
+        sample.uptime_seconds !== undefined &&
+        previousUptime !== undefined &&
+        sample.uptime_seconds < previousUptime
+      )
+        resets++;
+      previousInstance = sample.process_instance_id;
+    } else if (
+      sample.uptime_seconds !== undefined &&
+      previousUptime !== undefined &&
+      sample.uptime_seconds < previousUptime
+    )
+      resets++;
+    if (sample.uptime_seconds !== undefined)
+      previousUptime = sample.uptime_seconds;
+  }
   const outage = ordered.filter((s) => !s.ready).length,
     missing = Math.max(0, expected - minutes.size),
     days = Math.max(elapsed / 86400_000, 1 / 1440);
@@ -84,6 +103,7 @@ export function summarize(
       );
   const maintenanceHealthy = (s: Sample) =>
     s.maintenance_errors !== undefined &&
+    s.archive_cleanup_enabled !== false &&
     Object.keys(s.maintenance_errors).length === 0 &&
     !s.archive_error &&
     ["OFAC", "EU"].every((source) =>
@@ -245,6 +265,8 @@ async function main() {
         ready_checks: sample.ready_checks,
         request_errors: sample.request_errors,
         version: sample.version,
+        process_instance_id: sample.process_instance_id,
+        archive_cleanup_enabled: sample.archive_cleanup_enabled,
         oldest_pending_write_age_ms: sample.oldest_pending_write_age_ms,
         samples: summary.samples,
         missing_samples: summary.missing_samples,

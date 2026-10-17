@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { runDailyPhases } from "../server/daily-phases.js";
@@ -9,6 +9,36 @@ import { ArchiveCleanup } from "../storage/archive-cleanup.js";
 import { MemoryRepository } from "../storage/repository.js";
 import { FileObjectStore } from "../storage/object-store.js";
 import { readJSON } from "../storage/durable.js";
+
+test("reordering cleanup preserves completed phases from an existing daily checkpoint", async () => {
+  const root = mkdtempSync(join(tmpdir(), "ais-phase-order-")),
+    now = Date.parse("2026-10-17T16:00:00Z");
+  writeFileSync(
+    join(root, "daily-phases.json"),
+    JSON.stringify({
+      day: "2026-10-17",
+      completed: ["flush", "backup", "track_compaction", "metadata_compaction"],
+    }),
+  );
+  const executed: string[] = [];
+  await runDailyPhases(
+    root,
+    [
+      "flush",
+      "backup",
+      "cleanup",
+      "track_compaction",
+      "metadata_compaction",
+    ].map((name) => ({
+      name,
+      run: async () => {
+        executed.push(name);
+      },
+    })),
+    now,
+  );
+  assert.deepEqual(executed, ["cleanup"]);
+});
 
 test("paused cleanup never deletes objects or records completion, and resume keeps the verified backup", async () => {
   const root = mkdtempSync(join(tmpdir(), "ais-cleanup-pause-")),
