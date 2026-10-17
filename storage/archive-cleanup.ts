@@ -18,6 +18,7 @@ export class ArchiveCleanup {
     root: string,
     readonly repo: Repository,
     readonly objects: ObjectStore,
+    readonly enabled = true,
   ) {
     this.path = join(root, "archive-cleanup-checkpoint.json");
   }
@@ -33,6 +34,7 @@ export class ArchiveCleanup {
     };
   }
   async run(now = Date.now(), maxMs = 20 * 60000) {
+    if (!this.enabled) throw new Error("CLEANUP_PAUSED");
     const started = Date.now(),
       deadline = started + maxMs;
     let state = readJSON<State>(this.path, { version: 1, complete: false });
