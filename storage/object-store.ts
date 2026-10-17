@@ -104,6 +104,18 @@ export class BucketStore implements ObjectStore {
       new Set(keys).size !== keys.length
     )
       throw new Error("ARCHIVE_DELETE_INVALID_BATCH");
+    // At most eight requests, with small responses and explicit confirmations.
+    // Drain every request before allowing a checkpoint retry after any failure.
+    const requests: Promise<void>[] = [];
+    for (let start = 0; start < keys.length; start += 128)
+      requests.push(
+        this.confirmDeleteGroup(keys.slice(start, start + 128), timeoutMs),
+      );
+    const results = await Promise.allSettled(requests);
+    const failed = results.find((result) => result.status === "rejected");
+    if (failed?.status === "rejected") throw failed.reason;
+  }
+  private async confirmDeleteGroup(keys: string[], timeoutMs: number) {
     const response = await this.client.send(
       new DeleteObjectsCommand({
         Bucket: this.bucket,
