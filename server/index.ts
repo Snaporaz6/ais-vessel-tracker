@@ -1,4 +1,4 @@
-import { ArchiveCleanup } from "../storage/archive-cleanup.js";
+import { runCleanupWorker } from "./cleanup-worker.js";
 import { CompactRepository } from "../storage/compact-repository.js";
 import { runDailyPhases } from "./daily-phases.js";
 import cron, { type ScheduledTask } from "node-cron";
@@ -7,7 +7,7 @@ import { createContext } from "./context.js";
 import { AISClient } from "../ingestor/ws-client.js";
 import { backup } from "../storage/backup.js";
 import { syncSanctions } from "../scripts/sync-sanctions.js";
-import { timingSafeEqual } from "node:crypto";
+import { timingSafeEqual, randomUUID } from "node:crypto";
 import { DailyMaintenance } from "./maintenance.js";
 import { BackgroundJobs } from "./jobs.js";
 import { measuredPhase } from "../shared/diagnostics.js";
@@ -20,6 +20,7 @@ export async function startServer() {
     schedules: ScheduledTask[] = [];
   const jobs = new BackgroundJobs();
   let daily: DailyMaintenance | undefined;
+  const processInstance = randomUUID();
   const job = jobs.run.bind(jobs);
   app.get("/admin/metrics", async (req, res) => {
     const actual = Buffer.from(req.headers.authorization ?? ""),
@@ -41,6 +42,7 @@ export async function startServer() {
             ? 0
             : Date.now() - c.outbox.oldestPendingAt,
         uptime_seconds: (Date.now() - started) / 1000,
+        process_instance_id: processInstance,
         cpu_seconds: (cpu.user + cpu.system) / 1e6,
         rss_bytes: process.memoryUsage().rss,
         persistent_bytes: c.budget.bytes,
@@ -136,7 +138,7 @@ export async function startServer() {
         hour: 3,
         minute: 30,
         action: async () => {
-          await runDailyPhases(c.config.storageDir, [
+          const phases = [
             {
               name: "flush",
               run: async () => {
@@ -169,19 +171,20 @@ export async function startServer() {
             {
               name: "cleanup",
               run: async () => {
-                const result = await new ArchiveCleanup(
-                  c.config.storageDir,
-                  c.repo,
-                  c.objects,
-                  c.config.ARCHIVE_CLEANUP_ENABLED !== "false",
-                ).run();
+                const result = await runCleanupWorker(c.config);
                 console.info(
                   JSON.stringify({ event: "archive_cleanup", ...result }),
                 );
                 if (!result.complete) throw new Error("CLEANUP_PENDING");
               },
             },
-          ]);
+          ];
+          if (c.config.ARCHIVE_CLEANUP_ENABLED !== "false") {
+            // New objects are protected for 24h. Sweeping before compaction is
+            // safe and avoids waiting behind its potentially long backlog.
+            phases.splice(2, 0, phases.pop()!);
+          }
+          await runDailyPhases(c.config.storageDir, phases);
         },
       },
     ]);

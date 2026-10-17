@@ -1,6 +1,51 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { summarize } from "../scripts/monitor-beta.js";
+test("restarts remain visible across failed metrics and changed process identities", () => {
+  const now = Date.now();
+  const rows = [
+    {
+      at: new Date(now - 120000).toISOString(),
+      ready: true,
+      uptime_seconds: 1000,
+      process_instance_id: "before",
+    },
+    { at: new Date(now - 60000).toISOString(), ready: false },
+    {
+      at: new Date(now).toISOString(),
+      ready: true,
+      uptime_seconds: 1500,
+      process_instance_id: "after",
+    },
+  ];
+  assert.equal(summarize(rows, null, now).restarts_observed, 1);
+  const legacy = rows.map(({ process_instance_id, ...row }, i) => ({
+    ...row,
+    ...(i === 2 ? { uptime_seconds: 10 } : {}),
+  }));
+  assert.equal(summarize(legacy, null, now).restarts_observed, 1);
+});
+
+test("paused cleanup cannot qualify maintenance as healthy", () => {
+  const now = Date.now();
+  const r = summarize(
+    [
+      {
+        at: new Date(now).toISOString(),
+        ready: true,
+        archive_cleanup_enabled: false,
+        maintenance_errors: {},
+        sanctions_sources: [
+          { source: "OFAC", status: "ok" },
+          { source: "EU", status: "ok" },
+        ],
+      },
+    ],
+    null,
+    now,
+  );
+  assert.equal(r.maintenance_currently_healthy, false);
+});
 test("release gate requires seven observed days, affordable verified cost, database capacity and no gaps/restarts", () => {
   const start = Date.now() - 7 * 86400_000;
   const samples = Array.from({ length: 10081 }, (_, i) => ({

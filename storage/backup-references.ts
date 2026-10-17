@@ -4,12 +4,13 @@ import { createGunzip } from "node:zlib";
 import { TABLES } from "./repository.js";
 import { checksum } from "./object-store.js";
 import { decodeGroup, type MetadataGroup } from "./metadata-groups.js";
+import type { ReferenceIndex } from "./reference-index.js";
 
 /** Read a verified backup without retaining its expanded snapshot in the API process. */
 export async function collectBackupReferences(
   data: Buffer,
   expected: string,
-  refs: Set<string>,
+  refs: Pick<ReferenceIndex, "add">,
   checkDeadline: () => void = () => {},
 ) {
   if (checksum(data) !== expected) throw new Error("BACKUP_CHECKSUM_MISMATCH");

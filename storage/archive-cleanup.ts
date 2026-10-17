@@ -5,6 +5,7 @@ import { retainedBackupReferences } from "./backup.js";
 import { readJSON, atomicWrite } from "./durable.js";
 import { measuredPhase } from "../shared/diagnostics.js";
 import { CompactRepository } from "./compact-repository.js";
+import type { ReferenceIndex } from "./reference-index.js";
 interface State {
   version: 1;
   token?: string;
@@ -19,6 +20,7 @@ export class ArchiveCleanup {
     readonly repo: Repository,
     readonly objects: ObjectStore,
     readonly enabled = true,
+    readonly referenceIndex: () => ReferenceIndex = () => new Set<string>(),
   ) {
     this.path = join(root, "archive-cleanup-checkpoint.json");
   }
@@ -35,6 +37,18 @@ export class ArchiveCleanup {
   }
   async run(now = Date.now(), maxMs = 20 * 60000) {
     if (!this.enabled) throw new Error("CLEANUP_PAUSED");
+    const refs = this.referenceIndex();
+    try {
+      return await this.runWithReferences(now, maxMs, refs);
+    } finally {
+      refs.close?.();
+    }
+  }
+  private async runWithReferences(
+    now: number,
+    maxMs: number,
+    index: ReferenceIndex,
+  ) {
     const started = Date.now(),
       deadline = started + maxMs;
     let state = readJSON<State>(this.path, { version: 1, complete: false });
@@ -55,21 +69,42 @@ export class ArchiveCleanup {
     )
       throw new Error("CLEANUP_CHECKPOINT_INVALID");
     if (state.complete) state = { version: 1, complete: false };
+    const expiredBackups: string[] = [];
     const refs = await measuredPhase("cleanup_references", async () => {
       const checkDeadline = () => {
         if (Date.now() >= deadline) throw new Error("CLEANUP_PENDING");
       };
       const refs =
         this.repo instanceof CompactRepository
-          ? await this.repo.archiveReferences(checkDeadline)
-          : new Set<string>();
+          ? await this.repo.archiveReferences(checkDeadline, index)
+          : index;
       if (!(this.repo instanceof CompactRepository))
         for await (const row of this.repo.iterateArchives()) {
           checkDeadline();
           refs.add(row.object_key);
         }
-      await retainedBackupReferences(this.objects, now, checkDeadline, refs);
+      await retainedBackupReferences(
+        this.objects,
+        now,
+        checkDeadline,
+        refs,
+        (key) => expiredBackups.push(key),
+      );
+      refs.seal?.();
+      console.info(
+        JSON.stringify({
+          event: "cleanup_references_ready",
+          references: refs.size,
+          rss_bytes: process.memoryUsage().rss,
+        }),
+      );
       return refs;
+    });
+    await measuredPhase("cleanup_backup_expiry", async () => {
+      for (const key of expiredBackups) {
+        if (Date.now() >= deadline) throw new Error("CLEANUP_PENDING");
+        await this.objects.delete(key, deadline - Date.now());
+      }
     });
     let deleted = 0,
       pages = 0;

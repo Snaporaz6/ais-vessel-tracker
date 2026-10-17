@@ -18,6 +18,7 @@ import {
 } from "./metadata-groups.js";
 import { checkedDatabase as checked } from "../shared/database-errors.js";
 import { canonicalTimestamp } from "../shared/timestamps.js";
+import type { ReferenceIndex } from "./reference-index.js";
 const RESTORE_HEADER =
   "kind,mmsi,month,version,checksum,row_count,archive_bytes,archive_sizes,first_at,last_at,max_arrived_at,min_lat,max_lat,min_lon,max_lon";
 const groupIdentity = (g: Pick<MetadataGroup, "kind" | "mmsi" | "month">) =>
@@ -174,9 +175,11 @@ export class CompactRepository extends PostgresRepository {
     await flush();
     await this.verifyPackedRestore(groups, "complete");
   }
-  async archiveReferences(checkDeadline: () => void) {
+  async archiveReferences(
+    checkDeadline: () => void,
+    refs: ReferenceIndex = new Set<string>(),
+  ) {
     return this.consistentRead(async () => {
-      const refs = new Set<string>();
       for await (const entry of this.iterateArchives()) {
         checkDeadline();
         refs.add(entry.object_key);

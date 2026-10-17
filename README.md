@@ -6,7 +6,7 @@ Mappa pubblica senza account, ricerca MMSI/IMO/nome, schede nave, tracce fino a 
 
 ## Avvio riproducibile
 
-Richiesto Node.js 22 o successivo (consigliato 24 LTS). Installare entrambi i lockfile:
+Richiesto Node.js 24 LTS o successivo; la pulizia usa il modulo SQLite incluso nel runtime. Installare entrambi i lockfile:
 
 ```sh
 npm ci
