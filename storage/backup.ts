@@ -328,11 +328,13 @@ export async function retainedBackupReferences(
   now = Date.now(),
   checkDeadline: () => void = () => {},
   refs: ReferenceIndex = new Set<string>(),
+  deferExpired?: (key: string) => void,
 ) {
   for await (const obj of objects.list("backups/")) {
     checkDeadline();
     if (now - obj.modified.getTime() > 7 * 86400_000) {
-      await objects.delete(obj.key);
+      if (deferExpired) deferExpired(obj.key);
+      else await objects.delete(obj.key);
       continue;
     }
     await collectBackupReferences(

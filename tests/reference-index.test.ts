@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, utimesSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
@@ -8,6 +8,34 @@ import { DiskReferenceIndex } from "../storage/reference-index.js";
 import { FileObjectStore, checksum } from "../storage/object-store.js";
 import { MemoryRepository, TABLES } from "../storage/repository.js";
 import { ArchiveCleanup } from "../storage/archive-cleanup.js";
+
+test("a corrupt recent backup also prevents deletion of expired backups", async (t) => {
+  const root = mkdtempSync(join(tmpdir(), "ais-backup-defer-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const repo = new MemoryRepository(),
+    objects = new FileObjectStore(join(root, "objects"));
+  await objects.put("backups/expired.gz", Buffer.from("old backup"));
+  const past = new Date(Date.now() - 10 * 86400000);
+  utimesSync(join(root, "objects", "backups", "expired.gz"), past, past);
+  await objects.put(
+    `backups/recent-${"0".repeat(64)}.json.gz`,
+    Buffer.from("corrupt"),
+  );
+  await assert.rejects(
+    new ArchiveCleanup(
+      root,
+      repo,
+      objects,
+      true,
+      () => new DiskReferenceIndex(join(root, "refs")),
+    ).run(),
+    /BACKUP_CHECKSUM_MISMATCH/,
+  );
+  assert.equal(
+    (await objects.get("backups/expired.gz")).toString(),
+    "old backup",
+  );
+});
 
 test("disk references match exact Set membership, duplicates and unusual keys", () => {
   const root = mkdtempSync(join(tmpdir(), "ais-index-"));

@@ -69,6 +69,7 @@ export class ArchiveCleanup {
     )
       throw new Error("CLEANUP_CHECKPOINT_INVALID");
     if (state.complete) state = { version: 1, complete: false };
+    const expiredBackups: string[] = [];
     const refs = await measuredPhase("cleanup_references", async () => {
       const checkDeadline = () => {
         if (Date.now() >= deadline) throw new Error("CLEANUP_PENDING");
@@ -82,7 +83,13 @@ export class ArchiveCleanup {
           checkDeadline();
           refs.add(row.object_key);
         }
-      await retainedBackupReferences(this.objects, now, checkDeadline, refs);
+      await retainedBackupReferences(
+        this.objects,
+        now,
+        checkDeadline,
+        refs,
+        (key) => expiredBackups.push(key),
+      );
       refs.seal?.();
       console.info(
         JSON.stringify({
@@ -92,6 +99,12 @@ export class ArchiveCleanup {
         }),
       );
       return refs;
+    });
+    await measuredPhase("cleanup_backup_expiry", async () => {
+      for (const key of expiredBackups) {
+        if (Date.now() >= deadline) throw new Error("CLEANUP_PENDING");
+        await this.objects.delete(key, deadline - Date.now());
+      }
     });
     let deleted = 0,
       pages = 0;
